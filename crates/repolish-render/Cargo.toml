@@ -8,3 +8,5 @@ license.workspace = true
 [dependencies]
 repolish-core.workspace = true
 owo-colors.workspace = true
+serde.workspace = true
+serde_json.workspace = true

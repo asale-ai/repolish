@@ -1,0 +1,104 @@
+# 发布多平台二进制。
+#
+# 本来打算用 cargo-dist（docs/03-技术架构.md 的选型），改为手写的原因见
+# docs/06-路线图.md：产物命名要与 action.yml 里的下载 URL 逐字对齐，
+# 手写这一份让两边在同一个仓库里可以对照检查。
+#
+# 归档命名是**契约**：action.yml 按 repolish-v{version}-{target}.{ext} 拼 URL。
+# 改这里就必须同步改那里，否则所有引用了旧版本的 workflow 会在下载步骤挂掉。
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要发布的 tag
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  ext: tar.gz }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, ext: tar.gz }
+          - { os: macos-13,         target: x86_64-apple-darwin,       ext: tar.gz }
+          - { os: macos-latest,     target: aarch64-apple-darwin,      ext: tar.gz }
+          - { os: windows-latest,   target: x86_64-pc-windows-msvc,    ext: zip }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} -p repolish
+
+      - name: Package
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          EXT: ${{ matrix.ext }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          name="repolish-${tag}-${TARGET}"
+          mkdir -p "dist/${name}"
+
+          if [ "$EXT" = "zip" ]; then
+            cp "target/${TARGET}/release/repolish.exe" "dist/${name}/"
+          else
+            cp "target/${TARGET}/release/repolish" "dist/${name}/"
+          fi
+          cp README.md LICENSE-MIT LICENSE-APACHE "dist/${name}/"
+
+          cd dist
+          if [ "$EXT" = "zip" ]; then
+            7z a -tzip "${name}.zip" "${name}" >/dev/null
+          else
+            tar -czf "${name}.tar.gz" "${name}"
+          fi
+          # 校验和让使用者能验证下载物，也方便包管理器接入
+          shasum -a 256 "${name}.${EXT}" > "${name}.${EXT}.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          gh release create "$tag" \
+            --title "$tag" \
+            --generate-notes \
+            dist/*

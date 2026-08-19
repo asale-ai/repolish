@@ -1,0 +1,145 @@
+# 必须放在仓库根目录：`uses: owner/repo@ref` 只认根目录的 action.yml。
+# 放进 action/ 子目录的话，引用要写成 owner/repo/action@ref，
+# 与 docs/04-CLI设计.md 里给用户的模板对不上。用法示例在 action/README.md。
+name: repolish
+description: 诊断开源仓库的可发现性、可理解性与可信度，并产出徽章
+author: repolish contributors
+
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  version:
+    description: 要下载的 repolish 版本（不带 v 前缀）
+    required: false
+    default: 0.1.0
+  path:
+    description: 仓库路径
+    required: false
+    default: "."
+  remote:
+    description: >
+      是否补充 GitHub 元数据。默认开启——Action 里 GITHUB_TOKEN 免费可得，
+      而本地分会把 description / topics / homepage 剔出分母，基准更窄。
+    required: false
+    default: "true"
+  min-score:
+    description: 低于该分数时这一步失败。留空则只记录不拦截。
+    required: false
+    default: ""
+  badge:
+    description: 写出 .repolish/badge.json
+    required: false
+    default: "true"
+  report:
+    description: 写出 REPOLISH.md
+    required: false
+    default: "false"
+  summary:
+    description: 把报告追加到 job summary
+    required: false
+    default: "true"
+  args:
+    description: 原始参数，给出则完全覆盖上面所有开关
+    required: false
+    default: ""
+
+outputs:
+  score:
+    description: 总分（0-100）；覆盖不足时为空
+    value: ${{ steps.run.outputs.score }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install repolish
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        case "$RUNNER_OS-$RUNNER_ARCH" in
+          Linux-X64)    target=x86_64-unknown-linux-gnu;  ext=tar.gz ;;
+          Linux-ARM64)  target=aarch64-unknown-linux-gnu; ext=tar.gz ;;
+          macOS-X64)    target=x86_64-apple-darwin;       ext=tar.gz ;;
+          macOS-ARM64)  target=aarch64-apple-darwin;      ext=tar.gz ;;
+          Windows-X64)  target=x86_64-pc-windows-msvc;    ext=zip ;;
+          *)
+            echo "::error::不支持的运行环境: $RUNNER_OS-$RUNNER_ARCH"
+            exit 1 ;;
+        esac
+
+        asset="repolish-v${VERSION}-${target}.${ext}"
+        url="https://github.com/asale-ai/repolish/releases/download/v${VERSION}/${asset}"
+        dir="${RUNNER_TEMP}/repolish"
+        mkdir -p "$dir"
+
+        echo "下载 $url"
+        curl -fsSL --retry 3 -o "${dir}/${asset}" "$url"
+
+        if [ "$ext" = "zip" ]; then
+          unzip -q -o "${dir}/${asset}" -d "$dir"
+        else
+          tar -xzf "${dir}/${asset}" -C "$dir"
+        fi
+
+        # 归档里带一层以 target 命名的目录
+        bin_dir="${dir}/repolish-v${VERSION}-${target}"
+        [ -d "$bin_dir" ] || bin_dir="$dir"
+        echo "$bin_dir" >> "$GITHUB_PATH"
+
+    - name: Run repolish
+      id: run
+      shell: bash
+      env:
+        IN_PATH: ${{ inputs.path }}
+        IN_REMOTE: ${{ inputs.remote }}
+        IN_MIN_SCORE: ${{ inputs['min-score'] }}
+        IN_BADGE: ${{ inputs.badge }}
+        IN_REPORT: ${{ inputs.report }}
+        IN_SUMMARY: ${{ inputs.summary }}
+        IN_ARGS: ${{ inputs.args }}
+      run: |
+        set -uo pipefail
+
+        # 只跑一次。分开跑不只是多打几次 GitHub API，更要命的是
+        # 几份产物可能来自不同次的评分结果。
+        # summary 需要 markdown，所以顺带让这一次也写出 REPOLISH.md。
+        want_md=false
+        if [ "$IN_SUMMARY" = "true" ] || [ "$IN_REPORT" = "true" ]; then
+          want_md=true
+        fi
+
+        json="${RUNNER_TEMP}/repolish.json"
+        if [ -n "$IN_ARGS" ]; then
+          # shellcheck disable=SC2086
+          set -- $IN_ARGS
+        else
+          set -- check "$IN_PATH" --no-color --format json
+          [ "$IN_REMOTE" = "true" ] && set -- "$@" --remote
+          [ "$IN_BADGE" = "true" ] && set -- "$@" --badge
+          [ "$want_md" = "true" ] && set -- "$@" --report
+          [ -n "$IN_MIN_SCORE" ] && set -- "$@" --min-score "$IN_MIN_SCORE"
+        fi
+
+        repolish "$@" | tee "$json"
+        code=${PIPESTATUS[0]}
+
+        # 顶层 score 是 JSON 里第一个 "score" 键；覆盖不足时它是 null，
+        # 取出来就是空串，正合适。
+        score="$(grep -m1 '"score":' "$json" 2>/dev/null | tr -dc '0-9' || true)"
+        echo "score=${score}" >> "$GITHUB_OUTPUT"
+
+        if [ "$IN_SUMMARY" = "true" ] && [ -f "${IN_PATH}/REPOLISH.md" ]; then
+          cat "${IN_PATH}/REPOLISH.md" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        # 只是为了 summary 才生成的，别留在工作区里被顺手提交
+        if [ "$IN_REPORT" != "true" ]; then
+          rm -f "${IN_PATH}/REPOLISH.md"
+        fi
+
+        # 退出码要原样传出去：1 表示分数不达标，4 表示远程调用失败，
+        # 两者在 CI 里意味着完全不同的事。
+        exit $code

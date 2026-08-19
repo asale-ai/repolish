@@ -162,7 +162,11 @@ provider = "anthropic"     # 也可用环境变量
 
 ## GitHub Action
 
-`action/` 下提供 composite action：下载对应平台二进制并执行（比 Docker action 快一个数量级）。
+composite action 定义在**仓库根目录的 `action.yml`**（`uses: owner/repo@ref` 只认根目录），
+`action/` 下放用法示例。它下载对应平台的二进制并执行，比 Docker action 快一个数量级。
+
+为省掉重复的 API 调用，action 只跑一次 `check`，用 `--badge --report` 让同一次运行
+写出全部产物——分开跑意味着几份产物可能来自不同次的评分。
 
 `repolish init` 生成的 workflow 模板（草案）：
 
@@ -181,9 +185,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: OWNER_OF_REPOLISH/repolish@v1
         with:
-          args: check . --remote --badge --min-score 60
+          # 默认的 fetch-depth 1 一个 tag 都拉不到，release-hygiene 会因此失效
+          fetch-depth: 0
+
+      # remote 与 badge 默认开启；args 作为逃生舱可覆盖全部开关
+      - uses: asale-ai/repolish@v0.1.0
+        with:
+          min-score: 60
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Commit badge
@@ -195,7 +204,9 @@ jobs:
           git push
 ```
 
-模板默认带 `--remote`，确保产出的是完整分而非本地分。
+模板有两个默认值不能改：`fetch-depth: 0`（否则 `release-hygiene` 在 CI 里永远
+判不了）与 action 默认开启的 `--remote`（Action 里 `GITHUB_TOKEN` 免费可得，
+没有理由产出基准更窄的本地分）。
 
 Action 内部还需把分数写入 `$GITHUB_STEP_SUMMARY`，使每次运行页顶部展示健康度卡片。
 

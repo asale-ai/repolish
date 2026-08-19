@@ -2,6 +2,7 @@
 
 **在命令行上诊断并改进「一个开源仓库在陌生人眼里是什么样」。**
 
+[![repolish](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/asale-ai/repolish/main/.repolish/badge.json)](https://github.com/asale-ai/repolish)
 [![CI](https://github.com/asale-ai/repolish/actions/workflows/ci.yml/badge.svg)](https://github.com/asale-ai/repolish/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#许可证)
 [![Docs](https://img.shields.io/badge/docs-design%20notes-blue.svg)](docs/README.md)

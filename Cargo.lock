@@ -1845,6 +1845,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "dunce",
  "repolish-checks",
  "repolish-core",
  "repolish-ingest",
@@ -1898,6 +1899,8 @@ version = "0.1.0"
 dependencies = [
  "owo-colors",
  "repolish-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

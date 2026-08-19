@@ -2,6 +2,12 @@
 //!
 //! 默认只展示总分、类别分、P1/P2 与覆盖限制；`-v` 展开全部检查项。
 
+pub mod badge;
+pub mod markdown;
+
+pub use badge::{badge_json, snippet, BADGE_PATH, REPOLISH_URL};
+pub use markdown::markdown;
+
 use std::fmt::Write as _;
 
 use owo_colors::OwoColorize;
