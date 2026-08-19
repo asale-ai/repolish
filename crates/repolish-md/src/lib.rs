@@ -124,6 +124,10 @@ impl Readme {
                     line,
                     is_image: true,
                 }),
+                // README 首屏大量使用 HTML 排版（居中的 logo、徽章行）。
+                // 这些 `<img>` 不是 Image 节点，不认就等于看不见半个 README。
+                NodeValue::HtmlBlock(h) => links.extend(html_links(&h.literal, line)),
+                NodeValue::HtmlInline(h) => links.extend(html_links(h, line)),
                 _ => {}
             }
         }
@@ -161,9 +165,69 @@ impl Readme {
             .filter(move |cb| s.contains_line(cb.line))
     }
 
+    /// 词数。中日韩文本不用空格分词，按空白切会把一篇中文 README 数成几十个「词」，
+    /// 于是 `readme-length` 会把它判成「信息不足」。
+    /// 折中：CJK 字符按 0.6 词计（接近中文双字词的平均密度），其余按空白切分。
     pub fn word_count(&self) -> usize {
-        self.raw.split_whitespace().count()
+        let mut latin = 0usize;
+        let mut cjk = 0usize;
+        for token in self.raw.split_whitespace() {
+            let n = token.chars().filter(|c| is_cjk(*c)).count();
+            cjk += n;
+            if n == 0 {
+                latin += 1;
+            }
+        }
+        latin + cjk * 3 / 5
     }
+}
+
+/// 从一段 HTML 里取出 `<img src>` 与 `<a href>`。
+///
+/// 行号按标签在这段 HTML 中的相对位置换算：HTML 块常跨十几行，
+/// 全部记成块首行会让证据指错地方。
+fn html_links(html: &str, start_line: usize) -> Vec<LinkRef> {
+    let lower = html.to_lowercase();
+    let mut out = Vec::new();
+    let mut i = 0usize;
+
+    while let Some(rel) = lower[i..].find('<') {
+        let start = i + rel;
+        let Some(end_rel) = lower[start..].find('>') else {
+            break;
+        };
+        let end = start + end_rel + 1;
+        let tag = &html[start..end];
+        let is_image = lower[start..end].starts_with("<img");
+        let attr_name = if is_image {
+            "src"
+        } else if lower[start..end].starts_with("<a ") {
+            "href"
+        } else {
+            i = end;
+            continue;
+        };
+
+        if let Some(url) = title::attr(tag, attr_name) {
+            out.push(LinkRef {
+                url,
+                line: start_line + html[..start].matches('\n').count(),
+                is_image,
+            });
+        }
+        i = end;
+    }
+    out
+}
+
+/// 汉字、假名、谚文。标点不算——它们不承载信息量。
+fn is_cjk(c: char) -> bool {
+    matches!(c as u32,
+        0x4E00..=0x9FFF    // CJK 统一表意文字
+        | 0x3400..=0x4DBF  // 扩展 A
+        | 0x3040..=0x30FF  // 平假名 / 片假名
+        | 0xAC00..=0xD7AF  // 谚文音节
+    )
 }
 
 pub(crate) fn options() -> Options<'static> {
@@ -371,6 +435,24 @@ pip install x
         let r = parse(md);
         let s = r.section(SectionKind::Quickstart).expect("找到快速开始区块");
         assert_eq!(r.code_blocks_in(s).count(), 1);
+    }
+
+    #[test]
+    fn html_images_and_links_are_collected_with_real_line_numbers() {
+        // fzf 的首屏：logo 与整排徽章全是 HTML，不认就等于「没有徽章」
+        let md = "<div align=\"center\">\n  <img src=\"logo.png\" alt=\"fzf\">\n  <a href=\"https://ci.example\"><img src=\"https://img.shields.io/x.svg\" alt=\"Build\"></a>\n</div>\n";
+        let r = parse(md);
+        let imgs: Vec<(&str, usize)> = r
+            .links
+            .iter()
+            .filter(|l| l.is_image)
+            .map(|l| (l.url.as_str(), l.line))
+            .collect();
+        assert_eq!(
+            imgs,
+            vec![("logo.png", 2), ("https://img.shields.io/x.svg", 3)]
+        );
+        assert!(r.links.iter().any(|l| l.url == "https://ci.example" && !l.is_image));
     }
 
     #[test]

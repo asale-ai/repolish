@@ -182,14 +182,19 @@ fn strip_tags(html: &str) -> String {
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// 取 HTML 属性 alt 的值。属性值可能用单引号或双引号。
 pub fn extract_alt(html: &str) -> Option<String> {
+    attr(html, "alt")
+}
+
+/// 取 HTML 属性值。属性值可能用单引号或双引号。
+pub fn attr(html: &str, name: &str) -> Option<String> {
     const DOUBLE: char = '"';
     const SINGLE: char = '\'';
 
+    let needle = format!("{name}=");
     let lower = html.to_lowercase();
-    let i = lower.find("alt=")?;
-    let rest = &html[i + 4..];
+    let i = lower.find(&needle)?;
+    let rest = &html[i + needle.len()..];
     let quote = rest.chars().next()?;
     if quote != DOUBLE && quote != SINGLE {
         return None;

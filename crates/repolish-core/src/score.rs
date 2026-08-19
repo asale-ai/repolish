@@ -1,11 +1,17 @@
-//! 聚合：风险加权平均 + 分母保护。
+//! 聚合：风险加权平均 + 分母保护，以及**冻结的 JSON 输出契约**。
+//!
+//! `schemaVersion` 自 M2 起为 1。字段只增不改：删字段或改含义必须递增
+//! `schemaVersion`，因为 CI 门禁与徽章都在消费它。见 docs/04-CLI设计.md。
 
 use serde::Serialize;
 
 use crate::check::{Category, Risk};
 use crate::outcome::Outcome;
 use crate::MIN_COVERAGE;
-use repolish_ingest::Profile;
+use repolish_ingest::{Profile, RepoContext};
+
+/// 输出结构版本。改变既有字段的含义时必须 +1。
+pub const SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -41,15 +47,49 @@ pub struct CategoryScore {
     pub score: Option<u8>,
 }
 
+/// 被诊断的仓库。`owner` 在没有 GitHub 远端时为空。
 #[derive(Debug, Clone, Serialize)]
+pub struct Repository {
+    pub owner: Option<String>,
+    pub name: String,
+    pub commit: Option<String>,
+}
+
+impl Repository {
+    pub fn from_ctx(ctx: &RepoContext) -> Self {
+        let dir_name = ctx
+            .root
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        Repository {
+            owner: ctx.slug.as_ref().map(|s| s.owner.clone()),
+            // 远端名优先：目录名可能被使用者改过，owner/name 才是身份
+            name: ctx.slug.as_ref().map(|s| s.name.clone()).unwrap_or(dir_name),
+            commit: ctx.git.as_ref().map(|g| g.head_id.clone()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProfileInfo {
+    pub detected: Profile,
+    /// 是否被 `--profile` / 配置文件覆盖
+    pub overridden: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Report {
+    pub repolish_version: &'static str,
+    pub schema_version: u32,
+    pub repository: Repository,
+    pub profile: ProfileInfo,
+    pub mode: Mode,
     /// 0-100。覆盖不足时为 None
     pub score: Option<u8>,
-    /// `Scored` 权重和 / 注册总权重
+    /// `Scored` 权重和 / 注册总权重，保留三位小数
     pub coverage: f64,
-    pub profile: Profile,
-    pub profile_overridden: bool,
-    pub mode: Mode,
     pub categories: Vec<CategoryScore>,
     pub checks: Vec<CheckResult>,
     /// `Inconclusive` 与 `Skipped` 的合并列表，强制消费方看到「哪些没验证」
@@ -59,11 +99,11 @@ pub struct Report {
 impl Report {
     pub fn build(
         checks: Vec<CheckResult>,
-        profile: Profile,
-        profile_overridden: bool,
+        repository: Repository,
+        profile: ProfileInfo,
         mode: Mode,
     ) -> Self {
-        let coverage = coverage_ratio(&checks);
+        let coverage = round3(coverage_ratio(&checks));
         let score = if coverage >= MIN_COVERAGE {
             weighted_score(checks.iter())
         } else {
@@ -89,11 +129,13 @@ impl Report {
             .collect();
 
         Report {
+            repolish_version: env!("CARGO_PKG_VERSION"),
+            schema_version: SCHEMA_VERSION,
+            repository,
+            profile,
+            mode,
             score,
             coverage,
-            profile,
-            profile_overridden,
-            mode,
             categories,
             checks,
             coverage_limits,
@@ -106,6 +148,24 @@ impl Report {
             .find(|cs| cs.category == c)
             .and_then(|cs| cs.score)
     }
+
+    /// 徽章配色阈值，见 docs/04-CLI设计.md
+    pub fn color(&self) -> &'static str {
+        match self.score {
+            Some(s) if s >= 90 => "brightgreen",
+            Some(s) if s >= 75 => "green",
+            Some(s) if s >= 60 => "yellow",
+            Some(s) if s >= 40 => "orange",
+            Some(_) => "red",
+            None => "lightgrey",
+        }
+    }
+}
+
+/// 浮点数进 JSON 前定量化：同一 commit 的输出必须逐字节一致，
+/// 而 `7.5/8.75` 这类比值的十进制展开会随权重组合变得很长。
+fn round3(x: f64) -> f64 {
+    (x * 1000.0).round() / 1000.0
 }
 
 /// 注册项中被实际打分的权重占比。`NotApplicable` 不算「没覆盖」——
@@ -161,6 +221,22 @@ mod tests {
         }
     }
 
+    fn build(checks: Vec<CheckResult>, profile: Profile) -> Report {
+        Report::build(
+            checks,
+            Repository {
+                owner: Some("acme".into()),
+                name: "widget".into(),
+                commit: Some("deadbeef".into()),
+            },
+            ProfileInfo {
+                detected: profile,
+                overridden: false,
+            },
+            Mode::Local,
+        )
+    }
+
     #[test]
     fn weighted_average_matches_spec() {
         // 10 分(权重10) + 5 分(权重5) → (100+25)/15*10 = 83.3 → 83
@@ -176,8 +252,7 @@ mod tests {
                 },
             ),
         ];
-        let rep = Report::build(checks, Profile::Unknown, false, Mode::Local);
-        assert_eq!(rep.score, Some(83));
+        assert_eq!(build(checks, Profile::Unknown).score, Some(83));
     }
 
     #[test]
@@ -192,7 +267,7 @@ mod tests {
                 },
             ),
         ];
-        let rep = Report::build(checks, Profile::Docs, false, Mode::Local);
+        let rep = build(checks, Profile::Docs);
         assert_eq!(rep.score, Some(100));
         assert_eq!(rep.coverage, 1.0);
     }
@@ -204,8 +279,40 @@ mod tests {
             r("a", Risk::Low, Outcome::perfect(vec![])),
             r("b", Risk::Critical, Outcome::skipped("需要 --remote")),
         ];
-        let rep = Report::build(checks, Profile::Unknown, false, Mode::Local);
+        let rep = build(checks, Profile::Unknown);
         assert!(rep.score.is_none());
         assert_eq!(rep.coverage_limits.len(), 1);
+    }
+
+    /// schema 一旦发出去就有人在解析。字段名变动必须是显式决定，
+    /// 而不是改结构体时的副作用——所以这里把顶层键钉死。
+    #[test]
+    fn json_schema_is_frozen() {
+        let rep = build(
+            vec![r("a", Risk::Critical, Outcome::perfect(vec![]))],
+            Profile::Cli,
+        );
+        let v: serde_json::Value = serde_json::to_value(&rep).unwrap();
+        let mut keys: Vec<&str> = v.as_object().unwrap().keys().map(|s| s.as_str()).collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            vec![
+                "categories",
+                "checks",
+                "coverage",
+                "coverageLimits",
+                "mode",
+                "profile",
+                "repolishVersion",
+                "repository",
+                "schemaVersion",
+                "score",
+            ]
+        );
+        assert_eq!(v["schemaVersion"], 1);
+        assert_eq!(v["profile"]["detected"], "cli");
+        assert_eq!(v["checks"][0]["status"], "scored");
+        assert_eq!(v["checks"][0]["score"], 10);
     }
 }

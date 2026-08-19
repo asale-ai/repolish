@@ -87,7 +87,7 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
 
 ### `--format json`
 
-结构冻结于 M2，之后按语义化版本演进：
+**已冻结（`schemaVersion: 1`，M2）。** 字段只增不改；删字段或改含义必须递增 `schemaVersion`：
 
 ```json
 {
@@ -97,6 +97,8 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
   "profile": { "detected": "cli", "overridden": false },
   "mode": "remote",
   "score": 88,
+  "coverage": 0.774,
+  "categories": [{ "category": "discoverability", "score": 96 }],
   "checks": [
     {
       "id": "readme-quickstart",

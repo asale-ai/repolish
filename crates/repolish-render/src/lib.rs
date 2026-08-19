@@ -26,10 +26,10 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
     let c = opts.color;
 
     // ── 标题行 ────────────────────────────────────────────
-    let profile_note = if report.profile_overridden {
-        format!("{} (手动指定)", report.profile.as_str())
+    let profile_note = if report.profile.overridden {
+        format!("{} (手动指定)", report.profile.detected.as_str())
     } else {
-        format!("{} (自动探测)", report.profile.as_str())
+        format!("{} (自动探测)", report.profile.detected.as_str())
     };
     let _ = writeln!(
         out,
@@ -59,6 +59,20 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
                 report.coverage * 100.0
             );
         }
+    }
+
+    // 本地分把三个远程检查项剔出了分母，与远程分不是同一个基准。
+    // 不标出来，用户会拿本地分去和别人的远程分横向比较。
+    if report.mode == repolish_core::Mode::Local && report.score.is_some() {
+        let _ = writeln!(
+            out,
+            "  {}",
+            paint(
+                "        本地分：未计入 description / topics / homepage，不可与远程分比较",
+                c,
+                Paint::Dim
+            )
+        );
     }
 
     // ── 类别分 ────────────────────────────────────────────
@@ -173,7 +187,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
             paint(
                 &format!(
                     "对 {} 类项目不适用，已排除：{}",
-                    report.profile.as_str(),
+                    report.profile.detected.as_str(),
                     na.join(", ")
                 ),
                 c,
@@ -202,7 +216,7 @@ fn is_wide(c: char) -> bool {
 }
 
 fn meter(score: u8) -> String {
-    let filled = (score as usize + 9) / 10;
+    let filled = (score as usize).div_ceil(10);
     let mut s = String::new();
     for i in 0..10 {
         s.push(if i < filled { '█' } else { '░' });

@@ -7,3 +7,6 @@ license.workspace = true
 [dependencies]
 repolish-ingest.workspace = true
 serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

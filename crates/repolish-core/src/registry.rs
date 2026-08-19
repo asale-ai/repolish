@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 use crate::check::Check;
 use crate::outcome::Outcome;
-use crate::score::{CheckResult, Mode, Report};
+use crate::score::{CheckResult, Mode, ProfileInfo, Report, Repository};
 use repolish_ingest::RepoContext;
 
 #[derive(Default)]
@@ -68,7 +68,15 @@ impl Registry {
             })
             .collect();
 
-        Report::build(results, ctx.profile, ctx.profile_overridden, opts.mode)
+        Report::build(
+            results,
+            Repository::from_ctx(ctx),
+            ProfileInfo {
+                detected: ctx.profile,
+                overridden: ctx.profile_overridden,
+            },
+            opts.mode,
+        )
     }
 
     fn decide(&self, check: &dyn Check, ctx: &RepoContext, opts: &RunOptions) -> Outcome {

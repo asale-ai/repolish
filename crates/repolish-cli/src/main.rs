@@ -1,6 +1,6 @@
 //! repolish —— 开源仓库诊断 / 优化工具
 //!
-//! M1 只实现 `check`。badge / report / init 在 M3，polish 在 M4。
+//! M2 实现 `check`（含 `--remote`）。badge / report / init 在 M3，polish 在 M4。
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -17,6 +17,7 @@ mod exit {
     pub const BELOW_MIN_SCORE: u8 = 1;
     pub const BAD_USAGE: u8 = 2;
     pub const NOT_A_REPO: u8 = 3;
+    pub const REMOTE_FAILED: u8 = 4;
     pub const LOW_COVERAGE: u8 = 5;
 }
 
@@ -45,6 +46,11 @@ struct CheckArgs {
 
     #[arg(long, value_enum, default_value_t = Format::Text)]
     format: Format,
+
+    /// 补充 GitHub 元数据（description / topics / homepage）。
+    /// token 取自 GITHUB_TOKEN / GH_TOKEN，缺省则走匿名配额（每小时 60 次）
+    #[arg(long)]
+    remote: bool,
 
     /// 低于该分数时以退出码 1 结束，可用作 CI 门禁
     #[arg(long)]
@@ -100,13 +106,26 @@ fn run_check(args: CheckArgs) -> u8 {
         }
     };
 
-    let ctx = match RepoContext::load(&args.path, profile_override) {
+    let mut ctx = match RepoContext::load(&args.path, profile_override) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("error: {e:#}");
             return exit::NOT_A_REPO;
         }
     };
+
+    // 失败即退出，不静默降级成本地模式——两种模式的分数基准不同，
+    // 悄悄换基准会让用户拿到一个看不出差异的错分数。
+    if args.remote {
+        let token = repolish_ingest::remote::token_from_env();
+        if token.is_none() {
+            eprintln!("warning: 未设置 GITHUB_TOKEN，将走匿名配额（每小时 60 次）");
+        }
+        if let Err(e) = ctx.fetch_remote(token.as_deref()) {
+            eprintln!("error: {e}");
+            return exit::REMOTE_FAILED;
+        }
+    }
 
     if ctx.git.is_none() && !ctx.root.join(".git").exists() {
         eprintln!(
@@ -130,7 +149,7 @@ fn run_check(args: CheckArgs) -> u8 {
     }
 
     let opts = RunOptions {
-        mode: Mode::Local, // --remote 在 M2 接入
+        mode: if args.remote { Mode::Remote } else { Mode::Local },
         only: args.only.iter().cloned().collect(),
         skip: args.skip.iter().cloned().collect(),
     };

@@ -3,7 +3,10 @@
 #
 # 这些仓库不入库（体积大、且是第三方内容），用完即弃。
 # 选型标准：覆盖不同语言、不同 README 风格，且每个都曾暴露过至少一个真实缺陷——
-# 见 docs/06-路线图.md 的「M1 验收」一节。
+# 见 docs/06-路线图.md 的「M1 验收」「M2 验收」两节。
+#
+# 注意：这里是浅克隆（--depth 1），与 CI 里 actions/checkout 的默认行为一致。
+# 因此 release-hygiene 会一律判 Inconclusive——这是有意保留的真实场景。
 #
 #   ./scripts/fetch-fixtures.sh [目标目录]
 #   cargo run -- check <目标目录>/ripgrep
