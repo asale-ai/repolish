@@ -1,0 +1,13 @@
+[package]
+name = "repolish-ingest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+repolish-md.workspace = true
+ignore.workspace = true
+dunce.workspace = true
+gix.workspace = true
+anyhow.workspace = true
+serde.workspace = true

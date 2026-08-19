@@ -1,0 +1,10 @@
+[package]
+name = "repolish-checks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+repolish-core.workspace = true
+repolish-ingest.workspace = true
+repolish-md.workspace = true

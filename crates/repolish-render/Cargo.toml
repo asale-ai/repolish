@@ -1,0 +1,9 @@
+[package]
+name = "repolish-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+repolish-core.workspace = true
+owo-colors.workspace = true

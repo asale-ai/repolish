@@ -1,0 +1,7 @@
+https://github.com/ossf/scorecard
+https://github.com/eli64s
+https://github.com/InnerAura/hyperweave
+https://github.com/conorbronsdon/repo-audit
+https://readme.so/
+https://help.gitee.com/ai-productivity/readme-generation
+https://github.com/pingcap/ossinsight

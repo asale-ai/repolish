@@ -1,0 +1,9 @@
+[package]
+name = "repolish-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+repolish-ingest.workspace = true
+serde.workspace = true
