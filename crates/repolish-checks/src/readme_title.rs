@@ -1,8 +1,15 @@
 use repolish_core::{Category, Check, Evidence, Fix, Outcome, RepoContext, Risk, Severity};
+use repolish_md::TitleSource;
 
 /// README 首屏是否说清「这是什么」。
 ///
-/// 分档：无 README = 0；无 H1 = 3；有 H1 无 tagline = 5；tagline 过短 = 7；完整 = 10
+/// 分档：
+/// - 0  没有 README
+/// - 3  找不到任何形式的标题
+/// - 5  标题只是图片 alt（无文本标题）
+/// - 6  有标题，但没有说明段落
+/// - 7  说明过短
+/// - 10 标题 + 有效说明
 pub struct ReadmeTitleTagline;
 
 const MIN_TAGLINE: usize = 20;
@@ -30,24 +37,45 @@ impl Check for ReadmeTitleTagline {
             );
         };
 
-        let name = readme.path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let name = readme
+            .path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
 
         let Some(title) = &readme.title else {
             return Outcome::scored(
                 3,
-                vec![Evidence::at(&name, 1, "未找到一级标题（# 项目名）")],
+                vec![Evidence::at(&name, 1, "未找到任何形式的标题")],
                 vec![Fix::new(
                     Severity::P1,
-                    "在 README 顶部加一个 `# 项目名` 一级标题",
+                    "在 README 顶部加一个项目名标题",
                 )],
             );
         };
 
         let title_line = readme.title_line.unwrap_or(1);
 
+        // 标题只存在于图片 alt：人能看见，但搜索引擎、读屏软件与本工具都难以提取
+        if readme.title_source == Some(TitleSource::ImageAlt) {
+            return Outcome::scored(
+                5,
+                vec![Evidence::at(
+                    &name,
+                    title_line,
+                    format!("标题是图片，仅 alt 文本可读：「{title}」"),
+                )],
+                vec![Fix::new(
+                    Severity::P2,
+                    "在横幅图片下补一个文本标题。纯图片标题对搜索引擎和读屏软件不可见",
+                )],
+            );
+        }
+
         match &readme.tagline {
             None => Outcome::scored(
-                5,
+                6,
                 vec![Evidence::at(
                     &name,
                     title_line,

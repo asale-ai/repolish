@@ -29,7 +29,7 @@ impl Check for ReadmeLinkHealth {
 
         let mut broken = Vec::new();
         for link in &relative {
-            let path = link.path_part().trim_start_matches("./");
+            let path = link.repo_path();
             if path.is_empty() {
                 continue;
             }

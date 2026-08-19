@@ -5,16 +5,9 @@ use repolish_core::{Category, Check, Evidence, Fix, Outcome, RepoContext, Risk, 
 /// 分档：无文件 = 0；有文件但认不出 = 6；识别出标准许可证 = 10
 pub struct License;
 
-const CANDIDATES: &[&str] = &[
-    "LICENSE",
-    "LICENSE.md",
-    "LICENSE.txt",
-    "LICENCE",
-    "LICENCE.md",
-    "COPYING",
-    "COPYING.md",
-    "UNLICENSE",
-];
+/// 文件名前缀。用前缀而非全名匹配，因为 Rust 生态惯用 `LICENSE-MIT` +
+/// `LICENSE-APACHE` 双协议，只认 `LICENSE` 会把这类项目全判成「没有许可证」。
+const PREFIXES: &[&str] = &["license", "licence", "copying", "unlicense", "unlicence"];
 
 /// (SPDX 标识, 正文中的特征串)
 const SIGNATURES: &[(&str, &str)] = &[
@@ -22,12 +15,20 @@ const SIGNATURES: &[(&str, &str)] = &[
     ("MIT", "permission is hereby granted, free of charge"),
     ("BSD-3-Clause", "neither the name of the copyright holder"),
     ("BSD-2-Clause", "redistribution and use in source and binary forms"),
-    ("GPL-3.0", "gnu general public license"),
-    ("LGPL", "gnu lesser general public license"),
     ("AGPL-3.0", "gnu affero general public license"),
+    ("LGPL", "gnu lesser general public license"),
+    ("GPL-3.0", "gnu general public license"),
     ("MPL-2.0", "mozilla public license"),
     ("ISC", "permission to use, copy, modify, and/or distribute"),
     ("Unlicense", "this is free and unencumbered software"),
+    ("BSL-1.0", "boost software license"),
+    ("WTFPL", "do what the fuck you want to public license"),
+    ("Zlib", "this software is provided 'as-is', without any express"),
+    // 文档类仓库常用 Creative Commons，顺序上要先于更宽泛的 CC0
+    ("CC-BY-SA-4.0", "attribution-sharealike 4.0"),
+    ("CC-BY-4.0", "attribution 4.0 international"),
+    ("CC0-1.0", "cc0 1.0 universal"),
+    ("CC-BY-NC-SA", "attribution-noncommercial-sharealike"),
 ];
 
 impl Check for License {
@@ -42,7 +43,9 @@ impl Check for License {
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
-        let Some(found) = ctx.files.find_at_root(CANDIDATES) else {
+        let files: Vec<&str> = ctx.files.iter().filter(|p| is_license_file(p)).collect();
+
+        if files.is_empty() {
             return Outcome::scored(
                 0,
                 vec![Evidence::new(".", "仓库根目录没有 LICENSE 文件")],
@@ -51,29 +54,60 @@ impl Check for License {
                     "添加 LICENSE 文件。没有许可证 = 保留所有权利，法律上别人不能用你的代码",
                 )],
             );
-        };
-
-        let Some(text) = ctx.files.read(found) else {
-            return Outcome::inconclusive(format!("{found} 存在但读取失败"));
-        };
-        let lower = text.to_lowercase();
-
-        match SIGNATURES.iter().find(|(_, sig)| lower.contains(sig)) {
-            Some((spdx, _)) => Outcome::perfect(vec![Evidence::new(
-                found,
-                format!("识别为 {spdx}"),
-            )]),
-            None => Outcome::scored(
-                6,
-                vec![Evidence::new(
-                    found,
-                    "文件存在，但内容不匹配任何已知的标准许可证",
-                )],
-                vec![Fix::new(
-                    Severity::P2,
-                    "改用标准许可证原文（choosealicense.com）。自定义条款会让使用者的法务直接放弃",
-                )],
-            ),
         }
+
+        // 必须扫全部候选：ripgrep 的 COPYING 只是一句「双协议」说明，
+        // 真正可识别的正文在 LICENSE-MIT 与 UNLICENSE 里。只看第一个会误判。
+        let mut identified: Vec<(&str, &str)> = Vec::new();
+        let mut unreadable = 0usize;
+
+        for f in &files {
+            match ctx.files.read(f) {
+                Some(text) => {
+                    let lower = text.to_lowercase();
+                    if let Some((spdx, _)) = SIGNATURES.iter().find(|(_, sig)| lower.contains(sig)) {
+                        identified.push((f, spdx));
+                    }
+                }
+                None => unreadable += 1,
+            }
+        }
+
+        if !identified.is_empty() {
+            let spdx: Vec<&str> = identified.iter().map(|(_, s)| *s).collect();
+            return Outcome::perfect(vec![Evidence::new(
+                identified[0].0,
+                format!("识别为 {}", spdx.join(" OR ")),
+            )]);
+        }
+
+        if unreadable == files.len() {
+            return Outcome::inconclusive(format!("{} 存在但无法读取", files[0]));
+        }
+
+        Outcome::scored(
+            6,
+            vec![Evidence::new(
+                files[0],
+                format!(
+                    "{} 个许可证文件均不匹配已知的标准许可证",
+                    files.len()
+                ),
+            )],
+            vec![Fix::new(
+                Severity::P2,
+                "改用标准许可证原文（choosealicense.com）。自定义条款会让使用者的法务直接放弃",
+            )],
+        )
     }
+}
+
+/// 仅限仓库根目录，且文件名以许可证类前缀开头。
+fn is_license_file(path: &str) -> bool {
+    if path.contains('/') {
+        return false;
+    }
+    let name = path.to_lowercase();
+    let stem = name.split('.').next().unwrap_or(&name);
+    PREFIXES.iter().any(|p| stem.starts_with(p))
 }

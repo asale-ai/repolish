@@ -84,32 +84,47 @@ pub fn detect(files: &FileIndex, readme: Option<&Readme>) -> Profile {
 
 fn has_executable_entry(files: &FileIndex) -> bool {
     // 单包仓库
-    if files.contains("src/main.rs") {
+    if files.contains("src/main.rs") && !is_fixture("src/main.rs") {
         return true;
     }
-    // workspace / monorepo：任一成员有可执行入口即算
-    if files.any_matching(|p| p.ends_with("/src/main.rs") || p.contains("/src/bin/")) {
-        return true;
-    }
-    if files.any_matching(|p| p.starts_with("src/bin/")) {
+    // workspace / monorepo：任一成员有可执行入口即算。
+    // 必须排除测试夹具——serde 的 test_suite/no_std/src/main.rs、
+    // tokio 的 tests-integration/src/bin/ 都是内部测试用的二进制，
+    // 把它们算作入口会让纯库项目被判成 CLI。
+    if files.any_matching(|p| {
+        !is_fixture(p) && (p.ends_with("/src/main.rs") || p.contains("/src/bin/") || p.starts_with("src/bin/"))
+    }) {
         return true;
     }
     // 清单里显式声明的入口
     let manifest_declares_bin = files
         .iter()
         .filter(|p| {
-            p.ends_with("Cargo.toml") || p.ends_with("package.json") || p.ends_with("pyproject.toml")
+            !is_fixture(p)
+                && (p.ends_with("Cargo.toml")
+                    || p.ends_with("package.json")
+                    || p.ends_with("pyproject.toml"))
         })
         .take(64)
         .any(|p| {
             files.read(p).is_some_and(|t| {
-                t.contains("[[bin]]") || t.contains("\"bin\"") || t.contains("[project.scripts]")
+                t.contains("[[bin]]") || t.contains("[project.scripts]")
             })
         });
     if manifest_declares_bin {
         return true;
     }
     files.any_matching(|p| p.starts_with("cmd/") && p.ends_with("main.go"))
+}
+
+/// 测试夹具 / 示例 / 基准目录。这些目录里的可执行文件不代表项目本身是 CLI。
+fn is_fixture(path: &str) -> bool {
+    const FIXTURE_DIRS: &[&str] = &[
+        "test", "tests", "test_suite", "tests-integration", "testing",
+        "example", "examples", "bench", "benches", "fixture", "fixtures", "demo",
+    ];
+    path.split(0x2Fu8 as char)
+        .any(|seg| FIXTURE_DIRS.contains(&seg.to_lowercase().as_str()))
 }
 
 fn has_package_manifest(files: &FileIndex) -> bool {

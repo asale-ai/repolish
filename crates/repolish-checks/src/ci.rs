@@ -16,9 +16,18 @@ const ROOT_CONFIGS: &[&str] = &[
     "appveyor.yml",
 ];
 
-const TEST_HINTS: &[&str] = &[
-    "cargo test", "npm test", "npm run test", "pytest", "go test", "mvn test",
-    "gradle test", "jest", "vitest", "tox", "make test", "yarn test", "pnpm test",
+/// 构建工具 / 测试运行器。判定规则是「同一行里出现运行器 + test 字样」，
+/// 而不是匹配 `cargo test` 这类固定串——ripgrep 的 workflow 写的是
+/// `${{ env.CARGO }} test`，固定串永远匹配不到。
+const RUNNERS: &[&str] = &[
+    "cargo", "npm", "yarn", "pnpm", "npx", "go ", "mvn", "gradle", "make", "just",
+    "nox", "tox", "uv ", "poetry", "bundle", "dotnet", "ctest", "swift", "mix",
+];
+
+/// 本身就代表「在跑测试」的工具名，无需再看上下文
+const TEST_TOOLS: &[&str] = &[
+    "pytest", "nextest", "jest", "vitest", "mocha", "karma", "phpunit", "rspec",
+    "gotestsum", "unittest",
 ];
 
 impl Check for CiPresent {
@@ -64,33 +73,51 @@ impl Check for CiPresent {
             );
         }
 
-        let runs_tests = configs.iter().any(|c| {
-            ctx.files
-                .read(c)
-                .map(|t| {
-                    let lower = t.to_lowercase();
-                    TEST_HINTS.iter().any(|h| lower.contains(h))
-                })
-                .unwrap_or(false)
-        });
+        let with_tests = configs
+            .iter()
+            .find(|c| ctx.files.read(c).is_some_and(|t| runs_tests(&t)));
 
-        if runs_tests {
-            Outcome::perfect(vec![Evidence::new(
-                &configs[0],
+        match with_tests {
+            Some(c) => Outcome::perfect(vec![Evidence::new(
+                c,
                 format!("{} 个 CI 配置，其中包含测试步骤", configs.len()),
-            )])
-        } else {
-            Outcome::scored(
+            )]),
+            None => Outcome::scored(
                 7,
                 vec![Evidence::new(
                     &configs[0],
-                    "有 CI 配置，但未发现执行测试的步骤",
+                    format!("{} 个 CI 配置，但未发现执行测试的步骤", configs.len()),
                 )],
                 vec![Fix::new(
                     Severity::P2,
                     "在 CI 中加入测试步骤——只跑 lint 或 build 的 CI 无法证明代码是对的",
                 )],
-            )
+            ),
         }
     }
+}
+
+fn runs_tests(config: &str) -> bool {
+    config.lines().any(|line| {
+        let l = line.to_lowercase();
+        if TEST_TOOLS.iter().any(|t| l.contains(t)) {
+            return true;
+        }
+        // 同一行里「运行器 + test」
+        if l.contains("test") && RUNNERS.iter().any(|r| l.contains(r)) {
+            return true;
+        }
+        // 显式命名的测试步骤。requests 的 workflow 写成
+        // `- name: Run tests` 加换行后的 `run: |`，命令与 test 字样不在同一行。
+        is_step_name(&l) && l.contains("test")
+    })
+}
+
+/// 缩进的 `name:`（步骤或 job 名），区别于顶格的 workflow 名
+fn is_step_name(line_lower: &str) -> bool {
+    if !line_lower.starts_with(char::is_whitespace) {
+        return false;
+    }
+    let t = line_lower.trim_start().trim_start_matches("- ");
+    t.starts_with("name:")
 }

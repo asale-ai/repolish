@@ -8,18 +8,30 @@ use comrak::nodes::{AstNode, NodeValue};
 use comrak::{parse_document, Arena, Options};
 
 pub mod section;
+pub mod title;
+
 pub use section::SectionKind;
+pub use title::TitleSource;
 
 #[derive(Debug, Clone)]
 pub struct Section {
     pub kind: SectionKind,
-    /// 标题原文
     pub title: String,
     pub level: u8,
     /// 标题所在行（1-based）
     pub line: usize,
-    /// 该区块正文（不含标题行）
+    /// 区块结束行（不含）。边界是**下一个同级或更高级标题**——
+    /// 若按「下一个任意标题」切，`## Getting Started` 会被子标题 `### Installation`
+    /// 截断，其中的代码块会被误判为不属于父区块。
+    pub end_line: usize,
+    /// 该区块正文（含子区块，不含自身标题行）
     pub body: String,
+}
+
+impl Section {
+    pub fn contains_line(&self, line: usize) -> bool {
+        line > self.line && line < self.end_line
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -38,7 +50,7 @@ pub struct LinkRef {
 }
 
 impl LinkRef {
-    /// 是否为指向仓库内文件的相对链接（排除 http、mailto、锚点、协议相对）
+    /// 是否为指向仓库内文件的链接（排除 http、mailto、锚点、协议相对）
     pub fn is_relative(&self) -> bool {
         let u = self.url.trim();
         if u.is_empty() || u.starts_with('#') || u.starts_with("//") {
@@ -47,11 +59,15 @@ impl LinkRef {
         !u.contains("://") && !u.starts_with("mailto:") && !u.starts_with("tel:")
     }
 
-    /// 去掉锚点与查询串后的路径部分
-    pub fn path_part(&self) -> &str {
+    /// 相对仓库根的路径。去掉锚点、查询串与前导斜杠。
+    ///
+    /// 前导斜杠必须剥掉：`Path::join` 遇到绝对路径会丢弃基路径，
+    /// 于是 `/docs/x.md` 会被当成盘符根下的路径，永远判定为不存在。
+    pub fn repo_path(&self) -> &str {
         let u = self.url.trim();
         let u = u.split('#').next().unwrap_or(u);
-        u.split('?').next().unwrap_or(u)
+        let u = u.split('?').next().unwrap_or(u);
+        u.trim_start_matches("./").trim_start_matches('/')
     }
 }
 
@@ -59,10 +75,11 @@ impl LinkRef {
 pub struct Readme {
     pub path: PathBuf,
     pub raw: String,
-    /// 首个 H1 的文本
+    /// 文档标题。ATX / setext / HTML / logo alt 都算，识别规则见 [`title`]。
     pub title: Option<String>,
     pub title_line: Option<usize>,
-    /// H1 之后的首个「有实质内容」的段落——徽章行与纯图片行不算
+    pub title_source: Option<TitleSource>,
+    /// 标题之后的首个有实质内容的段落；徽章行与纯图片行不算
     pub tagline: Option<String>,
     pub sections: Vec<Section>,
     pub code_blocks: Vec<CodeBlock>,
@@ -77,26 +94,20 @@ impl Readme {
         let arena = Arena::new();
         let opts = options();
         let root = parse_document(&arena, &raw, &opts);
-
         let lines: Vec<&str> = raw.lines().collect();
 
         let mut headings: Vec<(u8, String, usize)> = Vec::new();
         let mut code_blocks = Vec::new();
         let mut links = Vec::new();
-        let mut title: Option<String> = None;
-        let mut title_line: Option<usize> = None;
 
         for node in root.descendants() {
             let data = node.data.borrow();
             let line = data.sourcepos.start.line;
             match &data.value {
                 NodeValue::Heading(h) => {
-                    let text = inline_text(node);
-                    if h.level == 1 && title.is_none() {
-                        title = Some(text.clone());
-                        title_line = Some(line);
-                    }
-                    headings.push((h.level, text, line));
+                    let level = h.level;
+                    drop(data);
+                    headings.push((level, text_of(node, true), line));
                 }
                 NodeValue::CodeBlock(cb) => code_blocks.push(CodeBlock {
                     info: cb.info.trim().to_string(),
@@ -117,14 +128,17 @@ impl Readme {
             }
         }
 
+        let candidate = title::extract(root);
+        let title_line = candidate.as_ref().map(|c| c.line);
         let tagline = extract_tagline(root, title_line);
         let sections = build_sections(&headings, &lines);
 
         Readme {
             path,
             raw,
-            title,
+            title: candidate.as_ref().map(|c| c.text.clone()),
             title_line,
+            title_source: candidate.map(|c| c.source),
             tagline,
             sections,
             code_blocks,
@@ -140,12 +154,19 @@ impl Readme {
         self.section(kind).is_some()
     }
 
+    /// 落在该区块范围内的代码块（含其子区块）
+    pub fn code_blocks_in<'a>(&'a self, s: &'a Section) -> impl Iterator<Item = &'a CodeBlock> {
+        self.code_blocks
+            .iter()
+            .filter(move |cb| s.contains_line(cb.line))
+    }
+
     pub fn word_count(&self) -> usize {
         self.raw.split_whitespace().count()
     }
 }
 
-fn options() -> Options<'static> {
+pub(crate) fn options() -> Options<'static> {
     let mut o = Options::default();
     o.extension.table = true;
     o.extension.strikethrough = true;
@@ -154,67 +175,120 @@ fn options() -> Options<'static> {
     o
 }
 
-/// 收集节点下所有内联文本（含行内代码），软换行折成空格。
-fn inline_text<'a>(node: &'a AstNode<'a>) -> String {
+/// 收集节点下的内联文本（含行内代码），软换行折成空格。
+///
+/// `skip_images` 为真时跳过图片子树。标题行与首段常挂一排徽章，
+/// 不跳过就会把 alt 文本拼进项目名与说明里。
+pub(crate) fn text_of<'a>(node: &'a AstNode<'a>, skip_images: bool) -> String {
     let mut out = String::new();
-    for n in node.descendants() {
-        match &n.data.borrow().value {
-            NodeValue::Text(t) => out.push_str(t),
-            NodeValue::Code(c) => out.push_str(&c.literal),
-            NodeValue::SoftBreak | NodeValue::LineBreak => out.push(' '),
-            _ => {}
-        }
-    }
-    out.trim().to_string()
+    collect_text(node, skip_images, &mut out);
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// H1 之后的首个实质段落。跳过纯徽章 / 纯图片 / 纯链接的段落。
+fn collect_text<'a>(node: &'a AstNode<'a>, skip_images: bool, out: &mut String) {
+    for child in node.children() {
+        let is_image = {
+            let v = &child.data.borrow().value;
+            match v {
+                NodeValue::Text(t) => out.push_str(t),
+                NodeValue::Code(c) => out.push_str(&c.literal),
+                NodeValue::SoftBreak | NodeValue::LineBreak => out.push(' '),
+                _ => {}
+            }
+            matches!(v, NodeValue::Image(_))
+        };
+        if is_image && skip_images {
+            continue;
+        }
+        collect_text(child, skip_images, out);
+    }
+}
+
+/// 标题之后的首个实质说明。
+///
+/// 跳过图片后仍有内容才算数：徽章行去掉 alt 文本就空了，
+/// 而 chalk 这类项目把一句话说明写成引用块，也要认。
 fn extract_tagline<'a>(root: &'a AstNode<'a>, title_line: Option<usize>) -> Option<String> {
+    const MIN_LEN: usize = 8;
     let after = title_line.unwrap_or(0);
     for node in root.children() {
-        let data = node.data.borrow();
-        if data.sourcepos.start.line <= after {
+        let ok = {
+            let data = node.data.borrow();
+            data.sourcepos.start.line > after
+                && matches!(data.value, NodeValue::Paragraph | NodeValue::BlockQuote)
+        };
+        if !ok {
             continue;
         }
-        if !matches!(data.value, NodeValue::Paragraph) {
+        if is_nav_row(node) {
             continue;
         }
-        drop(data);
-        let text = inline_text(node);
-        if text.len() < 8 {
-            continue;
+        let text = text_of(node, true);
+        if text.chars().count() >= MIN_LEN {
+            return Some(text);
         }
-        // 徽章行：段落里几乎全是图片
-        let img_count = node
-            .descendants()
-            .filter(|n| matches!(n.data.borrow().value, NodeValue::Image(_)))
-            .count();
-        if img_count > 0 && text.len() < 40 {
-            continue;
-        }
-        return Some(text);
     }
     None
 }
 
+/// 导航 / 徽章行：整段几乎只有链接与分隔符。
+/// ruff 的 README 在标题下先放一排徽章，再放一行 `Docs | Playground`，
+/// 两者都不是项目说明。
+fn is_nav_row<'a>(node: &'a AstNode<'a>) -> bool {
+    const SEPARATORS: &str = "|./,-";
+    let mut links = 0usize;
+    let mut outside = String::new();
+    collect_outside_links(node, &mut links, &mut outside);
+    links >= 2
+        && outside
+            .chars()
+            .all(|c| c.is_whitespace() || SEPARATORS.contains(c))
+}
+
+fn collect_outside_links<'a>(node: &'a AstNode<'a>, links: &mut usize, out: &mut String) {
+    for child in node.children() {
+        let is_link = {
+            let v = &child.data.borrow().value;
+            match v {
+                NodeValue::Text(t) => out.push_str(t),
+                NodeValue::Code(c) => out.push_str(&c.literal),
+                _ => {}
+            }
+            matches!(v, NodeValue::Link(_))
+        };
+        if is_link {
+            *links += 1;
+            continue;
+        }
+        collect_outside_links(child, links, out);
+    }
+}
+
 fn build_sections(headings: &[(u8, String, usize)], lines: &[&str]) -> Vec<Section> {
+    let total = lines.len() + 1;
     let mut out = Vec::with_capacity(headings.len());
+
     for (i, (level, title, line)) in headings.iter().enumerate() {
-        let start = *line; // 标题行之后
-        let end = headings
-            .get(i + 1)
-            .map(|(_, _, l)| l.saturating_sub(1))
-            .unwrap_or(lines.len());
-        let body = if start < end {
-            lines[start..end.min(lines.len())].join("\n")
+        let end_line = headings[i + 1..]
+            .iter()
+            .find(|(l, _, _)| l <= level)
+            .map(|(_, _, l)| *l)
+            .unwrap_or(total);
+
+        let body_start = *line;
+        let body_end = end_line.saturating_sub(1).min(lines.len());
+        let body = if body_start < body_end {
+            lines[body_start..body_end].join("\n")
         } else {
             String::new()
         };
+
         out.push(Section {
             kind: section::classify(title),
             title: title.clone(),
             level: *level,
             line: *line,
+            end_line,
             body,
         });
     }
@@ -237,4 +311,77 @@ pub fn find_readme(root: &Path) -> Option<PathBuf> {
         .iter()
         .map(|c| root.join(c))
         .find(|p| p.is_file())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(md: &str) -> Readme {
+        Readme::parse("README.md", md)
+    }
+
+    #[test]
+    fn badge_row_is_not_a_tagline() {
+        // ruff：标题下先是一排徽章，再是一行导航链接，之后才是真正的说明
+        let md = "\
+# Ruff
+
+[![v](https://img.shields.io/x.svg)](https://a.example)
+[![l](https://img.shields.io/y.svg)](https://b.example)
+
+[**Docs**](https://docs.example) | [**Playground**](https://play.example)
+
+An extremely fast Python linter, written in Rust.
+";
+        let r = parse(md);
+        assert_eq!(r.title.as_deref(), Some("Ruff"));
+        assert_eq!(
+            r.tagline.as_deref(),
+            Some("An extremely fast Python linter, written in Rust.")
+        );
+    }
+
+    #[test]
+    fn blockquote_counts_as_tagline() {
+        // chalk 把一句话说明写成引用块
+        let md = "<h1 align=\"center\"><img src=\"logo.svg\" alt=\"Chalk\"></h1>\n\n> Terminal string styling done right\n";
+        let r = parse(md);
+        assert_eq!(r.title.as_deref(), Some("Chalk"));
+        assert_eq!(r.tagline.as_deref(), Some("Terminal string styling done right"));
+    }
+
+    #[test]
+    fn subsection_does_not_truncate_parent_section() {
+        // ruff：`## Getting Started` 下有子标题 `### Installation`，
+        // 安装命令在子标题里，但仍属于父区块
+        let md = "\
+# X
+
+## Getting Started
+
+### Installation
+
+```shell
+pip install x
+```
+
+## Next
+";
+        let r = parse(md);
+        let s = r.section(SectionKind::Quickstart).expect("找到快速开始区块");
+        assert_eq!(r.code_blocks_in(s).count(), 1);
+    }
+
+    #[test]
+    fn root_absolute_link_resolves_against_repo_root() {
+        let r = parse("[a](/docs/x.md) [b](./docs/y.md) [c](https://e.example)\n");
+        let rel: Vec<&str> = r
+            .links
+            .iter()
+            .filter(|l| l.is_relative())
+            .map(|l| l.repo_path())
+            .collect();
+        assert_eq!(rel, vec!["docs/x.md", "docs/y.md"]);
+    }
 }
