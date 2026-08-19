@@ -1,0 +1,34 @@
+# 仓库内统一存 LF。CI 在 Linux 上构建，混入 CRLF 会导致 shell 脚本无法执行、
+# 快照测试（insta）在不同平台产生假差异。
+* text=auto eol=lf
+
+# 明确的文本类型，避免被误判为二进制
+*.rs      text eol=lf
+*.toml    text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.sh      text eol=lf
+*.snap    text eol=lf
+
+# Windows 原生脚本必须是 CRLF
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# 二进制，禁止任何行尾转换与 diff
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.pdf     binary
+*.zip     binary
+*.exe     binary
+*.woff    binary
+*.woff2   binary
+*.ttf     binary
+
+# 生成物：GitHub 语言统计里忽略，diff 时折叠
+Cargo.lock  -diff linguist-generated
