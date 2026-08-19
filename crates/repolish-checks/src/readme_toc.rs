@@ -31,7 +31,7 @@ impl Check for ReadmeToc {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(readme) = &ctx.readme else {
-            return Outcome::inconclusive("没有 README");
+            return Outcome::inconclusive("no README");
         };
         let name = crate::util::readme_name(readme);
         let lines = readme.raw.lines().count();
@@ -40,7 +40,7 @@ impl Check for ReadmeToc {
         if headings < MIN_HEADINGS || lines < MIN_LINES {
             return Outcome::perfect(vec![Evidence::new(
                 &name,
-                format!("{headings} 个标题 / {lines} 行，篇幅不需要目录"),
+                format!("{headings} headings over {lines} lines — short enough not to need a table of contents"),
             )]);
         }
 
@@ -48,7 +48,7 @@ impl Check for ReadmeToc {
             let t = s.title.to_lowercase();
             TOC_TITLES.iter().any(|k| t.contains(k))
         }) {
-            return Outcome::perfect(vec![Evidence::at(&name, s.line, "有目录区块")]);
+            return Outcome::perfect(vec![Evidence::at(&name, s.line, "table of contents present")]);
         }
 
         // 有些 README 不给目录加标题，直接在开头列一串锚点链接
@@ -61,7 +61,7 @@ impl Check for ReadmeToc {
         if anchors >= MIN_ANCHORS {
             return Outcome::perfect(vec![Evidence::new(
                 &name,
-                format!("开头有 {anchors} 个锚点链接，等同于目录"),
+                format!("{anchors} anchor links near the top, which serve as a table of contents"),
             )]);
         }
 
@@ -69,12 +69,13 @@ impl Check for ReadmeToc {
             4,
             vec![Evidence::new(
                 &name,
-                format!("{headings} 个标题 / {lines} 行，但没有目录"),
+                format!("{headings} headings over {lines} lines, with no table of contents"),
             )],
             vec![Fix::new(
                 Severity::P3,
-                "加一个目录。GitHub 上有自动大纲可以部分替代，\
-                 但在 npm / crates.io / PyPI 的项目页上只有手写目录管用",
+                "Add a table of contents. GitHub's automatic outline covers part of this, \
+                 but on the npm, crates.io, and PyPI project pages a hand-written one is \
+                 the only thing that works",
             )],
         )
     }

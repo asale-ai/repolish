@@ -35,28 +35,29 @@ impl Check for Contributing {
         let Some(path) = find(ctx) else {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "没有 CONTRIBUTING（根目录 / .github/ / docs/ 均无）")],
+                vec![Evidence::new(".", "no CONTRIBUTING in the repository root, .github/, or docs/")],
                 vec![Fix::new(
                     Severity::P2,
-                    "加 CONTRIBUTING.md，写清如何本地构建、如何跑测试、PR 的基本要求。\
-                     它决定了路过的人会不会真的提交第一个 PR",
+                    "Add CONTRIBUTING.md covering how to build locally, how to run the tests, \
+                     and what a pull request needs. It decides whether a passer-by ever opens \
+                     their first PR",
                 )],
             );
         };
 
         let text = match ctx.files.read(&path) {
             Some(t) => t,
-            None => return Outcome::inconclusive(format!("{path} 存在但无法读取")),
+            None => return Outcome::inconclusive(format!("{path} exists but could not be read")),
         };
 
         let lines = text.lines().filter(|l| !l.trim().is_empty()).count();
         if lines < MIN_LINES {
             return Outcome::scored(
                 5,
-                vec![Evidence::new(&path, format!("只有 {lines} 行有效内容，更像模板骨架"))],
+                vec![Evidence::new(&path, format!("only {lines} non-empty lines — closer to a template than a guide"))],
                 vec![Fix::new(
                     Severity::P2,
-                    "把贡献指南写实：本地构建命令、测试命令、代码风格要求、PR 检查清单",
+                    "Fill it in: the build command, the test command, the style expectations, and a PR checklist",
                 )],
             );
         }
@@ -65,17 +66,17 @@ impl Check for Contributing {
         if SETUP_HINTS.iter().any(|h| lower.contains(h)) {
             return Outcome::perfect(vec![Evidence::new(
                 &path,
-                format!("{lines} 行，包含本地开发命令"),
+                format!("{lines} lines, including local development commands"),
             )]);
         }
 
         Outcome::scored(
             8,
-            vec![Evidence::new(&path, format!("{lines} 行，但没有可执行的开发命令"))],
+            vec![Evidence::new(&path, format!("{lines} lines, but no runnable development commands"))],
             vec![Fix::new(
                 Severity::P3,
-                "补一段「本地跑起来」的命令（安装依赖 / 构建 / 测试）——\
-                 贡献者卡住最多的地方是环境，不是规范",
+                "Add the commands that get someone running locally (install / build / test). \
+                 Contributors get stuck on the environment far more often than on the rules",
             )],
         )
     }

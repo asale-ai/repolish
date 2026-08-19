@@ -27,7 +27,7 @@ mod exit {
 #[command(
     name = "repolish",
     version,
-    about = "诊断并优化开源仓库的可发现性、可理解性与可信度"
+    about = "Diagnose and improve how discoverable, understandable, and credible an open-source repository is"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -36,13 +36,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// 诊断仓库并输出评分报告
+    /// Score a repository and print the report
     Check(CheckArgs),
-    /// 写出 .repolish/badge.json，并打印可粘贴的徽章 markdown
+    /// Write .repolish/badge.json and print the badge markdown to paste
     Badge(BadgeArgs),
-    /// 写出 REPOLISH.md
+    /// Write REPOLISH.md
     Report(ReportArgs),
-    /// 生成 GitHub Actions workflow
+    /// Generate a GitHub Actions workflow
     Init(InitArgs),
 }
 
@@ -54,19 +54,19 @@ struct CheckArgs {
     #[arg(long, value_enum, default_value_t = Format::Text)]
     format: Format,
 
-    /// 低于该分数时以退出码 1 结束，可用作 CI 门禁
+    /// Exit with code 1 below this score, for use as a CI gate
     #[arg(long)]
     min_score: Option<u8>,
 
-    /// 顺带写出 .repolish/badge.json
+    /// Also write .repolish/badge.json
     #[arg(long)]
     badge: bool,
 
-    /// 顺带写出 REPOLISH.md
+    /// Also write REPOLISH.md
     #[arg(long)]
     report: bool,
 
-    /// 展开 P3 建议与已通过项
+    /// Show P3 suggestions and passing checks as well
     #[arg(short, long)]
     verbose: bool,
 }
@@ -76,11 +76,11 @@ struct BadgeArgs {
     #[command(flatten)]
     common: Common,
 
-    /// 徽章 JSON 所在的分支，写进 snippet 的 URL。默认取当前分支
+    /// Branch the badge JSON lives on, used in the snippet URL. Defaults to the current branch
     #[arg(long)]
     branch: Option<String>,
 
-    /// 打印 JSON 而不写文件
+    /// Print the JSON instead of writing the file
     #[arg(long)]
     stdout: bool,
 }
@@ -90,30 +90,30 @@ struct ReportArgs {
     #[command(flatten)]
     common: Common,
 
-    /// 输出路径，默认仓库根下的 REPOLISH.md
+    /// Output path; defaults to REPOLISH.md in the repository root
     #[arg(short, long)]
     output: Option<PathBuf>,
 
-    /// 打印到标准输出而不写文件
+    /// Print to stdout instead of writing the file
     #[arg(long)]
     stdout: bool,
 }
 
 #[derive(Parser)]
 struct InitArgs {
-    /// 仓库路径
+    /// Path to the repository
     #[arg(default_value = ".")]
     path: PathBuf,
 
-    /// workflow 中的门禁分数；不给则只记录不拦截
+    /// Gate score for the generated workflow; without it the workflow only records the score
     #[arg(long, default_value = "60")]
     min_score: Option<u8>,
 
-    /// 不设门禁，只记录分数
+    /// Record the score without gating on it
     #[arg(long, conflicts_with = "min_score")]
     no_gate: bool,
 
-    /// 覆盖已存在的 workflow
+    /// Overwrite an existing workflow
     #[arg(long)]
     force: bool,
 }
@@ -156,7 +156,7 @@ fn run_check(args: CheckArgs) -> u8 {
         Format::Json => match serde_json::to_string_pretty(&report) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                eprintln!("error: 序列化失败: {e}");
+                eprintln!("error: serialization failed: {e}");
                 return exit::BAD_USAGE;
             }
         },
@@ -175,7 +175,7 @@ fn run_check(args: CheckArgs) -> u8 {
         if let Err(code) = write_file(&path, &repolish_render::markdown(&report)) {
             return code;
         }
-        eprintln!("已写出 {}", path.display());
+        eprintln!("wrote {}", path.display());
     }
 
     verdict(&report, args.min_score)
@@ -189,8 +189,9 @@ fn run_badge(args: BadgeArgs) -> u8 {
 
     let Some(json) = repolish_render::badge_json(&report) else {
         eprintln!(
-            "error: 有效检查覆盖率仅 {:.0}%，低于 50%，不生成徽章。\n\
-             挂一个基于三分之一证据的分数，比不挂更糟",
+            "error: only {:.0}% of the registered checks produced a score, below the 50% floor, \
+             so no badge was written.\n\
+             A badge backed by a third of the evidence is worse than no badge at all",
             report.coverage * 100.0
         );
         return exit::LOW_COVERAGE;
@@ -205,24 +206,27 @@ fn run_badge(args: BadgeArgs) -> u8 {
     if let Err(code) = write_file(&path, &json) {
         return code;
     }
-    println!("已写出 {}", path.display());
+    println!("wrote {}", path.display());
 
     let branch = args
         .branch
         .or_else(|| ctx.git.as_ref().and_then(|g| g.branch.clone()))
         .unwrap_or_else(|| "main".to_string());
 
-    println!("\n把这一行粘进 README：\n");
+    println!("\nPaste this into your README:\n");
     match &ctx.slug {
         Some(slug) => println!("{}\n", repolish_render::snippet(&slug.owner, &slug.name, &branch)),
         None => {
             println!("{}\n", repolish_render::snippet("OWNER", "REPO", &branch));
             eprintln!(
-                "warning: 没有找到 GitHub 远端，snippet 里的 OWNER / REPO 需要你手填"
+                "warning: no GitHub remote found — fill in OWNER / REPO in the snippet yourself"
             );
         }
     }
-    println!("徽章由 shields.io 读取你自己仓库里的 {}，我们不托管任何东西。", repolish_render::BADGE_PATH);
+    println!(
+        "shields.io renders the badge by reading {} out of your own repository. Nothing is hosted by us.",
+        repolish_render::BADGE_PATH
+    );
     exit::OK
 }
 
@@ -242,7 +246,7 @@ fn run_report(args: ReportArgs) -> u8 {
     if let Err(code) = write_file(&path, &md) {
         return code;
     }
-    println!("已写出 {}", path.display());
+    println!("wrote {}", path.display());
     exit::OK
 }
 
@@ -250,7 +254,7 @@ fn run_init(args: InitArgs) -> u8 {
     let root = match dunce::canonicalize(&args.path) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("error: 无法访问 {}: {e}", args.path.display());
+            eprintln!("error: cannot access {}: {e}", args.path.display());
             return exit::NOT_A_REPO;
         }
     };
@@ -258,7 +262,7 @@ fn run_init(args: InitArgs) -> u8 {
     let path = root.join(init::WORKFLOW_PATH);
     if path.exists() && !args.force {
         eprintln!(
-            "error: {} 已存在。确认要覆盖就加 --force",
+            "error: {} already exists. Pass --force to overwrite it",
             path.display()
         );
         return exit::BAD_USAGE;
@@ -275,14 +279,14 @@ fn run_init(args: InitArgs) -> u8 {
         return code;
     }
 
-    println!("已写出 {}", path.display());
-    println!("  · 触发分支: {branch}");
+    println!("wrote {}", path.display());
+    println!("  · triggers on: {branch}");
     match min_score {
-        Some(n) => println!("  · 门禁: 低于 {n} 分则 CI 失败"),
-        None => println!("  · 门禁: 未设置，只记录分数"),
+        Some(n) => println!("  · gate: CI fails below {n}"),
+        None => println!("  · gate: none — the score is recorded, not enforced"),
     }
     println!(
-        "\n注意：模板引用的 action 是 asale-ai/repolish@v{}，需要该版本已发布才能跑通。",
+        "\nNote: the template pins asale-ai/repolish@v{}, which has to be released before this workflow can run.",
         env!("CARGO_PKG_VERSION")
     );
     exit::OK
@@ -290,12 +294,12 @@ fn run_init(args: InitArgs) -> u8 {
 
 fn write_badge(ctx: &repolish_ingest::RepoContext, report: &repolish_core::Report) -> Result<(), u8> {
     let Some(json) = repolish_render::badge_json(report) else {
-        eprintln!("warning: 覆盖率不足，未生成徽章");
+        eprintln!("warning: coverage too low, no badge written");
         return Err(exit::LOW_COVERAGE);
     };
     let path = ctx.root.join(repolish_render::BADGE_PATH);
     write_file(&path, &json)?;
-    eprintln!("已写出 {}", path.display());
+    eprintln!("wrote {}", path.display());
     Ok(())
 }
 

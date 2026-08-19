@@ -52,11 +52,11 @@ impl fmt::Display for RemoteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RemoteError::NoGithubRemote => {
-                write!(f, "没有找到 GitHub 远端（git remote origin），--remote 无从查起")
+                write!(f, "no GitHub remote found (git remote origin), so --remote has nothing to query")
             }
-            RemoteError::NotFound(s) => write!(f, "GitHub 上找不到 {s}（私有仓库需要 token）"),
-            RemoteError::Unauthorized { hint } => write!(f, "GitHub API 拒绝访问：{hint}"),
-            RemoteError::Http(e) => write!(f, "GitHub API 调用失败：{e}"),
+            RemoteError::NotFound(s) => write!(f, "{s} not found on GitHub (private repositories need a token)"),
+            RemoteError::Unauthorized { hint } => write!(f, "GitHub API refused the request: {hint}"),
+            RemoteError::Http(e) => write!(f, "GitHub API call failed: {e}"),
         }
     }
 }
@@ -116,12 +116,12 @@ pub fn fetch(slug: &RepoSlug, token: Option<&str>) -> Result<RemoteFacts, Remote
         Err(ureq::Error::StatusCode(404)) => return Err(RemoteError::NotFound(slug.clone())),
         Err(ureq::Error::StatusCode(401)) => {
             return Err(RemoteError::Unauthorized {
-                hint: "token 无效或已过期",
+                hint: "the token is invalid or has expired",
             })
         }
         Err(ureq::Error::StatusCode(403)) | Err(ureq::Error::StatusCode(429)) => {
             return Err(RemoteError::Unauthorized {
-                hint: "触发限流。匿名调用每小时 60 次，设置 GITHUB_TOKEN 可提到 5000 次",
+                hint: "rate limited. Anonymous calls get 60 per hour; setting GITHUB_TOKEN raises that to 5000",
             })
         }
         Err(e) => return Err(RemoteError::Http(e.to_string())),
@@ -130,7 +130,7 @@ pub fn fetch(slug: &RepoSlug, token: Option<&str>) -> Result<RemoteFacts, Remote
     let json: serde_json::Value = res
         .body_mut()
         .read_json()
-        .map_err(|e| RemoteError::Http(format!("响应不是合法 JSON：{e}")))?;
+        .map_err(|e| RemoteError::Http(format!("the response was not valid JSON: {e}")))?;
 
     Ok(from_json(&json))
 }

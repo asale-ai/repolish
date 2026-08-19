@@ -42,7 +42,7 @@ impl Check for ReadmeInstallConsistency {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(readme) = &ctx.readme else {
-            return Outcome::inconclusive("没有 README，无安装命令可比对");
+            return Outcome::inconclusive("no README, so there are no install commands to compare");
         };
         if ctx.manifests.is_empty() {
             // docs/05 明确：未探测到任何包管理器清单时不适用
@@ -72,7 +72,7 @@ impl Check for ReadmeInstallConsistency {
         .collect();
 
         if mentioned.is_empty() {
-            return Outcome::inconclusive("README 里没有安装命令可比对");
+            return Outcome::inconclusive("no install commands in the README to compare");
         }
 
         let declared: Vec<&Manifest> = ctx.manifests.iter().collect();
@@ -102,13 +102,14 @@ impl Check for ReadmeInstallConsistency {
                 vec![Evidence::at(
                     &name,
                     line,
-                    format!("README 教人用 {told} 安装，但仓库里只有 {have} 的清单"),
+                    format!("the README says to install with {told}, but the only manifest in the repository is {have}"),
                 )],
                 vec![Fix::new(
                     Severity::P1,
                     format!(
-                        "安装命令与仓库实际发布方式对不上。要么补上 {told} 的发布配置，\
-                         要么把命令改成 {have}"
+                        "The install command does not match how this repository actually \
+                         ships. Either add the {told} packaging, or change the command to \
+                         {have}"
                     ),
                 )],
             );
@@ -147,7 +148,7 @@ fn compare_names(
             return Outcome::perfect(vec![Evidence::at(
                 readme_name,
                 pkgs[0].0,
-                format!("安装命令装的就是本仓库发布的 `{expected}`"),
+                format!("the install command installs `{expected}`, which is what this repository publishes"),
             )]);
         }
         let (line, got) = pkgs[0].clone();
@@ -156,7 +157,7 @@ fn compare_names(
 
     if comparable == 0 {
         return Outcome::inconclusive(
-            "README 的安装命令里没有给出包名（如 `pip install -e .`），无从比对",
+            "the install commands name no package (`pip install -e .` and the like), so there is nothing to compare",
         );
     }
 
@@ -166,14 +167,15 @@ fn compare_names(
         mismatches
             .iter()
             .map(|(l, g, e)| {
-                Evidence::at(readme_name, *l, format!("命令里装的是 `{g}`，本仓库发布的是 `{e}`"))
+                Evidence::at(readme_name, *l, format!("the command installs `{g}`; this repository publishes `{e}`"))
             })
             .collect(),
         vec![Fix::new(
             Severity::P1,
             format!(
-                "安装命令里的包名是 `{got}`，与仓库发布的 `{expected}` 不一致\
-                 （第 {line} 行）。照着敲的人会装到别的包上",
+                "The install command names `{got}`, but this repository publishes \
+                 `{expected}` (line {line}). Anyone copying that command installs \
+                 somebody else's package",
             ),
         )],
     )

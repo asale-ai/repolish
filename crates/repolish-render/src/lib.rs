@@ -33,9 +33,9 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
 
     // ── 标题行 ────────────────────────────────────────────
     let profile_note = if report.profile.overridden {
-        format!("{} (手动指定)", report.profile.detected.as_str())
+        format!("{} (specified)", report.profile.detected.as_str())
     } else {
-        format!("{} (自动探测)", report.profile.detected.as_str())
+        format!("{} (detected)", report.profile.detected.as_str())
     };
     let _ = writeln!(
         out,
@@ -52,7 +52,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
             let _ = writeln!(
                 out,
                 "\n  {}   {}   {}",
-                paint("总分", c, Paint::Dim),
+                paint("Score", c, Paint::Dim),
                 paint_score(&format!("{s:>3}/100"), s, c),
                 paint(&bar, c, Paint::Dim),
             );
@@ -60,8 +60,8 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
         None => {
             let _ = writeln!(
                 out,
-                "\n  {}  有效检查覆盖率仅 {:.0}%，低于 50%，不输出总分",
-                paint("无法评分", c, Paint::Yellow),
+                "\n  {}  only {:.0}% of the registered checks produced a score, below the 50% floor — no total",
+                paint("Not scored", c, Paint::Yellow),
                 report.coverage * 100.0
             );
         }
@@ -74,7 +74,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
             out,
             "  {}",
             paint(
-                "        本地分：未计入 description / topics / homepage，不可与远程分比较",
+                "         Local score: description / topics / homepage were not checked, so this is not comparable with a --remote score",
                 c,
                 Paint::Dim
             )
@@ -90,13 +90,13 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
                 let _ = writeln!(
                     out,
                     "    {}{}   {}",
-                    pad(label, 12),
+                    pad(label, 20),
                     paint_score(&format!("{s:>3}"), s, c),
                     paint(&meter(s), c, Paint::Dim)
                 );
             }
             None => {
-                let _ = writeln!(out, "    {}{}", pad(label, 12), paint("  —", c, Paint::Dim));
+                let _ = writeln!(out, "    {}{}", pad(label, 20), paint("  —", c, Paint::Dim));
             }
         }
     }
@@ -120,7 +120,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
     };
 
     if !shown.is_empty() {
-        let _ = writeln!(out, "\n  {}", paint("改进项", c, Paint::Bold));
+        let _ = writeln!(out, "\n  {}", paint("To fix", c, Paint::Bold));
         for (sev, id, msg) in &shown {
             let tag = match sev {
                 Severity::P1 => paint("P1", c, Paint::Red),
@@ -148,10 +148,11 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
         }
         if !opts.verbose && findings.iter().any(|(s, _, _)| *s == Severity::P3) {
             let n = findings.iter().filter(|(s, _, _)| *s == Severity::P3).count();
+            let plural = if n == 1 { "suggestion" } else { "suggestions" };
             let _ = writeln!(
                 out,
                 "\n    {}",
-                paint(&format!("另有 {n} 条 P3 建议，用 -v 查看"), c, Paint::Dim)
+                paint(&format!("{n} more P3 {plural} — run with -v to see them"), c, Paint::Dim)
             );
         }
     }
@@ -164,7 +165,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
             .filter(|r| r.outcome.score() == Some(10))
             .collect();
         if !passed.is_empty() {
-            let _ = writeln!(out, "\n  {}", paint("已通过", c, Paint::Bold));
+            let _ = writeln!(out, "\n  {}", paint("Passing", c, Paint::Bold));
             for r in passed {
                 let _ = writeln!(out, "    {} {}", paint("✓", c, Paint::Green), r.id);
             }
@@ -173,7 +174,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
 
     // ── 覆盖限制 ──────────────────────────────────────────
     if !report.coverage_limits.is_empty() {
-        let _ = writeln!(out, "\n  {}", paint("覆盖限制", c, Paint::Bold));
+        let _ = writeln!(out, "\n  {}", paint("Coverage limits", c, Paint::Bold));
         for limit in &report.coverage_limits {
             let _ = writeln!(out, "    {} {}", paint("·", c, Paint::Dim), paint(limit, c, Paint::Dim));
         }
@@ -192,7 +193,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
             "\n  {}",
             paint(
                 &format!(
-                    "对 {} 类项目不适用，已排除：{}",
+                    "not applicable to {} projects, excluded: {}",
                     report.profile.detected.as_str(),
                     na.join(", ")
                 ),

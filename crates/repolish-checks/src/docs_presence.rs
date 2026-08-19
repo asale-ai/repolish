@@ -79,7 +79,7 @@ impl Check for DocsPresence {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         if let Some(g) = GENERATORS.iter().find(|g| ctx.files.contains(g)) {
-            return Outcome::perfect(vec![Evidence::new(*g, "有独立文档站配置")]);
+            return Outcome::perfect(vec![Evidence::new(*g, "dedicated documentation site configured")]);
         }
 
         let pages: Vec<&str> = ctx
@@ -104,7 +104,7 @@ impl Check for DocsPresence {
         if pages.len() >= 5 {
             return Outcome::perfect(vec![Evidence::new(
                 pages[0],
-                format!("{} 篇文档", pages.len()),
+                format!("{} documentation pages", pages.len()),
             )]);
         }
 
@@ -112,7 +112,7 @@ impl Check for DocsPresence {
             return Outcome::perfect(vec![Evidence::at(
                 file,
                 line,
-                format!("README 指向文档站: {url}"),
+                format!("README links to a documentation site: {url}"),
             )]);
         }
 
@@ -120,18 +120,18 @@ impl Check for DocsPresence {
             0 => no_docs(ctx),
             1 => Outcome::scored(
                 5,
-                vec![Evidence::new(pages[0], "只有一篇附加文档")],
+                vec![Evidence::new(pages[0], "only one page beyond the README")],
                 vec![Fix::new(
                     Severity::P3,
-                    "把 README 里讲不下的内容（配置项、进阶用法、架构）拆进 `docs/`",
+                    "Move what no longer fits in the README — configuration reference, advanced usage, architecture — into `docs/`",
                 )],
             ),
             n => Outcome::scored(
                 8,
-                vec![Evidence::new(pages[0], format!("{n} 篇附加文档"))],
+                vec![Evidence::new(pages[0], format!("{n} pages beyond the README"))],
                 vec![Fix::new(
                     Severity::P3,
-                    "文档已成规模，考虑加一个索引页或文档站，让人能按目录找而不是逐个点开",
+                    "There is enough documentation now to warrant an index page or a documentation site, so readers can navigate instead of opening files one by one",
                 )],
             ),
         }
@@ -145,21 +145,22 @@ fn no_docs(ctx: &RepoContext) -> Outcome {
             4,
             vec![Evidence::new(
                 ".",
-                format!("没有 `docs/`，全部文档都在 README 里（约 {words} 词）"),
+                format!("no `docs/`; everything lives in the README (~{words} words)"),
             )],
             vec![Fix::new(
                 Severity::P3,
-                "README 已经承担了全部文档职责。项目再长下去就该拆 `docs/`——\
-                 README 应当只回答「这是什么、怎么开始」",
+                "The README is carrying all of the documentation. Split `docs/` out before it \
+                 grows further — a README should answer \"what is this\" and \"how do I start\", \
+                 and stop there",
             )],
         );
     }
     Outcome::scored(
         0,
-        vec![Evidence::new(".", "既没有 `docs/`，README 也不足以充当文档")],
+        vec![Evidence::new(".", "no `docs/`, and the README is too thin to serve as documentation")],
         vec![Fix::new(
             Severity::P2,
-            "补文档：配置项说明、进阶用法、常见问题。放 `docs/` 或托管到文档站都可以",
+            "Write some documentation: configuration reference, advanced usage, common problems. `docs/` or a hosted site both work",
         )],
     )
 }

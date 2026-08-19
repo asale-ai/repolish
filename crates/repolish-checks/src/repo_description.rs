@@ -28,7 +28,7 @@ impl Check for RepoDescription {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(remote) = &ctx.remote else {
-            return Outcome::inconclusive("未取到 GitHub 元数据");
+            return Outcome::inconclusive("GitHub metadata was not fetched");
         };
 
         let Some(desc) = remote.description.as_deref() else {
@@ -36,16 +36,16 @@ impl Check for RepoDescription {
                 .readme
                 .as_ref()
                 .and_then(|r| r.tagline.as_deref())
-                .map(|t| format!("可直接用 README 里的这句：「{}」", truncate(t, 80)))
-                .unwrap_or_else(|| "先在 README 首屏写一句「这是什么」，再填到这里".to_string());
+                .map(|t| format!("The opening line of the README would do: \"{}\"", truncate(t, 80)))
+                .unwrap_or_else(|| "Write one sentence at the top of the README saying what this is, then reuse it here.".to_string());
 
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "GitHub 仓库 description 为空")],
+                vec![Evidence::new(".", "the GitHub repository description is empty")],
                 vec![Fix::new(
                     Severity::P1,
                     format!(
-                        "填写仓库 description。它是搜索结果与分享卡片里唯一露出的一句话。{suggestion}"
+                        "Set the repository description. It is the only sentence that shows up in search results and link previews. {suggestion}"
                     ),
                 )],
             );
@@ -55,11 +55,12 @@ impl Check for RepoDescription {
         if is_just_the_name(desc, repo_name) {
             return Outcome::scored(
                 4,
-                vec![Evidence::new(".", format!("description 只是重复项目名：「{desc}」"))],
+                vec![Evidence::new(".", format!("the description only repeats the project name: \"{desc}\""))],
                 vec![Fix::new(
                     Severity::P1,
-                    "description 里重复项目名等于没写。写清「解决什么问题」——\
-                     读者看到它时已经知道项目叫什么了",
+                    "A description that repeats the name says nothing. Say what problem it \
+                     solves — by the time anyone reads it, they already know what the \
+                     project is called",
                 )],
             );
         }
@@ -69,10 +70,10 @@ impl Check for RepoDescription {
         if chars < threshold {
             return Outcome::scored(
                 6,
-                vec![Evidence::new(".", format!("description 偏短：「{desc}」"))],
+                vec![Evidence::new(".", format!("the description is short: \"{desc}\""))],
                 vec![Fix::new(
                     Severity::P2,
-                    "把 description 写成完整的一句话：做什么 + 给谁用 + 关键特点",
+                    "Make the description a full sentence: what it does, who it is for, and what sets it apart",
                 )],
             );
         }

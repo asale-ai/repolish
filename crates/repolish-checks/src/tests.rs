@@ -57,26 +57,35 @@ impl Check for TestsPresent {
         match count {
             0 => Outcome::scored(
                 0,
-                vec![Evidence::new(".", "未找到测试目录、测试文件或内联测试")],
+                vec![Evidence::new(".", "no test directory, test files, or inline tests found")],
                 vec![Fix::new(
                     Severity::P1,
-                    "加测试。没有测试的项目，别人不敢在生产里用，也不敢给你提 PR",
+                    "Add tests. Without them nobody puts this in production, and nobody dares send you a pull request either",
                 )],
             ),
             1..=2 => Outcome::scored(
                 6,
-                vec![Evidence::new(sample, format!("只找到 {count} 处测试"))],
-                vec![Fix::new(Severity::P2, "扩大测试覆盖，至少覆盖核心路径")],
+                vec![Evidence::new(
+                    sample,
+                    format!("only {count} test location{} found", crate::util::plural(count)),
+                )],
+                vec![Fix::new(Severity::P2, "Widen the test coverage — at minimum, cover the main paths")],
             ),
             3..=9 => Outcome::scored(
                 8,
-                vec![Evidence::new(sample, format!("{count} 处测试"))],
+                vec![Evidence::new(
+                    sample,
+                    format!("{count} test location{}", crate::util::plural(count)),
+                )],
                 vec![Fix::new(
                     Severity::P3,
-                    "继续补测试；如已充分，考虑在 README 展示覆盖率徽章",
+                    "Keep adding tests; if coverage is already good, put a coverage badge in the README to show it",
                 )],
             ),
-            _ => Outcome::perfect(vec![Evidence::new(sample, format!("{count} 处测试"))]),
+            _ => Outcome::perfect(vec![Evidence::new(
+                sample,
+                format!("{count} test location{}", crate::util::plural(count)),
+            )]),
         }
     }
 }

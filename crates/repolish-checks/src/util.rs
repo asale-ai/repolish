@@ -101,6 +101,16 @@ pub fn first_arg(cmd: &str, verb: &str) -> Option<String> {
     args_after(cmd, verb).into_iter().next()
 }
 
+/// 计数名词的复数后缀。中文原文没有这个问题，改英文后一路都是
+/// 「1 translations」「2 CI config(s)」，成品文案里很扎眼。
+pub fn plural(n: usize) -> &'static str {
+    if n == 1 {
+        ""
+    } else {
+        "s"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

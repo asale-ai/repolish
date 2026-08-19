@@ -26,8 +26,8 @@ impl Check for ReadmeUsageExample {
         let Some(readme) = &ctx.readme else {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "没有 README")],
-                vec![Fix::new(Severity::P1, "添加 README 并给出使用示例")],
+                vec![Evidence::new(".", "no README")],
+                vec![Fix::new(Severity::P1, "Add a README with a usage example")],
             );
         };
         let name = readme.path.file_name().unwrap_or_default().to_string_lossy().to_string();
@@ -42,10 +42,10 @@ impl Check for ReadmeUsageExample {
         match total {
             0 => Outcome::scored(
                 0,
-                vec![Evidence::new(&name, "README 中没有任何代码块")],
+                vec![Evidence::new(&name, "no code blocks anywhere in the README")],
                 vec![Fix::new(
                     Severity::P1,
-                    "加一段最小可运行示例——读者判断要不要用你的项目，主要看这个",
+                    "Add one example small enough to run immediately. It is the main thing readers use to decide whether to adopt a project",
                 )],
             ),
             1 => Outcome::scored(
@@ -53,27 +53,27 @@ impl Check for ReadmeUsageExample {
                 vec![Evidence::at(
                     &name,
                     readme.code_blocks[0].line,
-                    "只有 1 个代码块，通常只够覆盖安装",
+                    "a single code block, which usually covers installation and nothing else",
                 )],
                 vec![Fix::new(
                     Severity::P2,
-                    "除安装命令外，再补一个真实用法示例",
+                    "Add a real usage example alongside the install command",
                 )],
             ),
             _ if tagged * 2 < total => Outcome::scored(
                 8,
                 vec![Evidence::new(
                     &name,
-                    format!("{total} 个代码块中仅 {tagged} 个标注了语言"),
+                    format!("{tagged} of {total} code blocks are tagged with a language"),
                 )],
                 vec![Fix::new(
                     Severity::P3,
-                    "给代码块加语言标记（```rust / ```bash），启用语法高亮",
+                    "Tag the code blocks with a language (```rust, ```bash) so they get syntax highlighting",
                 )],
             ),
             _ => Outcome::perfect(vec![Evidence::new(
                 &name,
-                format!("{total} 个代码块，{tagged} 个带语言标记"),
+                format!("{total} code blocks, {tagged} of them tagged with a language"),
             )]),
         }
     }

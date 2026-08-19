@@ -27,7 +27,7 @@ impl Check for ReadmeI18n {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(readme) = &ctx.readme else {
-            return Outcome::inconclusive("没有 README，无从判断多语言");
+            return Outcome::inconclusive("no README, so translations cannot be judged");
         };
         let main = crate::util::readme_name(readme);
 
@@ -41,11 +41,14 @@ impl Check for ReadmeI18n {
         if translations.is_empty() {
             return Outcome::scored(
                 5,
-                vec![Evidence::new(&main, "只有一种语言的 README")],
+                vec![Evidence::new(&main, "README in one language only")],
                 vec![Fix::new(
                     Severity::P3,
-                    "若目标用户里有非英语使用者，加一份 `README.zh-CN.md` 之类的译本，\
-                     并在主 README 顶部放语言切换链接",
+                    // 不能写「加一份英文以外的译本」——advanced-java 这类中文项目
+                    // 的主 README 本来就不是英文，那句建议对它是反的。
+                    "If part of your audience does not read the language this README is \
+                     written in, add a translation (`README.zh-CN.md`, `README.es.md`, and \
+                     so on) and link to it from the top of the main README",
                 )],
             );
         }
@@ -60,11 +63,15 @@ impl Check for ReadmeI18n {
                 7,
                 vec![Evidence::new(
                     translations[0],
-                    format!("有 {} 份译本，但主 README 没有链接过去", translations.len()),
+                    format!(
+                        "{} translation{} exist, but the main README links to none of them",
+                        translations.len(),
+                        crate::util::plural(translations.len())
+                    ),
                 )],
                 vec![Fix::new(
                     Severity::P3,
-                    "在主 README 顶部加一行语言切换链接。读者只会看到仓库首页展示的那一份",
+                    "Add a language switcher line at the top of the main README. Readers only ever see the one GitHub renders on the home page",
                 )],
             );
         }
@@ -72,7 +79,10 @@ impl Check for ReadmeI18n {
         let n = translations.len();
         let evidence = vec![Evidence::new(
             translations[0],
-            format!("{n} 份译本，主 README 已链接"),
+            format!(
+                "{n} translation{}, linked from the main README",
+                crate::util::plural(n)
+            ),
         )];
         if n >= 2 {
             return Outcome::perfect(evidence);
@@ -80,7 +90,7 @@ impl Check for ReadmeI18n {
         Outcome::scored(
             8,
             evidence,
-            vec![Fix::new(Severity::P3, "如有余力可再补一种语言")],
+            vec![Fix::new(Severity::P3, "Add another language if you have the capacity to keep it current")],
         )
     }
 }

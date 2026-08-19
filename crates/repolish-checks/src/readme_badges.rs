@@ -30,13 +30,13 @@ const BADGE_HOSTS: &[&str] = &[
 
 /// (类别, URL 或 alt 文本中的特征串)。顺序即匹配优先级。
 const KINDS: &[(&str, &[&str])] = &[
-    ("构建", &["workflow", "actions", "/ci", "build", "travis", "appveyor", "circleci"]),
-    ("覆盖率", &["codecov", "coveralls", "coverage"]),
-    ("版本", &["crates/v", "npm/v", "pypi/v", "version", "release", "badge.fury", "gem/v", "packagist"]),
-    ("许可证", &["license", "licence"]),
-    ("文档", &["docs.rs", "readthedocs", "docs-"]),
-    ("下载量", &["downloads", "dm/", "dt/", "crates/d"]),
-    ("社区", &["discord", "slack", "gitter", "twitter", "opencollective", "contributors"]),
+    ("build", &["workflow", "actions", "/ci", "build", "travis", "appveyor", "circleci"]),
+    ("coverage", &["codecov", "coveralls", "coverage"]),
+    ("version", &["crates/v", "npm/v", "pypi/v", "version", "release", "badge.fury", "gem/v", "packagist"]),
+    ("license", &["license", "licence"]),
+    ("docs", &["docs.rs", "readthedocs", "docs-"]),
+    ("downloads", &["downloads", "dm/", "dt/", "crates/d"]),
+    ("community", &["discord", "slack", "gitter", "twitter", "opencollective", "contributors"]),
 ];
 
 /// 徽章只在首屏才起作用，往下埋没人看
@@ -55,7 +55,7 @@ impl Check for ReadmeBadges {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(readme) = &ctx.readme else {
-            return Outcome::inconclusive("没有 README");
+            return Outcome::inconclusive("no README");
         };
         let name = crate::util::readme_name(readme);
 
@@ -76,13 +76,19 @@ impl Check for ReadmeBadges {
                     vec![Evidence::at(
                         &name,
                         first.line,
-                        format!("{} 个徽章，但都在第 {} 行之后，首屏看不到", all.len(), HEAD_LINES),
+                        format!(
+                            "{} badge{}, all of them below line {} and out of the first screen",
+                            all.len(),
+                            crate::util::plural(all.len()),
+                            HEAD_LINES
+                        ),
                     )],
                     vec![Fix::new(
                         Severity::P3,
                         format!(
-                            "徽章埋在第 {} 行。把它们移到标题正下方——\
-                             读者判断项目是否可用只看首屏",
+                            "The badges are buried at line {}. Move them directly under the \
+                             title — readers decide whether a project is usable from the \
+                             first screen alone",
                             first.line
                         ),
                     )],
@@ -90,11 +96,12 @@ impl Check for ReadmeBadges {
             }
             return Outcome::scored(
                 0,
-                vec![Evidence::new(&name, "没有徽章")],
+                vec![Evidence::new(&name, "no badges")],
                 vec![Fix::new(
                     Severity::P3,
-                    "加上构建状态、最新版本、许可证三个徽章。\
-                     它们回答的是读者最先问的三件事：能用吗、什么版本、我能不能用",
+                    "Add three badges: build status, latest version, license. They answer the \
+                     first three questions a reader has — does it work, which version, am I \
+                     allowed to use it",
                 )],
             );
         }
@@ -104,11 +111,16 @@ impl Check for ReadmeBadges {
         kinds.dedup();
 
         let listed = if kinds.is_empty() {
-            "未识别类别".to_string()
+            "unclassified".to_string()
         } else {
             kinds.join(" / ")
         };
-        let note = format!("{} 个徽章（{}）", badges.len(), listed);
+        let note = format!(
+            "{} badge{} ({})",
+            badges.len(),
+            crate::util::plural(badges.len()),
+            listed
+        );
 
         match kinds.len() {
             0 | 1 => Outcome::scored(
@@ -116,13 +128,13 @@ impl Check for ReadmeBadges {
                 vec![Evidence::at(&name, badges[0].line, note)],
                 vec![Fix::new(
                     Severity::P3,
-                    "徽章种类太单一。补齐构建状态、最新版本、许可证三类",
+                    "Only one kind of badge. Cover the three that matter: build status, latest version, license",
                 )],
             ),
             2 => Outcome::scored(
                 8,
                 vec![Evidence::at(&name, badges[0].line, note)],
-                vec![Fix::new(Severity::P3, "再补一类徽章（构建 / 版本 / 许可证中缺的那个）")],
+                vec![Fix::new(Severity::P3, "Add the missing one of build / version / license")],
             ),
             _ => Outcome::perfect(vec![Evidence::at(&name, badges[0].line, note)]),
         }
@@ -158,8 +170,8 @@ mod tests {
 
     #[test]
     fn classifies_by_purpose() {
-        assert_eq!(classify("https://img.shields.io/crates/v/serde.svg"), Some("版本"));
-        assert_eq!(classify("https://img.shields.io/badge/license-MIT-blue"), Some("许可证"));
-        assert_eq!(classify("https://codecov.io/gh/o/r/badge.svg"), Some("覆盖率"));
+        assert_eq!(classify("https://img.shields.io/crates/v/serde.svg"), Some("version"));
+        assert_eq!(classify("https://img.shields.io/badge/license-MIT-blue"), Some("license"));
+        assert_eq!(classify("https://codecov.io/gh/o/r/badge.svg"), Some("coverage"));
     }
 }

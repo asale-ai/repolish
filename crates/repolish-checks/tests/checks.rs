@@ -178,3 +178,72 @@ fn it_works() {}
     // 1 个 tests/ 文件 + 3 个内联模块 = 4 处，落在 3..=9 档
     assert_eq!(score, 8, "{:?}", evidence);
 }
+
+/// 产出文案一律英文——REPOLISH.md 会被提交进陌生人的仓库，混合语言等于不能用。
+///
+/// 用两个全 ASCII 的 fixture 兜住：一个什么都没有（走 0 分与建议分支），
+/// 一个尽量齐全（走满分与证据分支）。fixture 里没有一个非 ASCII 字符，
+/// 所以输出里出现 CJK 只可能来自我们自己的字符串。
+///
+/// 覆盖不到中间档，但**用户最常看到的两端**在这里被钉住了。
+#[test]
+fn all_messages_are_english() {
+    let bare = Fixture::new("lang-bare", &[("src/lib.rs", "pub fn f() {}\n")]);
+
+    let full = Fixture::new(
+        "lang-full",
+        &[
+            (
+                "README.md",
+                "# thing\n\n\
+                 A small thing that does one job well, and does not pretend otherwise.\n\n\
+                 [![build](https://img.shields.io/badge/build-passing-green)](https://x/ci)\n\
+                 [![crates.io](https://img.shields.io/crates/v/thing)](https://crates.io/crates/thing)\n\
+                 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)\n\n\
+                 ## Quick start\n\nRequires Rust 1.88.\n\n```sh\ncargo add thing\n```\n\n\
+                 ## Usage\n\n```rust\nlet t = thing::new();\n```\n",
+            ),
+            ("LICENSE", "MIT License\n\nPermission is hereby granted, free of charge\n"),
+            ("CONTRIBUTING.md", &"Build it with `cargo build`.\n".repeat(20)),
+            ("CODE_OF_CONDUCT.md", "Contributor Covenant\n"),
+            (".github/workflows/ci.yml", "jobs:\n  t:\n    steps:\n      - run: cargo test\n"),
+            (".github/ISSUE_TEMPLATE/bug.yml", "name: Bug\n"),
+            (".github/pull_request_template.md", "## What changed\n"),
+            ("docs/a.md", "a\n"),
+            ("docs/b.md", "b\n"),
+            ("docs/c.md", "c\n"),
+            ("docs/d.md", "d\n"),
+            ("docs/e.md", "e\n"),
+            ("tests/t.rs", "#[test]\nfn t() {}\n"),
+        ],
+    );
+
+    for fx in [&bare, &full] {
+        let ctx = RepoContext::load(fx.path(), None).expect("载入仓库");
+        let report = repolish_checks::registry().run(&ctx, &RunOptions::default());
+        for c in &report.checks {
+            let mut messages: Vec<String> = Vec::new();
+            match &c.outcome {
+                Outcome::Scored { evidence, fixes, .. } => {
+                    messages.extend(evidence.iter().map(|e| e.note.clone()));
+                    messages.extend(fixes.iter().map(|f| f.message.clone()));
+                }
+                Outcome::Inconclusive { reason } | Outcome::Skipped { reason } => {
+                    messages.push(reason.clone())
+                }
+                Outcome::NotApplicable { .. } => {}
+            }
+            for m in messages {
+                assert!(
+                    !m.chars().any(is_cjk),
+                    "{} 的产出文案含非英文：{m}",
+                    c.id
+                );
+            }
+        }
+    }
+}
+
+fn is_cjk(c: char) -> bool {
+    matches!(c as u32, 0x3000..=0x303F | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xFF00..=0xFFEF)
+}

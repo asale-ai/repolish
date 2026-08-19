@@ -44,9 +44,9 @@ impl Category {
 
     pub fn label(self) -> &'static str {
         match self {
-            Category::Discoverability => "可发现性",
-            Category::Comprehensibility => "可理解性",
-            Category::Credibility => "可信度",
+            Category::Discoverability => "Discoverability",
+            Category::Comprehensibility => "Comprehensibility",
+            Category::Credibility => "Credibility",
         }
     }
 }

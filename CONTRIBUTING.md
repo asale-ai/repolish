@@ -25,7 +25,7 @@ To reproduce the manual acceptance run against real repositories:
 The fixtures are shallow clones, matching what `actions/checkout` does by default. They
 are not committed.
 
-## The two rules that are not up for debate
+## The three rules that are not up for debate
 
 **1. Scoring is deterministic.** `repolish-core` must not depend on `repolish-llm`. The
 same commit must always produce the same score, byte for byte. A model may generate
@@ -36,6 +36,14 @@ badge is worthless and so is the tool.
 it returns `Inconclusive` with a reason and drops out of the denominator. It does not
 guess. Concretely: `ruff check path/to/code/file.py` in a usage example is about the
 *reader's* files, not this repository's, so it is not a broken claim.
+
+**3. Everything the tool emits is in English.** Check messages, terminal output, CLI
+help, and the comments in the workflow `repolish init` generates. `REPOLISH.md` gets
+committed into other people's repositories, and a report in two languages is one nobody
+keeps. Code comments and the design docs under `docs/` are in Chinese; that is
+deliberate and separate. Recognising *Chinese* READMEs is input, not output, so the
+heading aliases in `section.rs` and the stop-word lists stay as they are.
+`tests/checks.rs::all_messages_are_english` fails the build if a message slips through.
 
 ## Adding or changing a check
 

@@ -14,24 +14,25 @@ use crate::exit;
 
 #[derive(Args, Clone)]
 pub struct Common {
-    /// 仓库路径
+    /// Path to the repository
     #[arg(default_value = ".")]
     pub path: PathBuf,
 
-    /// 补充 GitHub 元数据（description / topics / homepage）。
-    /// token 取自 GITHUB_TOKEN / GH_TOKEN，缺省则走匿名配额（每小时 60 次）
+    /// Also read description / topics / homepage from the GitHub API.
+    /// The token comes from GITHUB_TOKEN or GH_TOKEN; without one, the anonymous
+    /// quota of 60 requests per hour applies
     #[arg(long, global = true)]
     pub remote: bool,
 
-    /// 覆盖项目类型探测结果
+    /// Override the detected project type
     #[arg(long, global = true, default_value = "auto")]
     pub profile: String,
 
-    /// 只跑这些检查项（逗号分隔）
+    /// Run only these checks (comma-separated)
     #[arg(long, global = true, value_delimiter = ',')]
     pub only: Vec<String>,
 
-    /// 跳过这些检查项（逗号分隔）
+    /// Skip these checks (comma-separated)
     #[arg(long, global = true, value_delimiter = ',')]
     pub skip: Vec<String>,
 
@@ -59,7 +60,7 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
             Some(p) => Some(p),
             None => {
                 eprintln!(
-                    "error: 未知的 profile「{}」，可选：auto, library, app, cli, docs, collection",
+                    "error: unknown profile \"{}\" — expected one of: auto, library, app, cli, docs, collection",
                     common.profile
                 );
                 return Err(exit::BAD_USAGE);
@@ -74,7 +75,7 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
 
     if ctx.git.is_none() && !ctx.root.join(".git").exists() {
         eprintln!(
-            "warning: {} 不是 git 仓库，与提交历史相关的检查项将标记为 inconclusive",
+            "warning: {} is not a git repository; checks that need commit history will report inconclusive",
             ctx.root.display()
         );
     }
@@ -84,7 +85,7 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
     if common.remote {
         let token = repolish_ingest::remote::token_from_env();
         if token.is_none() {
-            eprintln!("warning: 未设置 GITHUB_TOKEN，将走匿名配额（每小时 60 次）");
+            eprintln!("warning: GITHUB_TOKEN is not set; falling back to the anonymous quota of 60 requests per hour");
         }
         ctx.fetch_remote(token.as_deref()).map_err(|e| {
             eprintln!("error: {e}");
@@ -101,8 +102,8 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
         .chain(common.skip.iter())
         .find(|id| !known.contains(id.as_str()))
     {
-        eprintln!("error: 未知的检查项 id「{bad}」");
-        eprintln!("可用: {}", registry.ids().join(", "));
+        eprintln!("error: unknown check id \"{bad}\"");
+        eprintln!("available: {}", registry.ids().join(", "));
         return Err(exit::BAD_USAGE);
     }
 
@@ -121,13 +122,13 @@ pub fn write_file(path: &std::path::Path, contents: &str) -> Result<(), u8> {
     if let Some(dir) = path.parent() {
         if !dir.as_os_str().is_empty() {
             std::fs::create_dir_all(dir).map_err(|e| {
-                eprintln!("error: 无法创建目录 {}: {e}", dir.display());
+                eprintln!("error: cannot create directory {}: {e}", dir.display());
                 exit::BAD_USAGE
             })?;
         }
     }
     std::fs::write(path, contents).map_err(|e| {
-        eprintln!("error: 无法写入 {}: {e}", path.display());
+        eprintln!("error: cannot write {}: {e}", path.display());
         exit::BAD_USAGE
     })
 }

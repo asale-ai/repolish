@@ -83,7 +83,7 @@ impl Registry {
         let id = check.id();
 
         if opts.skip.contains(id) || (!opts.only.is_empty() && !opts.only.contains(id)) {
-            return Outcome::skipped("被 --only / --skip 过滤");
+            return Outcome::skipped("filtered out by --only / --skip");
         }
         if !check.applies_to(ctx.profile) {
             return Outcome::NotApplicable {
@@ -91,7 +91,7 @@ impl Registry {
             };
         }
         if check.requires_remote() && opts.mode == Mode::Local {
-            return Outcome::skipped("需要 --remote");
+            return Outcome::skipped("requires --remote");
         }
         check.run(ctx)
     }

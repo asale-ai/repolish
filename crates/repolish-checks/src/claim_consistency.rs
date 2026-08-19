@@ -51,7 +51,7 @@ impl Check for ClaimConsistency {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(readme) = &ctx.readme else {
-            return Outcome::inconclusive("没有 README，无声明可校验");
+            return Outcome::inconclusive("no README, so there are no claims to verify");
         };
         let name = util::readme_name(readme);
         let commands = util::command_lines(readme);
@@ -63,7 +63,7 @@ impl Check for ClaimConsistency {
 
         if claims.is_empty() {
             return Outcome::inconclusive(
-                "README 中没有可校验的命令声明（npm script / make 目标 / 脚本路径等）",
+                "no verifiable command claims in the README (npm scripts, make targets, script paths, and the like)",
             );
         }
 
@@ -73,7 +73,10 @@ impl Check for ClaimConsistency {
         if broken.is_empty() {
             return Outcome::perfect(vec![Evidence::new(
                 &name,
-                format!("{total} 条命令声明全部能在代码中找到对应实现"),
+                format!(
+                    "all {total} command claim{} resolve to something in the repository",
+                    util::plural(total)
+                ),
             )]);
         }
 
@@ -90,13 +93,14 @@ impl Check for ClaimConsistency {
             broken
                 .iter()
                 .take(8)
-                .map(|c| Evidence::at(&name, c.line, format!("{} —— 代码中不存在", c.what)))
+                .map(|c| Evidence::at(&name, c.line, format!("{} — does not exist in the repository", c.what)))
                 .collect(),
             vec![Fix::new(
                 severity,
                 format!(
-                    "{} 条 README 里的命令已经失效（共 {} 条可校验）。\
-                     照着 README 敲第一条命令就报错，是使用者流失最快的地方",
+                    "{} of the {} verifiable command claims in the README no longer work. \
+                     Typing the first command from a README and getting an error is the \
+                     fastest way to lose a user",
                     broken.len(),
                     total
                 ),

@@ -25,33 +25,35 @@ impl Check for IssuePrTemplate {
 
         match (issue, pr) {
             (Some(i), Some(p)) => Outcome::perfect(vec![
-                Evidence::new(i, "issue 模板"),
-                Evidence::new(p, "PR 模板"),
+                Evidence::new(i, "issue template"),
+                Evidence::new(p, "PR template"),
             ]),
             (Some(i), None) => Outcome::scored(
                 7,
-                vec![Evidence::new(i, "有 issue 模板，但没有 PR 模板")],
+                vec![Evidence::new(i, "issue template present, PR template missing")],
                 vec![Fix::new(
                     Severity::P3,
-                    "加 `.github/pull_request_template.md`，列出提交前的自检项（测试、文档、变更说明）",
+                    "Add `.github/pull_request_template.md` with the pre-submit checklist: tests, docs, a description of the change",
                 )],
             ),
             (None, Some(p)) => Outcome::scored(
                 6,
-                vec![Evidence::new(p, "有 PR 模板，但没有 issue 模板")],
+                vec![Evidence::new(p, "PR template present, issue template missing")],
                 vec![Fix::new(
                     Severity::P2,
-                    "加 `.github/ISSUE_TEMPLATE/`。没有模板的 bug 报告通常缺版本号和复现步骤，\
-                     每一条都要额外几轮对话才能开始排查",
+                    "Add `.github/ISSUE_TEMPLATE/`. Bug reports filed without a template \
+                     usually arrive with no version and no reproduction, and each one costs \
+                     a few round trips before triage can even start",
                 )],
             ),
             (None, None) => Outcome::scored(
                 0,
-                vec![Evidence::new(".", "`.github/` 下没有 issue 或 PR 模板")],
+                vec![Evidence::new(".", "no issue or PR templates under `.github/`")],
                 vec![Fix::new(
                     Severity::P2,
-                    "加 issue 模板（bug 报告 / 功能请求）与 PR 模板。\
-                     这是投入产出比最高的一项：写一次，之后每个报告都省一轮来回",
+                    "Add issue templates (bug report, feature request) and a PR template. \
+                     This is the cheapest fix on the list: write it once, and every report \
+                     afterwards saves you a round trip",
                 )],
             ),
         }

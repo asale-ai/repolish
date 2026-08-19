@@ -40,7 +40,7 @@ pub struct RepoContext {
 impl RepoContext {
     pub fn load(root: impl AsRef<Path>, profile_override: Option<Profile>) -> Result<Self> {
         let root = dunce::canonicalize(root.as_ref())
-            .with_context(|| format!("无法访问路径: {}", root.as_ref().display()))?;
+            .with_context(|| format!("cannot access path: {}", root.as_ref().display()))?;
 
         let files = FileIndex::build(&root)?;
 

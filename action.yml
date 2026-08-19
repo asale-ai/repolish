@@ -2,7 +2,7 @@
 # 放进 action/ 子目录的话，引用要写成 owner/repo/action@ref，
 # 与 docs/04-CLI设计.md 里给用户的模板对不上。用法示例在 action/README.md。
 name: repolish
-description: 诊断开源仓库的可发现性、可理解性与可信度，并产出徽章
+description: Score an open-source repository on discoverability, comprehensibility, and credibility, and emit a badge
 author: repolish contributors
 
 branding:
@@ -11,43 +11,44 @@ branding:
 
 inputs:
   version:
-    description: 要下载的 repolish 版本（不带 v 前缀）
+    description: repolish release to download, without the v prefix
     required: false
     default: 0.1.0
   path:
-    description: 仓库路径
+    description: Path to the repository
     required: false
     default: "."
   remote:
     description: >
-      是否补充 GitHub 元数据。默认开启——Action 里 GITHUB_TOKEN 免费可得，
-      而本地分会把 description / topics / homepage 剔出分母，基准更窄。
+      Read description / topics / homepage from the GitHub API. On by default:
+      inside an Action, GITHUB_TOKEN costs nothing, and a local score drops those
+      three checks from the denominator, which narrows the baseline.
     required: false
     default: "true"
   min-score:
-    description: 低于该分数时这一步失败。留空则只记录不拦截。
+    description: Fail this step below the given score. Leave empty to record without enforcing.
     required: false
     default: ""
   badge:
-    description: 写出 .repolish/badge.json
+    description: Write .repolish/badge.json
     required: false
     default: "true"
   report:
-    description: 写出 REPOLISH.md
+    description: Write REPOLISH.md
     required: false
     default: "false"
   summary:
-    description: 把报告追加到 job summary
+    description: Append the report to the job summary
     required: false
     default: "true"
   args:
-    description: 原始参数，给出则完全覆盖上面所有开关
+    description: Raw arguments; when given, they override every switch above
     required: false
     default: ""
 
 outputs:
   score:
-    description: 总分（0-100）；覆盖不足时为空
+    description: Total score (0-100); empty when coverage was too low to produce one
     value: ${{ steps.run.outputs.score }}
 
 runs:
@@ -67,7 +68,7 @@ runs:
           macOS-ARM64)  target=aarch64-apple-darwin;      ext=tar.gz ;;
           Windows-X64)  target=x86_64-pc-windows-msvc;    ext=zip ;;
           *)
-            echo "::error::不支持的运行环境: $RUNNER_OS-$RUNNER_ARCH"
+            echo "::error::unsupported runner: $RUNNER_OS-$RUNNER_ARCH"
             exit 1 ;;
         esac
 
@@ -76,7 +77,7 @@ runs:
         dir="${RUNNER_TEMP}/repolish"
         mkdir -p "$dir"
 
-        echo "下载 $url"
+        echo "downloading $url"
         curl -fsSL --retry 3 -o "${dir}/${asset}" "$url"
 
         if [ "$ext" = "zip" ]; then

@@ -29,10 +29,10 @@ impl Check for ReadmeTitleTagline {
         let Some(readme) = &ctx.readme else {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "仓库根目录没有 README")],
+                vec![Evidence::new(".", "no README in the repository root")],
                 vec![Fix::new(
                     Severity::P1,
-                    "添加 README.md，首行写项目名，紧接一句话说明它是什么、解决什么问题",
+                    "Add README.md. Put the project name on the first line, and one sentence under it saying what this is and what problem it solves",
                 )],
             );
         };
@@ -47,10 +47,10 @@ impl Check for ReadmeTitleTagline {
         let Some(title) = &readme.title else {
             return Outcome::scored(
                 3,
-                vec![Evidence::at(&name, 1, "未找到任何形式的标题")],
+                vec![Evidence::at(&name, 1, "no title of any kind")],
                 vec![Fix::new(
                     Severity::P1,
-                    "在 README 顶部加一个项目名标题",
+                    "Put a heading with the project name at the top of the README",
                 )],
             );
         };
@@ -64,11 +64,11 @@ impl Check for ReadmeTitleTagline {
                 vec![Evidence::at(
                     &name,
                     title_line,
-                    format!("标题是图片，仅 alt 文本可读：「{title}」"),
+                    format!("the title is an image; only its alt text is readable: \"{title}\""),
                 )],
                 vec![Fix::new(
                     Severity::P2,
-                    "在横幅图片下补一个文本标题。纯图片标题对搜索引擎和读屏软件不可见",
+                    "Add a text heading under the banner image. An image-only title is invisible to search engines and to screen readers",
                 )],
             );
         }
@@ -79,11 +79,11 @@ impl Check for ReadmeTitleTagline {
                 vec![Evidence::at(
                     &name,
                     title_line,
-                    format!("有标题「{title}」，但其后没有说明性段落"),
+                    format!("title \"{title}\" is followed by no descriptive paragraph"),
                 )],
                 vec![Fix::new(
                     Severity::P1,
-                    "在标题下方补一句话：这个项目是什么、给谁用、解决什么问题",
+                    "Add one sentence under the title: what this is, who it is for, what it solves",
                 )],
             ),
             Some(t) if t.chars().count() < MIN_TAGLINE => Outcome::scored(
@@ -91,17 +91,17 @@ impl Check for ReadmeTitleTagline {
                 vec![Evidence::at(
                     &name,
                     title_line,
-                    format!("说明过短（{} 字）：「{t}」", t.chars().count()),
+                    format!("the description is only {} characters: \"{t}\"", t.chars().count()),
                 )],
                 vec![Fix::new(
                     Severity::P3,
-                    format!("把首段说明扩充到 {MIN_TAGLINE} 字以上，点明用途与适用场景"),
+                    format!("Expand the opening description past {MIN_TAGLINE} characters, and say what it is for and when to reach for it"),
                 )],
             ),
             Some(t) => Outcome::perfect(vec![Evidence::at(
                 &name,
                 title_line,
-                format!("标题「{title}」+ 说明「{}」", truncate(t, 40)),
+                format!("title \"{title}\" followed by \"{}\"", truncate(t, 40)),
             )]),
         }
     }

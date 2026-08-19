@@ -46,8 +46,8 @@ impl Check for ReadmeQuickstart {
         let Some(readme) = &ctx.readme else {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "没有 README，无从判断如何上手")],
-                vec![Fix::new(Severity::P1, "添加 README 并写「快速开始」区块")],
+                vec![Evidence::new(".", "no README, so there is no way in at all")],
+                vec![Fix::new(Severity::P1, "Add a README with a quick start section")],
             );
         };
         let name = file_name(readme);
@@ -68,11 +68,11 @@ impl Check for ReadmeQuickstart {
                 vec![Evidence::at(
                     &name,
                     section.line,
-                    format!("「{}」区块里没有可复制的命令", section.title),
+                    format!("the \"{}\" section contains no command anyone can copy", section.title),
                 )],
                 vec![Fix::new(
                     Severity::P2,
-                    "在该区块加一个代码块，给出可直接粘贴执行的安装命令",
+                    "Put a code block in that section with an install command that can be pasted and run as-is",
                 )],
             ),
             None => score_fallback(readme, &name),
@@ -98,7 +98,7 @@ fn score_explicit(_readme: &Readme, section: &Section, name: &str, rank: u8) -> 
         return Outcome::perfect(vec![Evidence::at(
             name,
             section.line,
-            format!("「{}」含命令与前置条件说明", section.title),
+            format!("\"{}\" has both commands and prerequisites", section.title),
         )]);
     }
     Outcome::scored(
@@ -106,11 +106,11 @@ fn score_explicit(_readme: &Readme, section: &Section, name: &str, rank: u8) -> 
         vec![Evidence::at(
             name,
             section.line,
-            format!("「{}」有命令，但未说明前置条件", section.title),
+            format!("\"{}\" has commands but states no prerequisites", section.title),
         )],
         vec![Fix::new(
             Severity::P3,
-            "补一行前置条件（语言/运行时版本、系统依赖），减少「照做却跑不起来」",
+            "Add a line of prerequisites (language or runtime version, system dependencies). It is what stands between \"I followed the README\" and \"it works\"",
         )],
     )
 }
@@ -133,15 +133,15 @@ fn score_fallback(readme: &Readme, name: &str) -> Outcome {
         INSTALL_HINTS.iter().any(|h| lit.contains(h))
     });
     if let Some(cb) = found {
-        return buried(name, cb.line, "正文");
+        return buried(name, cb.line, "the body text");
     }
 
     Outcome::scored(
         0,
-        vec![Evidence::new(name, "未找到任何安装或上手说明")],
+        vec![Evidence::new(name, "no installation or getting-started instructions found")],
         vec![Fix::new(
             Severity::P1,
-            "加一个「快速开始」区块，写清安装命令和最小可运行示例",
+            "Add a quick start section with the install command and one example small enough to run immediately",
         )],
     )
 }
@@ -152,11 +152,11 @@ fn buried(name: &str, line: usize, where_: &str) -> Outcome {
         vec![Evidence::at(
             name,
             line,
-            format!("没有独立的安装 / 快速开始区块，上手信息埋在「{where_}」里"),
+            format!("no dedicated install or quick start section; the instructions are buried in \"{where_}\""),
         )],
         vec![Fix::new(
             Severity::P2,
-            "拆出独立的「快速开始」区块。读者找上手方式时是扫标题，不是通读全文",
+            "Pull the instructions into their own quick start section. Readers looking for a way in scan the headings; they do not read the whole page",
         )],
     )
 }

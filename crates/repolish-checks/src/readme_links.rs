@@ -18,13 +18,13 @@ impl Check for ReadmeLinkHealth {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(readme) = &ctx.readme else {
-            return Outcome::inconclusive("没有 README，无相对链接可校验");
+            return Outcome::inconclusive("no README, so there are no relative links to check");
         };
         let name = readme.path.file_name().unwrap_or_default().to_string_lossy().to_string();
 
         let relative: Vec<_> = readme.links.iter().filter(|l| l.is_relative()).collect();
         if relative.is_empty() {
-            return Outcome::inconclusive("README 中没有相对链接可校验");
+            return Outcome::inconclusive("no relative links in the README to check");
         }
 
         let mut broken = Vec::new();
@@ -41,7 +41,11 @@ impl Check for ReadmeLinkHealth {
         if broken.is_empty() {
             return Outcome::perfect(vec![Evidence::new(
                 &name,
-                format!("{} 个相对链接全部有效", relative.len()),
+                format!(
+                    "all {} relative link{} resolve",
+                    relative.len(),
+                    crate::util::plural(relative.len())
+                ),
             )]);
         }
 
@@ -52,8 +56,8 @@ impl Check for ReadmeLinkHealth {
             .iter()
             .take(8)
             .map(|(link, path)| {
-                let what = if link.is_image { "图片" } else { "链接" };
-                Evidence::at(&name, link.line, format!("{what}目标不存在: {path}"))
+                let what = if link.is_image { "image" } else { "link" };
+                Evidence::at(&name, link.line, format!("{what} target does not exist: {path}"))
             })
             .collect();
 
@@ -67,7 +71,7 @@ impl Check for ReadmeLinkHealth {
                     Severity::P2
                 },
                 format!(
-                    "修正 {} 个失效的相对链接——它们在 GitHub 页面上是 404",
+                    "Fix {} broken relative links — every one of them is a 404 on the GitHub page",
                     broken.len()
                 ),
             )],

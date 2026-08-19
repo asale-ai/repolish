@@ -14,9 +14,9 @@ pub const WORKFLOW_PATH: &str = ".github/workflows/repolish.yml";
 pub fn workflow(branch: &str, min_score: Option<u8>) -> String {
     let gate = match min_score {
         Some(n) => format!(
-            "\n          # 低于 {n} 分时这一步会失败（退出码 1）。\n          # 想先观察一段时间再设门槛，删掉这一行即可。\n          min-score: {n}"
+            "\n          # This step fails (exit code 1) below {n}.\n          # To watch the score for a while before enforcing it, delete this line.\n          min-score: {n}"
         ),
-        None => "\n          # 未设门禁：只记录分数，不拦截。加一行 `min-score: 60` 即可开启。"
+        None => "\n          # No gate: the score is recorded, not enforced. Add `min-score: 60` to turn it on."
             .to_string(),
     };
 
@@ -27,7 +27,7 @@ on:
   push:
     branches: [{branch}]
   schedule:
-    # 每周一跑一次：活跃度与失效链接会随时间自己变差
+    # Weekly: activity and link rot get worse on their own, with no commits involved
     - cron: '0 0 * * 1'
   workflow_dispatch:
 
@@ -40,11 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # 必须是 0：默认的 fetch-depth 1 一个 tag 都拉不到，
-          # release-hygiene 会因此无法判断发布节奏
+          # Must be 0: the default fetch-depth of 1 brings down no tags at all,
+          # which leaves release-hygiene unable to judge the release cadence
           fetch-depth: 0
 
-      # remote 与 badge 默认开启，无需显式声明
+      # remote and badge are on by default, so they need no declaration here
       - uses: {action}
         with:{gate}
         env:

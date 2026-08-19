@@ -277,7 +277,7 @@ mod tests {
         // 只有 1/4 权重被打分 → 低于 50%，不出总分
         let checks = vec![
             r("a", Risk::Low, Outcome::perfect(vec![])),
-            r("b", Risk::Critical, Outcome::skipped("需要 --remote")),
+            r("b", Risk::Critical, Outcome::skipped("requires --remote")),
         ];
         let rep = build(checks, Profile::Unknown);
         assert!(rep.score.is_none());

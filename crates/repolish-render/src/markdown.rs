@@ -57,7 +57,7 @@ fn write_summary(out: &mut String, report: &Report) {
             .category_score(cat)
             .map(|s| s.to_string())
             .unwrap_or_else(|| "—".to_string());
-        let _ = writeln!(out, "| {} | {score} |", category_name(cat));
+        let _ = writeln!(out, "| {} | {score} |", cat.label());
     }
     out.push('\n');
 
@@ -203,14 +203,6 @@ fn severity_heading(s: Severity) -> &'static str {
 
 /// 英文类别名。`Category::label()` 返回的是终端用的中文名，
 /// 两者会在整体 i18n 决定后合并。
-fn category_name(c: Category) -> &'static str {
-    match c {
-        Category::Discoverability => "Discoverability",
-        Category::Comprehensibility => "Comprehensibility",
-        Category::Credibility => "Credibility",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

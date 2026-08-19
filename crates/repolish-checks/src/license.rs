@@ -48,10 +48,10 @@ impl Check for License {
         if files.is_empty() {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "仓库根目录没有 LICENSE 文件")],
+                vec![Evidence::new(".", "no LICENSE file in the repository root")],
                 vec![Fix::new(
                     Severity::P1,
-                    "添加 LICENSE 文件。没有许可证 = 保留所有权利，法律上别人不能用你的代码",
+                    "Add a LICENSE file. No license means all rights reserved — legally, nobody may use your code",
                 )],
             );
         }
@@ -77,12 +77,12 @@ impl Check for License {
             let spdx: Vec<&str> = identified.iter().map(|(_, s)| *s).collect();
             return Outcome::perfect(vec![Evidence::new(
                 identified[0].0,
-                format!("识别为 {}", spdx.join(" OR ")),
+                format!("identified as {}", spdx.join(" OR ")),
             )]);
         }
 
         if unreadable == files.len() {
-            return Outcome::inconclusive(format!("{} 存在但无法读取", files[0]));
+            return Outcome::inconclusive(format!("{} exists but could not be read", files[0]));
         }
 
         Outcome::scored(
@@ -90,13 +90,14 @@ impl Check for License {
             vec![Evidence::new(
                 files[0],
                 format!(
-                    "{} 个许可证文件均不匹配已知的标准许可证",
-                    files.len()
+                    "{} license file{}, none matching a known standard license",
+                    files.len(),
+                    crate::util::plural(files.len())
                 ),
             )],
             vec![Fix::new(
                 Severity::P2,
-                "改用标准许可证原文（choosealicense.com）。自定义条款会让使用者的法务直接放弃",
+                "Use the verbatim text of a standard license (choosealicense.com). Custom terms send a corporate legal review straight to \"no\"",
             )],
         )
     }

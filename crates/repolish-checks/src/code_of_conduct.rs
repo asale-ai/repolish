@@ -37,14 +37,15 @@ impl Check for CodeOfConduct {
             });
 
         match found {
-            Some(p) => Outcome::perfect(vec![Evidence::new(p, "存在行为准则")]),
+            Some(p) => Outcome::perfect(vec![Evidence::new(p, "code of conduct present")]),
             None => Outcome::scored(
                 0,
-                vec![Evidence::new(".", "没有 CODE_OF_CONDUCT")],
+                vec![Evidence::new(".", "no CODE_OF_CONDUCT")],
                 vec![Fix::new(
                     Severity::P3,
-                    "采用 Contributor Covenant 原文即可（contributor-covenant.org）。\
-                     GitHub 会在仓库首页展示它，也是社区评估项目是否可参与的常规信号",
+                    "Adopt the Contributor Covenant verbatim (contributor-covenant.org). \
+                     GitHub surfaces it on the repository home page, and its absence is read \
+                     as a signal about the community, not about the code",
                 )],
             ),
         }

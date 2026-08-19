@@ -23,17 +23,18 @@ impl Check for RepoHomepage {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(remote) = &ctx.remote else {
-            return Outcome::inconclusive("未取到 GitHub 元数据");
+            return Outcome::inconclusive("GitHub metadata was not fetched");
         };
 
         let Some(url) = remote.homepage.as_deref() else {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "未设置 homepage")],
+                vec![Evidence::new(".", "no homepage set")],
                 vec![Fix::new(
                     Severity::P3,
-                    "在仓库设置里填 homepage。没有官网就填文档站——\
-                     docs.rs / Read the Docs / npm 页面都行，它会显示在仓库首页右侧",
+                    "Set the homepage in the repository settings. With no dedicated site, \
+                     the documentation will do — docs.rs, Read the Docs, the npm page. \
+                     GitHub shows it in the sidebar of the repository home page",
                 )],
             );
         };
@@ -41,10 +42,10 @@ impl Check for RepoHomepage {
         if points_at_itself(url, ctx) {
             return Outcome::scored(
                 4,
-                vec![Evidence::new(".", format!("homepage 指回仓库自己：{url}"))],
+                vec![Evidence::new(".", format!("the homepage points back at the repository itself: {url}"))],
                 vec![Fix::new(
                     Severity::P3,
-                    "homepage 指回本仓库没有信息量。改成文档站、官网或包管理页",
+                    "A homepage pointing back at this repository adds nothing. Point it at the documentation, the project site, or the package page",
                 )],
             );
         }

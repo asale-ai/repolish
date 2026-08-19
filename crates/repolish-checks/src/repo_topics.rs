@@ -68,7 +68,7 @@ impl Check for RepoTopics {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         let Some(remote) = &ctx.remote else {
-            return Outcome::inconclusive("未取到 GitHub 元数据");
+            return Outcome::inconclusive("GitHub metadata was not fetched");
         };
 
         let vocab = local_vocabulary(ctx);
@@ -77,11 +77,11 @@ impl Check for RepoTopics {
         if topics.is_empty() {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "没有设置任何 topic")],
+                vec![Evidence::new(".", "no topics set")],
                 vec![Fix::new(
                     Severity::P1,
                     format!(
-                        "加 topics——它是 GitHub 站内检索与「相关仓库」推荐的主要依据。{}",
+                        "Set some topics. They are what GitHub search and the \"related repositories\" rail run on. {}",
                         suggest(&vocab, topics)
                     ),
                 )],
@@ -89,10 +89,10 @@ impl Check for RepoTopics {
         }
 
         let (base, size_advice) = match topics.len() {
-            1..=2 => (4, Some("topics 太少，补到 5 个以上才能覆盖到不同的搜索词")),
-            3..=5 => (8, Some("再补几个：语言、领域、使用形态各来一个")),
+            1..=2 => (4, Some("Too few topics. Five or more are needed to cover the different terms people search for")),
+            3..=5 => (8, Some("Add a few more: one for the language, one for the domain, one for the shape it ships in")),
             6..=12 => (10, None),
-            _ => (8, Some("topics 堆得太多会稀释相关性，精简到 12 个以内")),
+            _ => (8, Some("Piling on topics dilutes relevance. Trim to twelve or fewer")),
         };
 
         let matched: Vec<&String> = topics.iter().filter(|t| matches_vocab(t, &vocab)).collect();
@@ -103,15 +103,16 @@ impl Check for RepoTopics {
                 vec![Evidence::new(
                     ".",
                     format!(
-                        "{} 个 topic（{}）都对不上本地信号：主语言、依赖、README 标题里都没有出现",
+                        "none of the {} topic{} ({}) match anything in the repository: not the main language, not the dependencies, not the README headings",
                         topics.len(),
+                        crate::util::plural(topics.len()),
                         topics.join(", ")
                     ),
                 )],
                 vec![Fix::new(
                     Severity::P2,
                     format!(
-                        "现有 topics 与项目实际内容对不上，搜索时找不到你。{}",
+                        "The current topics do not describe what this project actually is, so searches for it do not find it. {}",
                         suggest(&vocab, topics)
                     ),
                 )],
@@ -119,8 +120,9 @@ impl Check for RepoTopics {
         }
 
         let note = format!(
-            "{} 个 topic，其中 {} 与本地信号一致",
+            "{} topic{}, {} of which match signals in the repository",
             topics.len(),
+            crate::util::plural(topics.len()),
             matched.len()
         );
         match size_advice {
@@ -210,9 +212,9 @@ fn suggest(vocab: &BTreeSet<String>, existing: &[String]) -> String {
         .take(MAX_SUGGESTIONS)
         .collect();
     if picks.is_empty() {
-        return "建议按「语言 / 领域 / 使用形态」三个角度各挑一个".to_string();
+        return "Pick one each for the language, the domain, and the shape it ships in".to_string();
     }
-    format!("可考虑：{}", picks.join("、"))
+    format!("Candidates: {}", picks.join(", "))
 }
 
 #[cfg(test)]

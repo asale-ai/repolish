@@ -36,31 +36,31 @@ impl Check for ReadmeLength {
         let Some(readme) = &ctx.readme else {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "没有 README")],
-                vec![Fix::new(Severity::P1, "添加 README")],
+                vec![Evidence::new(".", "no README")],
+                vec![Fix::new(Severity::P1, "Add a README")],
             );
         };
         let name = crate::util::readme_name(readme);
         let words = readme.word_count();
-        let note = format!("约 {words} 词");
+        let note = format!("~{words} words");
 
         if words < TOO_SHORT {
             return Outcome::scored(
                 3,
-                vec![Evidence::new(&name, format!("{note}，信息量不足"))],
+                vec![Evidence::new(&name, format!("{note} — too little to go on"))],
                 vec![Fix::new(
                     Severity::P1,
-                    "至少写清四件事：这是什么、解决什么问题、怎么安装、最小可运行示例",
+                    "Cover four things at minimum: what this is, what problem it solves, how to install it, and one example that runs",
                 )],
             );
         }
         if words < MIN_WORDS {
             return Outcome::scored(
                 6,
-                vec![Evidence::new(&name, format!("{note}，偏薄"))],
+                vec![Evidence::new(&name, format!("{note} — on the thin side"))],
                 vec![Fix::new(
                     Severity::P2,
-                    "补上使用示例与适用场景。读者判断要不要用，靠的是示例而不是描述",
+                    "Add usage examples and the cases this is meant for. Readers decide from examples, not from descriptions",
                 )],
             );
         }
@@ -70,19 +70,19 @@ impl Check for ReadmeLength {
         if words <= TOO_LONG {
             return Outcome::scored(
                 8,
-                vec![Evidence::new(&name, format!("{note}，偏长"))],
+                vec![Evidence::new(&name, format!("{note} — on the long side"))],
                 vec![Fix::new(
                     Severity::P3,
-                    "把 API 详情、配置项、进阶用法挪进 `docs/`，README 只留「这是什么、怎么开始」",
+                    "Move the API details, configuration reference, and advanced usage into `docs/`, and leave the README with \"what is this\" and \"how do I start\"",
                 )],
             );
         }
         Outcome::scored(
             6,
-            vec![Evidence::new(&name, format!("{note}，过长"))],
+            vec![Evidence::new(&name, format!("{note} — far too long"))],
             vec![Fix::new(
                 Severity::P2,
-                "README 已经长到没人会读完。拆到 `docs/` 并在 README 留一份索引",
+                "The README is long past the point where anyone finishes it. Split it into `docs/` and leave an index behind",
             )],
         )
     }
