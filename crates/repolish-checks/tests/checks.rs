@@ -1,4 +1,4 @@
-//! `claim-consistency` 与 `readme-install-consistency` 的端到端回归。
+//! 检查项的端到端回归：在真实目录上跑整个注册表，而不是单测某个函数。
 //!
 //! 这两项是 M2 的差异化重点，也是最容易误报的地方：README 的用法示例里
 //! 到处是使用者自己的文件路径与占位符，把它们当成「仓库的承诺」去校验，
@@ -141,4 +141,40 @@ fn remote_checks_are_skipped_without_the_flag() {
     assert!(report.coverage_limits.iter().any(|l| l.starts_with("repo-topics")));
     // 剔掉三项远程检查后仍要能出总分
     assert!(report.score.is_some());
+}
+
+#[test]
+fn inline_tests_count_even_when_a_tests_dir_exists() {
+    // Rust 项目的测试绝大多数写在 `#[cfg(test)] mod tests` 里。若「有 tests/ 目录
+    // 就不再扫内联」，一个有几十个内联测试模块的仓库会被判成「只找到 1 处测试」
+    // ——repolish 自己就是这么被误判的。
+    let inline = "pub fn f() {}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn t() {}
+}
+";
+    let fx = Fixture::new(
+        "tests-union",
+        &[
+            ("README.md", "# X
+
+A thing.
+"),
+            ("tests/integration.rs", "#[test]
+fn it_works() {}
+"),
+            ("src/a.rs", inline),
+            ("src/b.rs", inline),
+            ("src/c.rs", inline),
+        ],
+    );
+
+    let Outcome::Scored { score, evidence, .. } = outcome_of(&fx, "tests-present") else {
+        panic!("应当判分");
+    };
+    // 1 个 tests/ 文件 + 3 个内联模块 = 4 处，落在 3..=9 档
+    assert_eq!(score, 8, "{:?}", evidence);
 }

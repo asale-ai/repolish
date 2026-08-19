@@ -1,8 +1,17 @@
 [package]
-name = "repolish-cli"
+# 包名即 `cargo install` 的名字，必须与二进制名一致——
+# 目录仍叫 repolish-cli，是为了和其余 crate 的命名保持一致。
+name = "repolish"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
+description = "诊断并优化开源仓库的可发现性、可理解性与可信度"
+repository = "https://github.com/asale-ai/repolish"
+homepage = "https://github.com/asale-ai/repolish"
+readme = "../../README.md"
+keywords = ["readme", "documentation", "lint", "cli", "open-source"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "repolish"

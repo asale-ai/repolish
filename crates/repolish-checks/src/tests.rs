@@ -40,9 +40,16 @@ impl Check for TestsPresent {
             .map(|s| s.to_string())
             .collect();
 
-        if hits.is_empty() {
-            hits = scan_inline(ctx);
-        }
+        // 路径命中与内联测试必须**合并**，不能「路径没命中才扫内联」。
+        // Rust 项目的测试绝大多数写在 `#[cfg(test)] mod tests` 里，
+        // 只要仓库里有一个 `tests/` 目录，其余几十个内联测试模块就全被忽略了
+        // ——repolish 自己就因此被判成「只找到 1 处测试」。
+        let known: std::collections::HashSet<&str> = hits.iter().map(|s| s.as_str()).collect();
+        let inline: Vec<String> = scan_inline(ctx)
+            .into_iter()
+            .filter(|p| !known.contains(p.as_str()))
+            .collect();
+        hits.extend(inline);
 
         let count = hits.len();
         let sample = hits.first().map(|s| s.as_str()).unwrap_or(".");

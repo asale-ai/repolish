@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Design documents
+    url: https://github.com/asale-ai/repolish/tree/main/docs
+    about: Scoring dimensions, architecture and roadmap are written down before they are built.

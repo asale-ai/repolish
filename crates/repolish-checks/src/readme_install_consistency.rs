@@ -199,7 +199,7 @@ fn packages_for(
             pkgs.extend(
                 util::args_after(cmd, verb)
                     .into_iter()
-                    .filter_map(|a| clean_package(&a))
+                    .filter_map(|a| clean_package(eco, &a))
                     .map(|p| (*line, p)),
             );
         }
@@ -249,7 +249,7 @@ fn dependency_keys(toml_src: &str) -> Option<Vec<String>> {
 }
 
 /// 把命令参数收拾成包名。不是包名的（本地路径、URL、版本号）返回 None。
-fn clean_package(token: &str) -> Option<String> {
+fn clean_package(eco: Ecosystem, token: &str) -> Option<String> {
     let t = token.trim().trim_matches(['"', '\'', ',', '`']);
     if t.is_empty()
         || t == "."
@@ -259,6 +259,13 @@ fn clean_package(token: &str) -> Option<String> {
         || t.starts_with("http")
         || t.starts_with('$')
     {
+        return None;
+    }
+    // 带路径分隔符的参数：对 crates.io / PyPI / RubyGems 来说不可能是包名，
+    // 而 `cargo install --path crates/foo-cli` 里的目录名会被 `args_after`
+    // 当成位置参数留下来——不排掉就会判成「README 让人装的是 foo-cli」。
+    // npm 的 scope、Go 的模块路径、composer 的 vendor 前缀则本来就带斜杠。
+    if t.contains('/') && !matches!(eco, Ecosystem::Npm | Ecosystem::Go | Ecosystem::Composer) {
         return None;
     }
     // npm 的 scope 名以 @ 开头，不能当成版本分隔符
@@ -280,17 +287,38 @@ mod tests {
 
     #[test]
     fn strips_version_specifiers_but_keeps_scopes() {
-        assert_eq!(clean_package("requests>=2.0").as_deref(), Some("requests"));
-        assert_eq!(clean_package("ripgrep@latest").as_deref(), Some("ripgrep"));
-        assert_eq!(clean_package("@scope/tool@1.2.3").as_deref(), Some("@scope/tool"));
+        assert_eq!(
+            clean_package(Ecosystem::Pypi, "requests>=2.0").as_deref(),
+            Some("requests")
+        );
+        assert_eq!(
+            clean_package(Ecosystem::Cargo, "ripgrep@latest").as_deref(),
+            Some("ripgrep")
+        );
+        assert_eq!(
+            clean_package(Ecosystem::Npm, "@scope/tool@1.2.3").as_deref(),
+            Some("@scope/tool")
+        );
     }
 
     #[test]
     fn local_and_url_targets_are_not_package_names() {
         // `pip install -e .` 是开发安装，不是给使用者的安装命令
-        assert!(clean_package(".").is_none());
-        assert!(clean_package("./dist/pkg.whl").is_none());
-        assert!(clean_package("git+https://github.com/o/r").is_none());
+        assert!(clean_package(Ecosystem::Pypi, ".").is_none());
+        assert!(clean_package(Ecosystem::Pypi, "./dist/pkg.whl").is_none());
+        assert!(clean_package(Ecosystem::Pypi, "git+https://github.com/o/r").is_none());
+    }
+
+    #[test]
+    fn flag_values_that_are_paths_are_not_package_names() {
+        // `cargo install --path crates/repolish-cli`：`--path` 被当成选项丢掉，
+        // 它的值却留了下来，看上去像个位置参数
+        assert!(clean_package(Ecosystem::Cargo, "crates/repolish-cli").is_none());
+        // Go 与 composer 的包名本来就带斜杠，不能一刀切
+        assert_eq!(
+            clean_package(Ecosystem::Go, "github.com/junegunn/fzf").as_deref(),
+            Some("github.com/junegunn/fzf")
+        );
     }
 
     #[test]

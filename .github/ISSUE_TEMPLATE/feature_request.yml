@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest a capability or a change to how something is judged
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Note: **the check set is frozen at 22 for v1.** Adding, removing or reweighting a
+        check changes what a score means for every repository that already has one, so
+        those proposals need a version bump and a written decision. Tuning thresholds
+        inside an existing check is ordinary work — no ceremony needed.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you hitting?
+      description: Describe the situation, not the solution you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: determinism
+    attributes:
+      label: Can it be decided deterministically?
+      description: >
+        Scoring must be reproducible without a model, and a check that cannot decide has
+        to return "inconclusive" rather than guess. If your proposal needs judgement,
+        say how you would bound it.
+    validations:
+      required: false

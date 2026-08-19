@@ -1,0 +1,52 @@
+name: Bug report
+description: repolish got something wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful report is **"repolish said X about repository Y, and it is wrong."**
+        Every acceptance defect in this project started as exactly that.
+
+  - type: input
+    id: repo
+    attributes:
+      label: Repository it happened on
+      description: A public URL lets us reproduce it in one command. Leave blank if private.
+      placeholder: https://github.com/owner/name
+    validations:
+      required: false
+
+  - type: input
+    id: check
+    attributes:
+      label: Check id
+      description: The id shown in the report, e.g. `claim-consistency`.
+      placeholder: claim-consistency
+    validations:
+      required: false
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What repolish reported
+      description: Paste the relevant part of the output, or the JSON for that check.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: If the score is arguably right but the wording or evidence is wrong, say so — that counts too.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `repolish --version`, or the commit you built from.
+    validations:
+      required: true

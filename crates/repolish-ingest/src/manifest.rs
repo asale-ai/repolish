@@ -157,22 +157,27 @@ fn fill_workspace_name(files: &FileIndex, m: &mut Manifest) {
         return;
     };
 
-    let member = files.iter().find(|p| {
-        p.ends_with("/Cargo.toml")
-            && p.matches('/').count() <= 2
-            && p.trim_end_matches("/Cargo.toml")
-                .rsplit('/')
-                .next()
-                .is_some_and(|d| d.to_lowercase() == repo_dir)
-    });
+    // 按**包名**匹配，不是按目录名：目录叫什么是随意的，
+    // `crates/repolish-cli/` 里发布出去的可以是 `repolish`。
+    let member = files
+        .iter()
+        .filter(|p| p.ends_with("/Cargo.toml") && p.matches('/').count() <= 2)
+        .take(MAX_MEMBERS)
+        .filter_map(|p| files.read(p).and_then(|t| parse_cargo(&t)))
+        .find(|sub| {
+            sub.name
+                .as_deref()
+                .is_some_and(|n| n.to_lowercase() == repo_dir)
+        });
 
-    if let Some(path) = member {
-        if let Some(sub) = files.read(path).and_then(|t| parse_cargo(&t)) {
-            m.name = sub.name;
-            m.bins = sub.bins;
-        }
+    if let Some(sub) = member {
+        m.name = sub.name;
+        m.bins = sub.bins;
     }
 }
+
+/// 扫描成员清单的上限。monorepo 可能有上百个子包，全读一遍不值得。
+const MAX_MEMBERS: usize = 64;
 
 fn parse_npm(text: &str) -> Option<Manifest> {
     let v: serde_json::Value = serde_json::from_str(text).ok()?;
