@@ -50,9 +50,13 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           EXT: ${{ matrix.ext }}
+          # workflow_dispatch 时 GITHUB_REF_NAME 是**分支名**（main），不是空值，
+          # 所以 `${GITHUB_REF_NAME:-inputs.tag}` 永远取不到手填的 tag，
+          # 会打出 repolish-main-*.tar.gz。手填优先，push tag 时它是空串。
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          tag="${INPUT_TAG:-$GITHUB_REF_NAME}"
           name="repolish-${tag}-${TARGET}"
           mkdir -p "dist/${name}"
 
@@ -95,9 +99,10 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME:-${{ inputs.tag }}}"
+          tag="${INPUT_TAG:-$GITHUB_REF_NAME}"
           gh release create "$tag" \
             --title "$tag" \
             --generate-notes \

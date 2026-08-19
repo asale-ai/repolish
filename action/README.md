@@ -90,7 +90,23 @@ also means the file has to be committed for the badge to update.
 | `badge` | `true` | write `.repolish/badge.json` |
 | `report` | `false` | write `REPOLISH.md` |
 | `summary` | `true` | append the report to the job summary |
-| `args` | *(none)* | raw arguments; overrides every switch above |
+| `args` | *(none)* | raw arguments; a full escape hatch — see below |
+
+## `args` takes over completely
+
+When `args` is set it replaces the entire command line, and the action stops managing
+artifacts: no badge, no report, nothing appended to the job summary. It cannot know what
+your arguments produced, and guessing would mean appending a stale `REPOLISH.md` that was
+committed months ago. `outputs.score` still works, because it is read from the JSON the
+run actually printed.
+
+## `REPOLISH.md` is left as it was
+
+With `report: false` (the default) and `summary: true`, the action still has to generate
+the report to put it in the job summary. If your repository already has a committed
+`REPOLISH.md`, it is backed up first and restored afterwards, so the working tree is
+exactly as it started. Without that, the next `git add` in your workflow would commit a
+deletion nobody asked for.
 
 ## Why `fetch-depth: 0`
 

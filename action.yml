@@ -108,13 +108,28 @@ runs:
         # 只跑一次。分开跑不只是多打几次 GitHub API，更要命的是
         # 几份产物可能来自不同次的评分结果。
         # summary 需要 markdown，所以顺带让这一次也写出 REPOLISH.md。
+        # args 是逃生舱：给了就完全接管，badge / report / summary 一概不插手，
+        # 因为我们无从知道那串参数产出了什么。
+        raw=false
+        [ -n "$IN_ARGS" ] && raw=true
+
         want_md=false
-        if [ "$IN_SUMMARY" = "true" ] || [ "$IN_REPORT" = "true" ]; then
+        if [ "$raw" = "false" ] && { [ "$IN_SUMMARY" = "true" ] || [ "$IN_REPORT" = "true" ]; }; then
           want_md=true
         fi
 
+        # 仓库里可能已经提交了一份 REPOLISH.md。为了 summary 而覆盖它是可以的，
+        # 跑完必须原样放回——直接 rm 会在用户的工作区留下一条删除，
+        # 而他的 workflow 下一步往往就是 git add + commit。
+        md="${IN_PATH}/REPOLISH.md"
+        backup=""
+        if [ "$want_md" = "true" ] && [ "$IN_REPORT" != "true" ] && [ -f "$md" ]; then
+          backup="${RUNNER_TEMP}/REPOLISH.md.orig"
+          cp "$md" "$backup"
+        fi
+
         json="${RUNNER_TEMP}/repolish.json"
-        if [ -n "$IN_ARGS" ]; then
+        if [ "$raw" = "true" ]; then
           # shellcheck disable=SC2086
           set -- $IN_ARGS
         else
@@ -133,12 +148,17 @@ runs:
         score="$(grep -m1 '"score":' "$json" 2>/dev/null | tr -dc '0-9' || true)"
         echo "score=${score}" >> "$GITHUB_OUTPUT"
 
-        if [ "$IN_SUMMARY" = "true" ] && [ -f "${IN_PATH}/REPOLISH.md" ]; then
-          cat "${IN_PATH}/REPOLISH.md" >> "$GITHUB_STEP_SUMMARY"
+        if [ "$want_md" = "true" ] && [ "$IN_SUMMARY" = "true" ] && [ -f "$md" ]; then
+          cat "$md" >> "$GITHUB_STEP_SUMMARY"
         fi
+
         # 只是为了 summary 才生成的，别留在工作区里被顺手提交
-        if [ "$IN_REPORT" != "true" ]; then
-          rm -f "${IN_PATH}/REPOLISH.md"
+        if [ "$want_md" = "true" ] && [ "$IN_REPORT" != "true" ]; then
+          if [ -n "$backup" ]; then
+            mv "$backup" "$md"
+          else
+            rm -f "$md"
+          fi
         fi
 
         # 退出码要原样传出去：1 表示分数不达标，4 表示远程调用失败，
