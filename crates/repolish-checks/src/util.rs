@@ -2,7 +2,7 @@
 //!
 //! 重点是**从 README 代码块里认出「命令行」**。`claim-consistency` 与
 //! `readme-install-consistency` 都靠它，而这两项一旦误报就会直接摧毁工具的可信度
-//! （见 docs/05 设计原则 4），所以这里的取舍一律偏保守：宁可少认，不可错认。
+//! （见 docs/03 设计原则 4），所以这里的取舍一律偏保守：宁可少认，不可错认。
 
 use repolish_md::Readme;
 

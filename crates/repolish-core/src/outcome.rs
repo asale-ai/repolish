@@ -47,7 +47,7 @@ impl Evidence {
     }
 }
 
-/// 改进建议。**每条扣分都必须给出至少一条 Fix**——见 docs/05 设计原则 2。
+/// 改进建议。**每条扣分都必须给出至少一条 Fix**——见 docs/03 设计原则 2。
 #[derive(Debug, Clone, Serialize)]
 pub struct Fix {
     pub severity: Severity,
@@ -66,7 +66,7 @@ impl Fix {
     }
 }
 
-/// 检查项的四种终态。区别不只在语义，更在报告与徽章行为——见 docs/03。
+/// 检查项的四种终态。区别不只在语义，更在报告与徽章行为——见 docs/01。
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum Outcome {

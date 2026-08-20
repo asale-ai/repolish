@@ -1,7 +1,7 @@
 //! 项目类型探测。
 //!
 //! 类型**不改变分数线**，只决定某些检查项是否适用（`NotApplicable`）。
-//! 见 docs/05-评分维度.md。
+//! 见 docs/03-评分维度.md。
 
 use repolish_md::Readme;
 use serde::Serialize;

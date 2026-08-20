@@ -91,7 +91,7 @@ them apart.
 ## What it checks
 
 22 checks in three categories. Full definitions, weights and thresholds are in
-[docs/05-评分维度.md](docs/05-评分维度.md).
+[docs/03-评分维度.md](docs/03-评分维度.md).
 
 | Category | Checks |
 |---|---|

@@ -123,7 +123,7 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
 }
 ```
 
-`status` 取值：`scored` / `not_applicable` / `skipped` / `inconclusive`（对应 [03-技术架构.md](03-技术架构.md) 的 `Outcome`）。
+`status` 取值：`scored` / `not_applicable` / `skipped` / `inconclusive`（对应 [01-技术架构.md](01-技术架构.md) 的 `Outcome`）。
 
 `coverageLimits` 是顶层字段，收纳 `skipped` 与 `inconclusive` 两类，强制报告消费方看到「哪些没验证」。`not_applicable` 不进此列表。
 
@@ -139,7 +139,7 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
 
 ### 产出语言
 
-`reason` / `note` / `message` 一律英文，见 [05-评分维度.md](05-评分维度.md) 设计原则 6。
+`reason` / `note` / `message` 一律英文，见 [03-评分维度.md](03-评分维度.md) 设计原则 6。
 上面示例里的字符串是实际产出的原文。
 
 ### 终端输出

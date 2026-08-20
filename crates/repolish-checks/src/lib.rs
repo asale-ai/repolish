@@ -1,6 +1,6 @@
 //! v1 的 22 个检查项。
 //!
-//! 清单与权重冻结于 docs/05-评分维度.md：**增删检查项会改变分数口径**，
+//! 清单与权重冻结于 docs/03-评分维度.md：**增删检查项会改变分数口径**，
 //! 必须走 minor 版本并同步 `schemaVersion` 的说明。
 //!
 //! 其中 3 项需要 `--remote`（GitHub API），无 `--remote` 时会被标为 `Skipped`
@@ -76,7 +76,7 @@ mod registry_tests {
     use super::*;
     use std::collections::HashSet;
 
-    /// v1 冻结在 22 项。改这个数字意味着分数口径变了，必须同步 docs/05 与版本号。
+    /// v1 冻结在 22 项。改这个数字意味着分数口径变了，必须同步 docs/03 与版本号。
     #[test]
     fn v1_check_set_is_frozen_at_22() {
         assert_eq!(all().len(), 22);

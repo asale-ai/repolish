@@ -45,7 +45,7 @@ impl Check for ReadmeInstallConsistency {
             return Outcome::inconclusive("no README, so there are no install commands to compare");
         };
         if ctx.manifests.is_empty() {
-            // docs/05 明确：未探测到任何包管理器清单时不适用
+            // docs/03 明确：未探测到任何包管理器清单时不适用
             return Outcome::NotApplicable {
                 profile: ctx.profile,
             };
@@ -298,7 +298,7 @@ mod tests {
             Some("ripgrep")
         );
         assert_eq!(
-            clean_package(Ecosystem::Npm, "@scope/tool@1.2.3").as_deref(),
+            clean_package(Ecosystem::Npm, "@scope/tool01.2.3").as_deref(),
             Some("@scope/tool")
         );
     }
