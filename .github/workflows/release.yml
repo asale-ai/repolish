@@ -73,8 +73,17 @@ jobs:
           else
             tar -czf "${name}.tar.gz" "${name}"
           fi
-          # 校验和让使用者能验证下载物，也方便包管理器接入
-          shasum -a 256 "${name}.${EXT}" > "${name}.${EXT}.sha256"
+          # 校验和让使用者能验证下载物，也方便包管理器接入。
+          #
+          # 工具名必须两个都试：GitHub 的 `shell: bash` 跑的是
+          # `bash --noprofile --norc`，Windows runner 上因此拿不到 Git Bash
+          # profile 才会加的 /usr/bin/core_perl，`shasum` 直接找不到；
+          # 而 macOS 没有 `sha256sum`。Linux 两个都有。
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${name}.${EXT}" > "${name}.${EXT}.sha256"
+          else
+            shasum -a 256 "${name}.${EXT}" > "${name}.${EXT}.sha256"
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
