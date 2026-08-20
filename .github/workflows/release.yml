@@ -28,9 +28,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # x86_64-apple-darwin 从 arm64 的 macos-latest 交叉编译，不用 Intel
+          # runner：v0.1.0 第一次发布时 macos-13 排了半小时没拿到机器，同批
+          # 其他 job 几分钟就跑完了。Apple 的工具链原生支持双架构，
+          # `targets:` 会把 std 装好，交叉编译不需要额外配置。
           - { os: ubuntu-latest,    target: x86_64-unknown-linux-gnu,  ext: tar.gz }
           - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, ext: tar.gz }
-          - { os: macos-13,         target: x86_64-apple-darwin,       ext: tar.gz }
+          - { os: macos-latest,     target: x86_64-apple-darwin,       ext: tar.gz }
           - { os: macos-latest,     target: aarch64-apple-darwin,      ext: tar.gz }
           - { os: windows-latest,   target: x86_64-pc-windows-msvc,    ext: zip }
     steps:
