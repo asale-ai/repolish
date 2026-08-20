@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+description = "Repository ingestion for repolish: files, git facts, manifests and GitHub metadata as one read-only snapshot. Internal crate, no API stability guarantees."
+repository = "https://github.com/asale-ai/repolish"
 
 [dependencies]
 repolish-md.workspace = true

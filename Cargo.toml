@@ -9,11 +9,11 @@ rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-repolish-core   = { path = "crates/repolish-core" }
-repolish-ingest = { path = "crates/repolish-ingest" }
-repolish-md     = { path = "crates/repolish-md" }
-repolish-checks = { path = "crates/repolish-checks" }
-repolish-render = { path = "crates/repolish-render" }
+repolish-core   = { path = "crates/repolish-core", version = "0.1.0" }
+repolish-ingest = { path = "crates/repolish-ingest", version = "0.1.0" }
+repolish-md     = { path = "crates/repolish-md", version = "0.1.0" }
+repolish-checks = { path = "crates/repolish-checks", version = "0.1.0" }
+repolish-render = { path = "crates/repolish-render", version = "0.1.0" }
 
 anyhow      = "1"
 thiserror   = "2"
