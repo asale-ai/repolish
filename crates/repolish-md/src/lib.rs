@@ -1,6 +1,11 @@
 //! README 解析：AST → 区块模型。
 //!
-//! M1 只做「读」。M4 会在同一份 AST 上做增量改写（`format_commonmark` 往返）。
+//! 本 crate **只读**。AST 不产出文本——`format_commonmark` 往返有损：
+//! 引用式链接会被展平、setext 标题变 ATX、`*` 列表标记变 `-`、制表符变空格。
+//! 12 个真实 README 上 0/12 无损，见 `examples/roundtrip.rs`。
+//!
+//! M4 的 `polish --apply` 因此走文本层：AST 只回答「插在第几行」
+//! （`sourcepos`），切开原文拼回去，其余字节不碰。见 `examples/locate.rs`。
 
 use std::path::{Path, PathBuf};
 
