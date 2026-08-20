@@ -12,6 +12,7 @@
 ## Contents
 
 - [Why](#why)
+- [Install](#install)
 - [Quick start](#quick-start)
 - [Usage](#usage)
 - [What it checks](#what-it-checks)
@@ -38,17 +39,54 @@ Two rules keep the number worth trusting:
   *inconclusive* and is excluded from the score rather than guessed at. Every excluded
   check is listed in the report.
 
-## Quick start
+## Install
 
-Requires Rust 1.88 or newer. Pre-built binaries and `cargo install` arrive with the first
-release — see [Status](#status).
+### Pre-built binary
+
+Every release ships binaries for five targets, each with a `.sha256` beside it:
+`x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `x86_64-apple-darwin`,
+`aarch64-apple-darwin`, `x86_64-pc-windows-msvc`.
 
 ```bash
-git clone https://github.com/asale-ai/repolish
-cd repolish
-cargo build --release
-./target/release/repolish check .
+VERSION=0.1.0
+TARGET=x86_64-unknown-linux-gnu
+curl -fsSL "https://github.com/asale-ai/repolish/releases/download/v${VERSION}/repolish-v${VERSION}-${TARGET}.tar.gz" | tar -xz
+sudo install "repolish-v${VERSION}-${TARGET}/repolish" /usr/local/bin/
 ```
+
+Windows archives are `.zip` and contain `repolish.exe`. Browse every asset on the
+[releases page](https://github.com/asale-ai/repolish/releases).
+
+### From source
+
+Requires Rust 1.88 or newer. Not on crates.io yet, so install from the repository:
+
+```bash
+cargo install --git https://github.com/asale-ai/repolish repolish
+```
+
+### In GitHub Actions
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+- uses: asale-ai/repolish@v0.1.0
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+`repolish init` writes a complete workflow for you, pinned to the version that generated
+it. More examples in [action/README.md](action/README.md).
+
+## Quick start
+
+```bash
+repolish check .
+```
+
+That is the whole thing: it prints a score, the findings behind it, and — under
+`--remote` — what GitHub itself knows about the repository.
 
 ## Usage
 
@@ -65,14 +103,24 @@ falls back to the anonymous quota of 60 requests per hour.
 
 ### As a CI gate
 
+On GitHub, the action takes the threshold directly:
+
 ```yaml
-- uses: actions/checkout@v4
+- uses: asale-ai/repolish@v0.1.0
   with:
-    fetch-depth: 0        # release-hygiene needs tags; the default depth of 1 has none
-- run: repolish check . --remote --min-score 70
+    min-score: 70
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+Anywhere else, the exit code is the gate:
+
+```bash
+repolish check . --remote --min-score 70
+```
+
+Exit code 1 means the score was too low. Exit code 4 means the GitHub call failed —
+deliberately different, so a rate limit never reads as a quality regression.
 
 ### Exit codes
 
@@ -136,6 +184,8 @@ ordinary work.
 ## Development
 
 ```bash
+git clone https://github.com/asale-ai/repolish
+cd repolish
 cargo test
 cargo clippy --all-targets
 ./scripts/fetch-fixtures.sh

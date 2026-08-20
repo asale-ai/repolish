@@ -12,6 +12,7 @@
 ## 目录
 
 - [为什么做这个](#为什么做这个)
+- [安装](#安装)
 - [快速开始](#快速开始)
 - [用法](#用法)
 - [检查什么](#检查什么)
@@ -36,17 +37,54 @@ repolish 按陌生人的读法过一遍仓库，对 22 个具体信号打分，�
 - **判不了就说判不了。** 无法确定的检查项返回「不确定」并被剔出分母，而不是猜一个。
   被剔出去的每一项都会列在报告里。
 
-## 快速开始
+## 安装
 
-需要 Rust 1.88 或更新版本。预编译二进制与 `cargo install` 会随首个 release
-一起提供，见[当前状态](#当前状态)。
+### 预编译二进制
+
+每个 release 提供五个目标的二进制，各自带一份 `.sha256`：
+`x86_64-unknown-linux-gnu`、`aarch64-unknown-linux-gnu`、`x86_64-apple-darwin`、
+`aarch64-apple-darwin`、`x86_64-pc-windows-msvc`。
 
 ```bash
-git clone https://github.com/asale-ai/repolish
-cd repolish
-cargo build --release
-./target/release/repolish check .
+VERSION=0.1.0
+TARGET=x86_64-unknown-linux-gnu
+curl -fsSL "https://github.com/asale-ai/repolish/releases/download/v${VERSION}/repolish-v${VERSION}-${TARGET}.tar.gz" | tar -xz
+sudo install "repolish-v${VERSION}-${TARGET}/repolish" /usr/local/bin/
 ```
+
+Windows 的归档是 `.zip`，里面是 `repolish.exe`。全部产物见
+[releases 页面](https://github.com/asale-ai/repolish/releases)。
+
+### 从源码安装
+
+需要 Rust 1.88 或更新版本。尚未发布到 crates.io，直接从仓库装：
+
+```bash
+cargo install --git https://github.com/asale-ai/repolish repolish
+```
+
+### 在 GitHub Actions 里
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+- uses: asale-ai/repolish@v0.1.0
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+`repolish init` 会替你生成一份完整的 workflow，并固定到生成它的那个版本。
+更多示例见 [action/README.md](action/README.md)。
+
+## 快速开始
+
+```bash
+repolish check .
+```
+
+就这一条：它会打印分数、支撑分数的发现，以及在 `--remote` 下 GitHub 自己
+知道的那部分信息。
 
 ## 用法
 
@@ -63,14 +101,24 @@ repolish check . --only license,ci-present
 
 ### 用作 CI 门禁
 
+在 GitHub 上，action 直接收阈值：
+
 ```yaml
-- uses: actions/checkout@v4
+- uses: asale-ai/repolish@v0.1.0
   with:
-    fetch-depth: 0        # release-hygiene 要看 tag，默认深度 1 一个都没有
-- run: repolish check . --remote --min-score 70
+    min-score: 70
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+其他地方，退出码就是门禁：
+
+```bash
+repolish check . --remote --min-score 70
+```
+
+退出码 1 表示分数不达标，4 表示 GitHub 调用失败——两者刻意区分开，
+免得一次限流被读成质量退步。
 
 ### 退出码
 
@@ -129,6 +177,8 @@ repolish check . --only license,ci-present
 ## 参与开发
 
 ```bash
+git clone https://github.com/asale-ai/repolish
+cd repolish
 cargo test
 cargo clippy --all-targets
 ./scripts/fetch-fixtures.sh
