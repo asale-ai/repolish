@@ -298,7 +298,7 @@ mod tests {
             Some("ripgrep")
         );
         assert_eq!(
-            clean_package(Ecosystem::Npm, "@scope/tool01.2.3").as_deref(),
+            clean_package(Ecosystem::Npm, "@scope/tool@1.2.3").as_deref(),
             Some("@scope/tool")
         );
     }
