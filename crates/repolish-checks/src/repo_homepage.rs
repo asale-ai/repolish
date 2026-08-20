@@ -50,7 +50,7 @@ impl Check for RepoHomepage {
             );
         }
 
-        Outcome::perfect(vec![Evidence::new(".", format!("homepage：{url}"))])
+        Outcome::perfect(vec![Evidence::new(".", format!("homepage: {url}"))])
     }
 }
 

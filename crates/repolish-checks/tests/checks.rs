@@ -9,6 +9,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use repolish_core::{registry::RunOptions, Mode, Outcome, RepoContext};
+use repolish_ingest::RemoteFacts;
 
 /// 建一个临时仓库目录，测试结束后删掉
 struct Fixture(PathBuf);
@@ -218,9 +219,40 @@ fn all_messages_are_english() {
         ],
     );
 
+    // 三个远程检查项在没有 token 时根本不执行，等于永久在防线之外——
+    // `repo-topics` 的一个中文句号就是这么漏过去的。这里直接塞假的远程数据，
+    // 让它们也跑起来：一份「什么都没填」和一份「填了但对不上」。
+    let empty_remote = RemoteFacts {
+        description: None,
+        homepage: None,
+        topics: Vec::new(),
+        license: None,
+        archived: false,
+        stars: 0,
+        default_branch: Some("main".to_string()),
+    };
+    let mismatched_remote = RemoteFacts {
+        description: Some("thing".to_string()),
+        homepage: Some("https://github.com/o/thing".to_string()),
+        topics: vec!["quantum".to_string(), "biology".to_string()],
+        ..empty_remote.clone()
+    };
+
+    let mut cases: Vec<(RepoContext, Mode)> = Vec::new();
     for fx in [&bare, &full] {
-        let ctx = RepoContext::load(fx.path(), None).expect("载入仓库");
-        let report = repolish_checks::registry().run(&ctx, &RunOptions::default());
+        cases.push((
+            RepoContext::load(fx.path(), None).expect("载入仓库"),
+            Mode::Local,
+        ));
+        for facts in [&empty_remote, &mismatched_remote] {
+            let mut ctx = RepoContext::load(fx.path(), None).expect("载入仓库");
+            ctx.remote = Some(facts.clone());
+            cases.push((ctx, Mode::Remote));
+        }
+    }
+
+    for (ctx, mode) in &cases {
+        let report = repolish_checks::registry().run(ctx, &RunOptions { mode: *mode, ..RunOptions::default() });
         for c in &report.checks {
             let mut messages: Vec<String> = Vec::new();
             match &c.outcome {
@@ -246,4 +278,74 @@ fn all_messages_are_english() {
 
 fn is_cjk(c: char) -> bool {
     matches!(c as u32, 0x3000..=0x303F | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xFF00..=0xFFEF)
+}
+
+/// topic 建议只从人挑过的词里出，不从 README 正文里捞。
+///
+/// 这条来自 repolish 自己：CI 第一次跑远程分时，给自己的建议是
+/// `cli, command, command-line, first, improve, like`——后三个是从 tagline
+/// 「…the **first** thing…」「**improve**」「what it looks **like**」里
+/// 逐词切出来的。停用词表挡不住实义动词，所以修的是词源不是过滤：
+/// 清单里的 keywords 优先，正文一概不取。
+#[test]
+fn topic_suggestions_come_from_curated_keywords_not_prose() {
+    let fx = Fixture::new(
+        "topics-suggest",
+        &[
+            (
+                "Cargo.toml",
+                "[package]\nname = \"thing\"\nkeywords = [\"readme\", \"lint\", \"open-source\"]\n",
+            ),
+            (
+                "README.md",
+                "# thing\n\nScore and improve what your project looks like to the first stranger who finds it.\n",
+            ),
+            ("src/a.rs", "pub fn a() {}\n"),
+            ("src/b.rs", "pub fn b() {}\n"),
+            ("src/c.rs", "pub fn c() {}\n"),
+        ],
+    );
+
+    let mut ctx = RepoContext::load(fx.path(), None).expect("载入仓库");
+    ctx.remote = Some(RemoteFacts {
+        default_branch: Some("main".to_string()),
+        ..RemoteFacts::default()
+    });
+    let report = repolish_checks::registry().run(
+        &ctx,
+        &RunOptions {
+            mode: Mode::Remote,
+            ..RunOptions::default()
+        },
+    );
+    let outcome = report
+        .checks
+        .into_iter()
+        .find(|c| c.id == "repo-topics")
+        .expect("检查项存在")
+        .outcome;
+
+    let Outcome::Scored { fixes, .. } = outcome else {
+        panic!("没有 topic 应当判 0 分");
+    };
+    let msg = &fixes[0].message;
+
+    for junk in ["first", "improve", "looks", "stranger", "score"] {
+        assert!(
+            !msg.contains(junk),
+            "正文里的词不该出现在建议里：{junk}\n{msg}"
+        );
+    }
+    for good in ["readme", "lint", "open-source", "rust"] {
+        assert!(good_is_suggested(msg, good), "缺少 {good}\n{msg}");
+    }
+    // keywords 排在最前：读的人第一眼看到的应当是最该加的那个
+    let list = msg.split("Candidates: ").nth(1).expect("有建议列表");
+    assert!(list.starts_with("readme, lint, open-source"), "{list}");
+}
+
+fn good_is_suggested(msg: &str, word: &str) -> bool {
+    msg.split("Candidates: ")
+        .nth(1)
+        .is_some_and(|l| l.split(", ").any(|w| w.trim() == word))
 }

@@ -72,6 +72,7 @@ impl Check for RepoTopics {
         };
 
         let vocab = local_vocabulary(ctx);
+        let pool = suggestion_pool(ctx);
         let topics = &remote.topics;
 
         if topics.is_empty() {
@@ -82,7 +83,7 @@ impl Check for RepoTopics {
                     Severity::P1,
                     format!(
                         "Set some topics. They are what GitHub search and the \"related repositories\" rail run on. {}",
-                        suggest(&vocab, topics)
+                        suggest(&pool, topics)
                     ),
                 )],
             );
@@ -113,7 +114,7 @@ impl Check for RepoTopics {
                     Severity::P2,
                     format!(
                         "The current topics do not describe what this project actually is, so searches for it do not find it. {}",
-                        suggest(&vocab, topics)
+                        suggest(&pool, topics)
                     ),
                 )],
             );
@@ -132,14 +133,18 @@ impl Check for RepoTopics {
                 vec![Evidence::new(".", note)],
                 vec![Fix::new(
                     Severity::P2,
-                    format!("{advice}。{}", suggest(&vocab, topics)),
+                    format!("{advice}. {}", suggest(&pool, topics)),
                 )],
             ),
         }
     }
 }
 
-/// 本地事实构成的期望词表：主语言 + 依赖名 + 标题/说明里的词 + 项目形态。
+/// 本地事实构成的期望词表：主语言 + 依赖名 + 关键词 + 标题/说明里的词 + 项目形态。
+///
+/// **这个词表只用于交叉验证，宽一点是有意的**（docs/05 设计原则 4）：
+/// 它决定的是「要不要给这个仓库扣分」，宽松的方向是不冤枉人。
+/// 给用户看的建议走 [`suggestion_pool`]，那边必须窄。
 fn local_vocabulary(ctx: &RepoContext) -> BTreeSet<String> {
     let mut vocab = BTreeSet::new();
 
@@ -151,6 +156,7 @@ fn local_vocabulary(ctx: &RepoContext) -> BTreeSet<String> {
 
     for m in &ctx.manifests {
         vocab.extend(m.deps.iter().map(|d| normalize(d)).filter(|d| d.len() >= 3));
+        vocab.extend(m.keywords.iter().map(|k| normalize(k)));
         if let Some(n) = &m.name {
             vocab.insert(normalize(n));
         }
@@ -178,9 +184,67 @@ fn local_vocabulary(ctx: &RepoContext) -> BTreeSet<String> {
     vocab
 }
 
+/// 给用户看的 topic 建议。**只从人挑过的词里出**，顺序即可信度：
+/// 清单里的 keywords → 主语言 → 项目形态 → 包名 → README 标题。
+///
+/// 刻意不含 tagline 正文与依赖名。repolish 自己踩到过：从 tagline 捞词
+/// 建议出 `first` / `improve` / `like`，从依赖捞词会建议 `clap`——
+/// 前者是废话，后者是「你依赖了什么」而不是「你是什么」。
+/// 停用词表挡不住 `improve` 这种实义动词，所以问题出在词源，不在过滤。
+fn suggestion_pool(ctx: &RepoContext) -> Vec<String> {
+    let mut pool: Vec<String> = Vec::new();
+    let mut push = |w: String| {
+        if w.len() >= 2 && !STOPWORDS.contains(&w.as_str()) && !pool.contains(&w) {
+            pool.push(w);
+        }
+    };
+
+    for m in &ctx.manifests {
+        for k in &m.keywords {
+            push(normalize(k));
+        }
+    }
+    for (ext, topic) in LANG_TOPICS {
+        if ctx.files.content_extension_count(ext) >= 3 {
+            push((*topic).to_string());
+        }
+    }
+    for (profile, topics) in PROFILE_TOPICS {
+        if ctx.profile == *profile {
+            for t in *topics {
+                push((*t).to_string());
+            }
+        }
+    }
+    for m in &ctx.manifests {
+        if let Some(n) = &m.name {
+            push(normalize(n));
+        }
+    }
+    if let Some(t) = ctx.readme.as_ref().and_then(|r| r.title.as_deref()) {
+        for w in t.split(|c: char| !c.is_alphanumeric()) {
+            let w = normalize(w);
+            if w.len() >= 3 {
+                push(w);
+            }
+        }
+    }
+    pool
+}
+
+/// 英文虚词。只挡得住虚词——实义词（`improve`、`first`）要靠**不从正文取词**来避免。
 const STOPWORDS: &[&str] = &[
-    "the", "and", "for", "with", "that", "this", "you", "your", "are", "from", "was", "has",
-    "not", "但是", "一个", "可以", "使用",
+    "a", "an", "the", "and", "or", "but", "not", "for", "with", "without", "that", "this",
+    "these", "those", "you", "your", "yours", "our", "ours", "its", "it", "they", "them",
+    "their", "we", "us", "he", "she", "his", "her", "who", "whom", "which", "what", "when",
+    "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other",
+    "some", "such", "than", "too", "very", "can", "will", "just", "should", "now", "are",
+    "is", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does",
+    "did", "doing", "from", "into", "onto", "over", "under", "again", "further", "then",
+    "once", "here", "there", "about", "against", "between", "through", "during", "before",
+    "after", "above", "below", "out", "off", "down", "up", "in", "on", "at", "by", "to", "of",
+    "as", "if", "so", "no", "nor", "only", "own", "same", "also", "得", "但是", "一个",
+    "可以", "使用", "以及", "并且", "这个", "那个", "我们", "你们", "它们",
 ];
 
 /// topic 与词表是否对得上。
@@ -202,10 +266,13 @@ fn normalize(s: &str) -> String {
     s.trim().to_lowercase().replace(['_', '.', ' '], "-")
 }
 
-/// 从词表里挑出还没被用上的词作为建议。**建议全部来自本地事实，不经过 LLM。**
-fn suggest(vocab: &BTreeSet<String>, existing: &[String]) -> String {
+/// 从建议池里挑出还没被用上的词。**建议全部来自本地事实，不经过 LLM。**
+///
+/// 保持池子的顺序（可信度递减），不排序——排序会把 keywords 里挑过的词
+/// 混进字母序里，第一个看到的就未必是最该加的那个。
+fn suggest(pool: &[String], existing: &[String]) -> String {
     let used: BTreeSet<String> = existing.iter().map(|t| normalize(t)).collect();
-    let picks: Vec<&str> = vocab
+    let picks: Vec<&str> = pool
         .iter()
         .filter(|v| !used.contains(*v))
         .map(|s| s.as_str())
@@ -236,11 +303,23 @@ mod tests {
         assert!(!matches_vocab("clu", &vocab(&["cluster"])));
     }
 
+    fn pool(words: &[&str]) -> Vec<String> {
+        words.iter().map(|w| w.to_string()).collect()
+    }
+
     #[test]
     fn suggestions_exclude_already_used_topics() {
-        let v = vocab(&["rust", "cli", "search"]);
-        let s = suggest(&v, &["rust".to_string()]);
+        let p = pool(&["rust", "cli", "search"]);
+        let s = suggest(&p, &["rust".to_string()]);
         assert!(!s.contains("rust"));
         assert!(s.contains("cli"));
+    }
+
+    #[test]
+    fn suggestions_keep_pool_order() {
+        // 池子按可信度排：清单 keywords 在前，README 里捞的词在后。
+        // 字母序会把最该加的那个挤到看不见的位置。
+        let s = suggest(&pool(&["readme", "documentation", "cli", "rust"]), &[]);
+        assert_eq!(s, "Candidates: readme, documentation, cli, rust");
     }
 }

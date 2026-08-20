@@ -62,6 +62,10 @@ pub struct Manifest {
     pub bins: Vec<String>,
     /// 直接依赖名，用于 `repo-topics` 的本地信号词表
     pub deps: Vec<String>,
+    /// 作者自己写的关键词（Cargo `keywords` / package.json `keywords` /
+    /// PEP 621 `keywords`）。这是仓库里**唯一由人挑过**的主题词来源，
+    /// 比从 README 正文里捞词可靠得多，`repo-topics` 的建议优先用它。
+    pub keywords: Vec<String>,
 }
 
 impl Manifest {
@@ -73,6 +77,7 @@ impl Manifest {
             scripts: Vec::new(),
             bins: Vec::new(),
             deps: Vec::new(),
+            keywords: Vec::new(),
         }
     }
 }
@@ -142,6 +147,7 @@ fn parse_cargo(text: &str) -> Option<Manifest> {
     // 有 src/main.rs 而无 [[bin]] 时，二进制名等于包名——由调用方补，这里不猜
 
     m.deps = table_keys(&v, "dependencies");
+    m.keywords = string_array(v.get("package").and_then(|p| p.get("keywords")));
     Some(m)
 }
 
@@ -200,6 +206,13 @@ fn parse_npm(text: &str) -> Option<Manifest> {
             m.deps.extend(o.keys().cloned());
         }
     }
+    if let Some(arr) = v.get("keywords").and_then(|k| k.as_array()) {
+        m.keywords = arr
+            .iter()
+            .filter_map(|k| k.as_str())
+            .map(str::to_string)
+            .collect();
+    }
     Some(m)
 }
 
@@ -237,7 +250,23 @@ fn parse_pyproject(text: &str) -> Option<Manifest> {
     if let Some(t) = poetry.and_then(|p| p.get("dependencies")).and_then(|d| d.as_table()) {
         m.deps.extend(t.keys().cloned());
     }
+    for src in [project, poetry] {
+        m.keywords
+            .extend(string_array(src.and_then(|p| p.get("keywords"))));
+    }
     Some(m)
+}
+
+/// TOML 里的字符串数组。非数组或元素不是字符串时返回空，不猜。
+fn string_array(v: Option<&toml::Value>) -> Vec<String> {
+    v.and_then(|k| k.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|k| k.as_str())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn parse_gomod(text: &str) -> Option<Manifest> {

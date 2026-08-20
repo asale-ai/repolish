@@ -78,7 +78,10 @@ impl Check for RepoDescription {
             );
         }
 
-        Outcome::perfect(vec![Evidence::new(".", format!("description：「{}」", truncate(desc, 80)))])
+        Outcome::perfect(vec![Evidence::new(
+            ".",
+            format!("description: \"{}\"", truncate(desc, 80)),
+        )])
     }
 }
 
