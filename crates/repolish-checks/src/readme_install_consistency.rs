@@ -141,10 +141,7 @@ fn compare_names(
         };
         comparable += 1;
         let want = normalize_package_name(expected);
-        if pkgs
-            .iter()
-            .any(|(_, p)| normalize_package_name(p) == want)
-        {
+        if pkgs.iter().any(|(_, p)| normalize_package_name(p) == want) {
             return Outcome::perfect(vec![Evidence::at(
                 readme_name,
                 pkgs[0].0,
@@ -167,7 +164,11 @@ fn compare_names(
         mismatches
             .iter()
             .map(|(l, g, e)| {
-                Evidence::at(readme_name, *l, format!("the command installs `{g}`; this repository publishes `{e}`"))
+                Evidence::at(
+                    readme_name,
+                    *l,
+                    format!("the command installs `{g}`; this repository publishes `{e}`"),
+                )
             })
             .collect(),
         vec![Fix::new(

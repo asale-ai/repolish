@@ -8,8 +8,18 @@ use repolish_md::Readme;
 
 /// 被当作 shell 的围栏语言标记。空标记也算——大量 README 的安装命令不写语言。
 const SHELL_INFO: &[&str] = &[
-    "", "sh", "bash", "shell", "zsh", "console", "shell-session", "terminal", "cmd", "powershell",
-    "ps1", "fish",
+    "",
+    "sh",
+    "bash",
+    "shell",
+    "zsh",
+    "console",
+    "shell-session",
+    "terminal",
+    "cmd",
+    "powershell",
+    "ps1",
+    "fish",
 ];
 
 pub fn readme_name(readme: &Readme) -> String {
@@ -27,7 +37,12 @@ pub fn readme_name(readme: &Readme) -> String {
 pub fn command_lines(readme: &Readme) -> Vec<(usize, String)> {
     let mut out = Vec::new();
     for cb in &readme.code_blocks {
-        let info = cb.info.split_whitespace().next().unwrap_or("").to_lowercase();
+        let info = cb
+            .info
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_lowercase();
         if !SHELL_INFO.contains(&info.as_str()) {
             continue;
         }
@@ -42,9 +57,17 @@ pub fn command_lines(readme: &Readme) -> Vec<(usize, String)> {
 }
 
 /// 指定语言的代码块正文
-pub fn blocks_with_info<'a>(readme: &'a Readme, langs: &'a [&str]) -> impl Iterator<Item = &'a repolish_md::CodeBlock> {
+pub fn blocks_with_info<'a>(
+    readme: &'a Readme,
+    langs: &'a [&str],
+) -> impl Iterator<Item = &'a repolish_md::CodeBlock> {
     readme.code_blocks.iter().filter(move |cb| {
-        let info = cb.info.split_whitespace().next().unwrap_or("").to_lowercase();
+        let info = cb
+            .info
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_lowercase();
         langs.contains(&info.as_str())
     })
 }
@@ -142,7 +165,10 @@ mod tests {
 
     #[test]
     fn options_are_not_package_names() {
-        assert_eq!(first_arg("pip install -U --pre requests", "pip install").as_deref(), Some("requests"));
+        assert_eq!(
+            first_arg("pip install -U --pre requests", "pip install").as_deref(),
+            Some("requests")
+        );
         assert_eq!(first_arg("npm install", "npm install"), None);
     }
 }

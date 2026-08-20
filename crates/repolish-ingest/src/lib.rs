@@ -78,7 +78,10 @@ impl RepoContext {
 
     /// 拉取 GitHub 元数据。失败不降级——见 [`remote`] 模块说明。
     pub fn fetch_remote(&mut self, token: Option<&str>) -> Result<(), remote::RemoteError> {
-        let slug = self.slug.clone().ok_or(remote::RemoteError::NoGithubRemote)?;
+        let slug = self
+            .slug
+            .clone()
+            .ok_or(remote::RemoteError::NoGithubRemote)?;
         self.remote = Some(remote::fetch(&slug, token)?);
         Ok(())
     }

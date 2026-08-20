@@ -49,7 +49,10 @@ const PROFILE_TOPICS: &[(repolish_core::Profile, &[&str])] = &[
     (repolish_core::Profile::Library, &["library"]),
     (repolish_core::Profile::App, &["app"]),
     (repolish_core::Profile::Docs, &["documentation"]),
-    (repolish_core::Profile::Collection, &["awesome", "awesome-list"]),
+    (
+        repolish_core::Profile::Collection,
+        &["awesome", "awesome-list"],
+    ),
 ];
 
 impl Check for RepoTopics {
@@ -244,17 +247,17 @@ fn suggestion_pool(ctx: &RepoContext) -> Vec<String> {
 
 /// 英文虚词。只挡得住虚词——实义词（`improve`、`first`）要靠**不从正文取词**来避免。
 const STOPWORDS: &[&str] = &[
-    "a", "an", "the", "and", "or", "but", "not", "for", "with", "without", "that", "this",
-    "these", "those", "you", "your", "yours", "our", "ours", "its", "it", "they", "them",
-    "their", "we", "us", "he", "she", "his", "her", "who", "whom", "which", "what", "when",
-    "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other",
-    "some", "such", "than", "too", "very", "can", "will", "just", "should", "now", "are",
-    "is", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does",
-    "did", "doing", "from", "into", "onto", "over", "under", "again", "further", "then",
-    "once", "here", "there", "about", "against", "between", "through", "during", "before",
-    "after", "above", "below", "out", "off", "down", "up", "in", "on", "at", "by", "to", "of",
-    "as", "if", "so", "no", "nor", "only", "own", "same", "also", "得", "但是", "一个",
-    "可以", "使用", "以及", "并且", "这个", "那个", "我们", "你们", "它们",
+    "a", "an", "the", "and", "or", "but", "not", "for", "with", "without", "that", "this", "these",
+    "those", "you", "your", "yours", "our", "ours", "its", "it", "they", "them", "their", "we",
+    "us", "he", "she", "his", "her", "who", "whom", "which", "what", "when", "where", "why", "how",
+    "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "than", "too",
+    "very", "can", "will", "just", "should", "now", "are", "is", "was", "were", "be", "been",
+    "being", "have", "has", "had", "having", "do", "does", "did", "doing", "from", "into", "onto",
+    "over", "under", "again", "further", "then", "once", "here", "there", "about", "against",
+    "between", "through", "during", "before", "after", "above", "below", "out", "off", "down",
+    "up", "in", "on", "at", "by", "to", "of", "as", "if", "so", "no", "nor", "only", "own", "same",
+    "also", "得", "但是", "一个", "可以", "使用", "以及", "并且", "这个", "那个", "我们", "你们",
+    "它们",
 ];
 
 /// topic 与词表是否对得上。

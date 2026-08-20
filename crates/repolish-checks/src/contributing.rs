@@ -9,7 +9,12 @@ use repolish_core::{Category, Check, Evidence, Fix, Outcome, RepoContext, Risk, 
 pub struct Contributing;
 
 const DIRS: &[&str] = &["", ".github/", "docs/"];
-const NAMES: &[&str] = &["contributing.md", "contributing.rst", "contributing.txt", "contributing"];
+const NAMES: &[&str] = &[
+    "contributing.md",
+    "contributing.rst",
+    "contributing.txt",
+    "contributing",
+];
 
 /// 「怎么在本地跑起来」的信号。贡献指南只讲行为规范而不讲怎么构建，
 /// 对第一次提 PR 的人没有实际帮助。
@@ -35,7 +40,10 @@ impl Check for Contributing {
         let Some(path) = find(ctx) else {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "no CONTRIBUTING in the repository root, .github/, or docs/")],
+                vec![Evidence::new(
+                    ".",
+                    "no CONTRIBUTING in the repository root, .github/, or docs/",
+                )],
                 vec![Fix::new(
                     Severity::P2,
                     "Add CONTRIBUTING.md covering how to build locally, how to run the tests, \
@@ -72,7 +80,10 @@ impl Check for Contributing {
 
         Outcome::scored(
             8,
-            vec![Evidence::new(&path, format!("{lines} lines, but no runnable development commands"))],
+            vec![Evidence::new(
+                &path,
+                format!("{lines} lines, but no runnable development commands"),
+            )],
             vec![Fix::new(
                 Severity::P3,
                 "Add the commands that get someone running locally (install / build / test). \
@@ -86,11 +97,7 @@ fn find(ctx: &RepoContext) -> Option<String> {
     for dir in DIRS {
         for name in NAMES {
             let candidate = format!("{dir}{name}");
-            if let Some(p) = ctx
-                .files
-                .iter()
-                .find(|p| p.to_lowercase() == candidate)
-            {
+            if let Some(p) = ctx.files.iter().find(|p| p.to_lowercase() == candidate) {
                 return Some(p.to_string());
             }
         }

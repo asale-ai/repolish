@@ -17,8 +17,18 @@ pub struct ClaimConsistency;
 /// 构建产物目录。README 里出现的这些路径在干净检出里本来就不存在，
 /// 不算失效声明。
 const BUILD_DIRS: &[&str] = &[
-    "target/", "dist/", "build/", "out/", "bin/", "node_modules/", "venv/", ".venv/", "vendor/",
-    "coverage/", "public/", "_site/",
+    "target/",
+    "dist/",
+    "build/",
+    "out/",
+    "bin/",
+    "node_modules/",
+    "venv/",
+    ".venv/",
+    "vendor/",
+    "coverage/",
+    "public/",
+    "_site/",
 ];
 
 /// 会被当成「脚本路径声明」的扩展名。只认脚本——裸的 `./myapp` 多半是编译产物。
@@ -95,7 +105,13 @@ impl Check for ClaimConsistency {
             broken
                 .iter()
                 .take(8)
-                .map(|c| Evidence::at(&name, c.line, format!("{} — does not exist in the repository", c.what)))
+                .map(|c| {
+                    Evidence::at(
+                        &name,
+                        c.line,
+                        format!("{} — does not exist in the repository", c.what),
+                    )
+                })
                 .collect(),
             vec![Fix::new(
                 severity,
@@ -115,7 +131,13 @@ fn collect(ctx: &RepoContext, line: usize, cmd: &str, out: &mut Vec<Claim>) {
     let lower = cmd.to_lowercase();
 
     // 1. 包管理器脚本：npm run build / pnpm run test / yarn run lint
-    for verb in ["npm run ", "npm run-script ", "yarn run ", "pnpm run ", "bun run "] {
+    for verb in [
+        "npm run ",
+        "npm run-script ",
+        "yarn run ",
+        "pnpm run ",
+        "bun run ",
+    ] {
         if lower.contains(verb) {
             if let Some(script) = util::first_arg(cmd, verb) {
                 if let Some(scripts) = npm_scripts(ctx) {
@@ -211,7 +233,9 @@ fn npm_scripts(ctx: &RepoContext) -> Option<&[String]> {
 }
 
 fn make_targets(ctx: &RepoContext) -> Option<Vec<String>> {
-    let path = ctx.files.find_at_root(&["Makefile", "makefile", "GNUmakefile"])?;
+    let path = ctx
+        .files
+        .find_at_root(&["Makefile", "makefile", "GNUmakefile"])?;
     let text = ctx.files.read(path)?;
     let mut targets = Vec::new();
     for raw in text.lines() {
@@ -237,7 +261,9 @@ fn make_targets(ctx: &RepoContext) -> Option<Vec<String>> {
 }
 
 fn just_recipes(ctx: &RepoContext) -> Option<Vec<String>> {
-    let path = ctx.files.find_at_root(&["justfile", "Justfile", ".justfile"])?;
+    let path = ctx
+        .files
+        .find_at_root(&["justfile", "Justfile", ".justfile"])?;
     let text = ctx.files.read(path)?;
     let recipes = text
         .lines()
@@ -288,7 +314,10 @@ fn script_path(token: &str) -> Option<(String, bool)> {
     }
     let anchored = t.starts_with("./");
     let path = t.strip_prefix("./").unwrap_or(t);
-    if BUILD_DIRS.iter().any(|d| path.to_lowercase().starts_with(d)) {
+    if BUILD_DIRS
+        .iter()
+        .any(|d| path.to_lowercase().starts_with(d))
+    {
         return None;
     }
     Some((path.to_string(), anchored))

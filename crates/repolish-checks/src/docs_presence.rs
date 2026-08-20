@@ -52,10 +52,29 @@ const DOC_EXTS: &[&str] = &[".md", ".mdx", ".rst", ".adoc", ".txt", ".1", ".7"];
 /// 就是真正的附加文档——fzf 的 `ADVANCED.md`、awesome 的 `create-list.md`
 /// 都在根目录而不在 `docs/` 下，只数 `docs/` 会把它们当成没有文档。
 const COMMUNITY_FILES: &[&str] = &[
-    "readme", "contributing", "changelog", "changes", "history", "news", "releases",
-    "code_of_conduct", "code-of-conduct", "codeofconduct", "license", "licence", "copying",
-    "security", "authors", "notice", "support", "governance", "funding", "maintainers",
-    "pull_request_template", "issue_template", "citation",
+    "readme",
+    "contributing",
+    "changelog",
+    "changes",
+    "history",
+    "news",
+    "releases",
+    "code_of_conduct",
+    "code-of-conduct",
+    "codeofconduct",
+    "license",
+    "licence",
+    "copying",
+    "security",
+    "authors",
+    "notice",
+    "support",
+    "governance",
+    "funding",
+    "maintainers",
+    "pull_request_template",
+    "issue_template",
+    "citation",
 ];
 
 /// README 已经足够厚时，「文档只在 README 里」是取舍而非缺失
@@ -79,7 +98,10 @@ impl Check for DocsPresence {
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
         if let Some(g) = GENERATORS.iter().find(|g| ctx.files.contains(g)) {
-            return Outcome::perfect(vec![Evidence::new(*g, "dedicated documentation site configured")]);
+            return Outcome::perfect(vec![Evidence::new(
+                *g,
+                "dedicated documentation site configured",
+            )]);
         }
 
         let pages: Vec<&str> = ctx

@@ -417,7 +417,10 @@ An extremely fast Python linter, written in Rust.
         let md = "<h1 align=\"center\"><img src=\"logo.svg\" alt=\"Chalk\"></h1>\n\n> Terminal string styling done right\n";
         let r = parse(md);
         assert_eq!(r.title.as_deref(), Some("Chalk"));
-        assert_eq!(r.tagline.as_deref(), Some("Terminal string styling done right"));
+        assert_eq!(
+            r.tagline.as_deref(),
+            Some("Terminal string styling done right")
+        );
     }
 
     #[test]
@@ -438,7 +441,9 @@ pip install x
 ## Next
 ";
         let r = parse(md);
-        let s = r.section(SectionKind::Quickstart).expect("找到快速开始区块");
+        let s = r
+            .section(SectionKind::Quickstart)
+            .expect("找到快速开始区块");
         assert_eq!(r.code_blocks_in(s).count(), 1);
     }
 
@@ -457,7 +462,10 @@ pip install x
             imgs,
             vec![("logo.png", 2), ("https://img.shields.io/x.svg", 3)]
         );
-        assert!(r.links.iter().any(|l| l.url == "https://ci.example" && !l.is_image));
+        assert!(r
+            .links
+            .iter()
+            .any(|l| l.url == "https://ci.example" && !l.is_image));
     }
 
     #[test]

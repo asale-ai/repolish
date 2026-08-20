@@ -16,7 +16,14 @@ const MIN_LINES: usize = 120;
 const MIN_ANCHORS: usize = 5;
 const ANCHOR_ZONE_RATIO: usize = 3;
 
-const TOC_TITLES: &[&str] = &["table of contents", "contents", "toc", "目录", "索引", "導覽"];
+const TOC_TITLES: &[&str] = &[
+    "table of contents",
+    "contents",
+    "toc",
+    "目录",
+    "索引",
+    "導覽",
+];
 
 impl Check for ReadmeToc {
     fn id(&self) -> &'static str {
@@ -48,7 +55,11 @@ impl Check for ReadmeToc {
             let t = s.title.to_lowercase();
             TOC_TITLES.iter().any(|k| t.contains(k))
         }) {
-            return Outcome::perfect(vec![Evidence::at(&name, s.line, "table of contents present")]);
+            return Outcome::perfect(vec![Evidence::at(
+                &name,
+                s.line,
+                "table of contents present",
+            )]);
         }
 
         // 有些 README 不给目录加标题，直接在开头列一串锚点链接

@@ -86,10 +86,7 @@ pub enum Outcome {
 impl Outcome {
     pub fn scored(score: u8, evidence: Vec<Evidence>, fixes: Vec<Fix>) -> Self {
         debug_assert!(score <= 10, "score 必须在 0..=10");
-        debug_assert!(
-            score == 10 || !fixes.is_empty(),
-            "扣分必须给出可执行的 Fix"
-        );
+        debug_assert!(score == 10 || !fixes.is_empty(), "扣分必须给出可执行的 Fix");
         Outcome::Scored {
             score: score.min(10),
             evidence,
@@ -131,10 +128,7 @@ impl Outcome {
 
     /// 是否进入报告的「覆盖限制」章节
     pub fn is_coverage_limit(&self) -> bool {
-        matches!(
-            self,
-            Outcome::Inconclusive { .. } | Outcome::Skipped { .. }
-        )
+        matches!(self, Outcome::Inconclusive { .. } | Outcome::Skipped { .. })
     }
 
     pub fn fixes(&self) -> &[Fix] {

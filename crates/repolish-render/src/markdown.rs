@@ -36,7 +36,11 @@ fn write_summary(out: &mut String, report: &Report) {
 
     match report.score {
         Some(s) => {
-            let _ = writeln!(out, "**{s} / 100** — `{profile}` ({how}) · {} mode\n", report.mode.as_str());
+            let _ = writeln!(
+                out,
+                "**{s} / 100** — `{profile}` ({how}) · {} mode\n",
+                report.mode.as_str()
+            );
         }
         None => {
             let _ = writeln!(
@@ -46,7 +50,11 @@ fn write_summary(out: &mut String, report: &Report) {
                  evidence would be misleading.\n",
                 report.coverage * 100.0
             );
-            let _ = writeln!(out, "Profile: `{profile}` ({how}) · {} mode\n", report.mode.as_str());
+            let _ = writeln!(
+                out,
+                "Profile: `{profile}` ({how}) · {} mode\n",
+                report.mode.as_str()
+            );
         }
     }
 
@@ -206,9 +214,7 @@ fn severity_heading(s: Severity) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use repolish_core::{
-        CheckResult, Evidence, Fix, Mode, Profile, ProfileInfo, Repository, Risk,
-    };
+    use repolish_core::{CheckResult, Evidence, Fix, Mode, Profile, ProfileInfo, Repository, Risk};
 
     fn sample() -> Report {
         let checks = vec![

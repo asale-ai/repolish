@@ -52,10 +52,18 @@ impl fmt::Display for RemoteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RemoteError::NoGithubRemote => {
-                write!(f, "no GitHub remote found (git remote origin), so --remote has nothing to query")
+                write!(
+                    f,
+                    "no GitHub remote found (git remote origin), so --remote has nothing to query"
+                )
             }
-            RemoteError::NotFound(s) => write!(f, "{s} not found on GitHub (private repositories need a token)"),
-            RemoteError::Unauthorized { hint } => write!(f, "GitHub API refused the request: {hint}"),
+            RemoteError::NotFound(s) => write!(
+                f,
+                "{s} not found on GitHub (private repositories need a token)"
+            ),
+            RemoteError::Unauthorized { hint } => {
+                write!(f, "GitHub API refused the request: {hint}")
+            }
             RemoteError::Http(e) => write!(f, "GitHub API call failed: {e}"),
         }
     }
@@ -142,7 +150,12 @@ fn from_json(v: &serde_json::Value) -> RemoteFacts {
         topics: v
             .get("topics")
             .and_then(|t| t.as_array())
-            .map(|a| a.iter().filter_map(|t| t.as_str()).map(str::to_string).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|t| t.as_str())
+                    .map(str::to_string)
+                    .collect()
+            })
             .unwrap_or_default(),
         license: v
             .get("license")
@@ -190,10 +203,22 @@ mod tests {
 
     #[test]
     fn parses_all_three_remote_url_shapes() {
-        assert_eq!(parse_slug("https://github.com/BurntSushi/ripgrep.git"), slug("BurntSushi", "ripgrep"));
-        assert_eq!(parse_slug("git@github.com:serde-rs/serde.git"), slug("serde-rs", "serde"));
-        assert_eq!(parse_slug("ssh://git@github.com/astral-sh/ruff"), slug("astral-sh", "ruff"));
-        assert_eq!(parse_slug("https://github.com/koajs/koa/"), slug("koajs", "koa"));
+        assert_eq!(
+            parse_slug("https://github.com/BurntSushi/ripgrep.git"),
+            slug("BurntSushi", "ripgrep")
+        );
+        assert_eq!(
+            parse_slug("git@github.com:serde-rs/serde.git"),
+            slug("serde-rs", "serde")
+        );
+        assert_eq!(
+            parse_slug("ssh://git@github.com/astral-sh/ruff"),
+            slug("astral-sh", "ruff")
+        );
+        assert_eq!(
+            parse_slug("https://github.com/koajs/koa/"),
+            slug("koajs", "koa")
+        );
     }
 
     #[test]
@@ -205,9 +230,10 @@ mod tests {
     #[test]
     fn unset_metadata_is_none_not_empty_string() {
         // GitHub 对未设置的字段返回 null，对清空过的字段返回 ""
-        let v: serde_json::Value =
-            serde_json::from_str(r#"{"description":null,"homepage":"","license":{"spdx_id":"NOASSERTION"}}"#)
-                .unwrap();
+        let v: serde_json::Value = serde_json::from_str(
+            r#"{"description":null,"homepage":"","license":{"spdx_id":"NOASSERTION"}}"#,
+        )
+        .unwrap();
         let f = from_json(&v);
         assert!(f.description.is_none());
         assert!(f.homepage.is_none());

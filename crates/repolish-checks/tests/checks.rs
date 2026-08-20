@@ -66,14 +66,21 @@ fn broken_commands_are_reported_with_line_numbers() {
         ],
     );
 
-    let Outcome::Scored { score, evidence, .. } = outcome_of(&fx, "claim-consistency") else {
+    let Outcome::Scored {
+        score, evidence, ..
+    } = outcome_of(&fx, "claim-consistency")
+    else {
         panic!("应当判分");
     };
 
     // 5 条可校验，2 条失效 → floor(3/5 * 10)
     assert_eq!(score, 6);
     let notes: Vec<&str> = evidence.iter().map(|e| e.note.as_str()).collect();
-    assert_eq!(notes.len(), 2, "只有 bootstrap 与 deploy 应被判失效：{notes:?}");
+    assert_eq!(
+        notes.len(),
+        2,
+        "只有 bootstrap 与 deploy 应被判失效：{notes:?}"
+    );
     assert!(notes.iter().any(|n| n.contains("npm run bootstrap")));
     assert!(notes.iter().any(|n| n.contains("make deploy")));
     // 行号要指向命令本身，而不是围栏行
@@ -96,7 +103,10 @@ fn usage_example_paths_are_not_treated_as_claims() {
     );
 
     assert!(
-        matches!(outcome_of(&fx, "claim-consistency"), Outcome::Inconclusive { .. }),
+        matches!(
+            outcome_of(&fx, "claim-consistency"),
+            Outcome::Inconclusive { .. }
+        ),
         "用法示例里的路径不构成可校验声明"
     );
 }
@@ -115,8 +125,9 @@ fn install_command_naming_another_package_is_flagged() {
         ],
     );
 
-    let Outcome::Scored { score, evidence, .. } =
-        outcome_of(&fx, "readme-install-consistency")
+    let Outcome::Scored {
+        score, evidence, ..
+    } = outcome_of(&fx, "readme-install-consistency")
     else {
         panic!("应当判分");
     };
@@ -139,7 +150,10 @@ fn remote_checks_are_skipped_without_the_flag() {
         );
     }
     // 被跳过的项必须出现在覆盖限制里，否则消费方看不出分数基准变了
-    assert!(report.coverage_limits.iter().any(|l| l.starts_with("repo-topics")));
+    assert!(report
+        .coverage_limits
+        .iter()
+        .any(|l| l.starts_with("repo-topics")));
     // 剔掉三项远程检查后仍要能出总分
     assert!(report.score.is_some());
 }
@@ -160,20 +174,29 @@ mod tests {
     let fx = Fixture::new(
         "tests-union",
         &[
-            ("README.md", "# X
+            (
+                "README.md",
+                "# X
 
 A thing.
-"),
-            ("tests/integration.rs", "#[test]
+",
+            ),
+            (
+                "tests/integration.rs",
+                "#[test]
 fn it_works() {}
-"),
+",
+            ),
             ("src/a.rs", inline),
             ("src/b.rs", inline),
             ("src/c.rs", inline),
         ],
     );
 
-    let Outcome::Scored { score, evidence, .. } = outcome_of(&fx, "tests-present") else {
+    let Outcome::Scored {
+        score, evidence, ..
+    } = outcome_of(&fx, "tests-present")
+    else {
         panic!("应当判分");
     };
     // 1 个 tests/ 文件 + 3 个内联模块 = 4 处，落在 3..=9 档
@@ -252,11 +275,19 @@ fn all_messages_are_english() {
     }
 
     for (ctx, mode) in &cases {
-        let report = repolish_checks::registry().run(ctx, &RunOptions { mode: *mode, ..RunOptions::default() });
+        let report = repolish_checks::registry().run(
+            ctx,
+            &RunOptions {
+                mode: *mode,
+                ..RunOptions::default()
+            },
+        );
         for c in &report.checks {
             let mut messages: Vec<String> = Vec::new();
             match &c.outcome {
-                Outcome::Scored { evidence, fixes, .. } => {
+                Outcome::Scored {
+                    evidence, fixes, ..
+                } => {
                     messages.extend(evidence.iter().map(|e| e.note.clone()));
                     messages.extend(fixes.iter().map(|f| f.message.clone()));
                 }
@@ -266,11 +297,7 @@ fn all_messages_are_english() {
                 Outcome::NotApplicable { .. } => {}
             }
             for m in messages {
-                assert!(
-                    !m.chars().any(is_cjk),
-                    "{} 的产出文案含非英文：{m}",
-                    c.id
-                );
+                assert!(!m.chars().any(is_cjk), "{} 的产出文案含非英文：{m}", c.id);
             }
         }
     }

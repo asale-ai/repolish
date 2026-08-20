@@ -66,7 +66,7 @@ pub fn snippet(owner: &str, repo: &str, branch: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use repolish_core::{Category, CheckResult, Outcome, ProfileInfo, Profile, Repository, Risk};
+    use repolish_core::{Category, CheckResult, Outcome, Profile, ProfileInfo, Repository, Risk};
 
     fn report(score: u8, mode: Mode) -> Report {
         // 用一个 Critical 项凑出想要的分数：score×10 即为百分制总分
@@ -115,7 +115,13 @@ mod tests {
 
     #[test]
     fn colors_follow_the_documented_thresholds() {
-        for (score, want) in [(100, "brightgreen"), (80, "green"), (60, "yellow"), (40, "orange"), (30, "red")] {
+        for (score, want) in [
+            (100, "brightgreen"),
+            (80, "green"),
+            (60, "yellow"),
+            (40, "orange"),
+            (30, "red"),
+        ] {
             let json = badge_json(&report(score, Mode::Remote)).unwrap();
             let v: serde_json::Value = serde_json::from_str(&json).unwrap();
             assert_eq!(v["color"], want, "score {score}");

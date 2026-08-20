@@ -65,7 +65,11 @@ impl Repository {
         Repository {
             owner: ctx.slug.as_ref().map(|s| s.owner.clone()),
             // 远端名优先：目录名可能被使用者改过，owner/name 才是身份
-            name: ctx.slug.as_ref().map(|s| s.name.clone()).unwrap_or(dir_name),
+            name: ctx
+                .slug
+                .as_ref()
+                .map(|s| s.name.clone())
+                .unwrap_or(dir_name),
             commit: ctx.git.as_ref().map(|g| g.head_id.clone()),
         }
     }

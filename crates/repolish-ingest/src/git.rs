@@ -55,7 +55,10 @@ fn is_semver_like(name: &str) -> bool {
     let s = name.strip_prefix('v').unwrap_or(name);
     let head = s.split(['-', '+']).next().unwrap_or(s);
     let parts: Vec<&str> = head.split('.').collect();
-    parts.len() == 3 && parts.iter().all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+    parts.len() == 3
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
 }
 
 pub fn load(root: &Path) -> Option<GitFacts> {
@@ -103,7 +106,11 @@ fn load_tags(repo: &gix::Repository) -> Vec<Tag> {
                 .try_id()
                 .and_then(|id| id.object().ok())
                 .and_then(|obj| obj.try_into_tag().ok())
-                .and_then(|t| t.decode().ok().map(|d| d.message.to_string().trim().to_string()))
+                .and_then(|t| {
+                    t.decode()
+                        .ok()
+                        .map(|d| d.message.to_string().trim().to_string())
+                })
                 .filter(|m| !m.is_empty());
             Tag { name, message }
         })

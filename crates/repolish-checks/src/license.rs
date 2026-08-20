@@ -14,7 +14,10 @@ const SIGNATURES: &[(&str, &str)] = &[
     ("Apache-2.0", "apache license"),
     ("MIT", "permission is hereby granted, free of charge"),
     ("BSD-3-Clause", "neither the name of the copyright holder"),
-    ("BSD-2-Clause", "redistribution and use in source and binary forms"),
+    (
+        "BSD-2-Clause",
+        "redistribution and use in source and binary forms",
+    ),
     ("AGPL-3.0", "gnu affero general public license"),
     ("LGPL", "gnu lesser general public license"),
     ("GPL-3.0", "gnu general public license"),
@@ -23,7 +26,10 @@ const SIGNATURES: &[(&str, &str)] = &[
     ("Unlicense", "this is free and unencumbered software"),
     ("BSL-1.0", "boost software license"),
     ("WTFPL", "do what the fuck you want to public license"),
-    ("Zlib", "this software is provided 'as-is', without any express"),
+    (
+        "Zlib",
+        "this software is provided 'as-is', without any express",
+    ),
     // 文档类仓库常用 Creative Commons，顺序上要先于更宽泛的 CC0
     ("CC-BY-SA-4.0", "attribution-sharealike 4.0"),
     ("CC-BY-4.0", "attribution 4.0 international"),
@@ -65,7 +71,8 @@ impl Check for License {
             match ctx.files.read(f) {
                 Some(text) => {
                     let lower = text.to_lowercase();
-                    if let Some((spdx, _)) = SIGNATURES.iter().find(|(_, sig)| lower.contains(sig)) {
+                    if let Some((spdx, _)) = SIGNATURES.iter().find(|(_, sig)| lower.contains(sig))
+                    {
                         identified.push((f, spdx));
                     }
                 }

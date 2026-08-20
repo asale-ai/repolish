@@ -31,7 +31,9 @@ impl FileIndex {
                 continue;
             }
             if let Ok(rel) = entry.path().strip_prefix(root) {
-                let s = rel.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/");
+                let s = rel
+                    .to_string_lossy()
+                    .replace(std::path::MAIN_SEPARATOR, "/");
                 if s.starts_with(".git/") {
                     continue;
                 }

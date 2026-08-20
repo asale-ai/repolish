@@ -20,14 +20,22 @@ const ROOT_CONFIGS: &[&str] = &[
 /// 而不是匹配 `cargo test` 这类固定串——ripgrep 的 workflow 写的是
 /// `${{ env.CARGO }} test`，固定串永远匹配不到。
 const RUNNERS: &[&str] = &[
-    "cargo", "npm", "yarn", "pnpm", "npx", "go ", "mvn", "gradle", "make", "just",
-    "nox", "tox", "uv ", "poetry", "bundle", "dotnet", "ctest", "swift", "mix",
+    "cargo", "npm", "yarn", "pnpm", "npx", "go ", "mvn", "gradle", "make", "just", "nox", "tox",
+    "uv ", "poetry", "bundle", "dotnet", "ctest", "swift", "mix",
 ];
 
 /// 本身就代表「在跑测试」的工具名，无需再看上下文
 const TEST_TOOLS: &[&str] = &[
-    "pytest", "nextest", "jest", "vitest", "mocha", "karma", "phpunit", "rspec",
-    "gotestsum", "unittest",
+    "pytest",
+    "nextest",
+    "jest",
+    "vitest",
+    "mocha",
+    "karma",
+    "phpunit",
+    "rspec",
+    "gotestsum",
+    "unittest",
 ];
 
 impl Check for CiPresent {

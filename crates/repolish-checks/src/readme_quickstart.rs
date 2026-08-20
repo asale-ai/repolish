@@ -14,16 +14,40 @@ use repolish_md::{Readme, Section, SectionKind};
 pub struct ReadmeQuickstart;
 
 const PREREQ_HINTS: &[&str] = &[
-    "require", "prerequisite", "depend", "version", "node ", "python ", "rust", "go ",
-    "前置", "依赖", "需要", "要求", "环境",
+    "require",
+    "prerequisite",
+    "depend",
+    "version",
+    "node ",
+    "python ",
+    "rust",
+    "go ",
+    "前置",
+    "依赖",
+    "需要",
+    "要求",
+    "环境",
 ];
 
 /// 安装 / 依赖声明的特征。用于「标题识别不出来但正文确实有安装信息」的兜底，
 /// 例如 serde 把 `serde = { version = "1.0" }` 放在「Serde in action」里。
 const INSTALL_HINTS: &[&str] = &[
-    "npm install", "npm i ", "yarn add", "pnpm add", "pip install", "uv add",
-    "cargo add", "go get", "gem install", "composer require", "brew install",
-    "apt install", "docker run", "docker pull", "curl -", "= { version",
+    "npm install",
+    "npm i ",
+    "yarn add",
+    "pnpm add",
+    "pip install",
+    "uv add",
+    "cargo add",
+    "go get",
+    "gem install",
+    "composer require",
+    "brew install",
+    "apt install",
+    "docker run",
+    "docker pull",
+    "curl -",
+    "= { version",
 ];
 
 impl Check for ReadmeQuickstart {
@@ -46,8 +70,14 @@ impl Check for ReadmeQuickstart {
         let Some(readme) = &ctx.readme else {
             return Outcome::scored(
                 0,
-                vec![Evidence::new(".", "no README, so there is no way in at all")],
-                vec![Fix::new(Severity::P1, "Add a README with a quick start section")],
+                vec![Evidence::new(
+                    ".",
+                    "no README, so there is no way in at all",
+                )],
+                vec![Fix::new(
+                    Severity::P1,
+                    "Add a README with a quick start section",
+                )],
             );
         };
         let name = file_name(readme);

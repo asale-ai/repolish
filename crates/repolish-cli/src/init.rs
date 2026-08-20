@@ -83,7 +83,10 @@ mod tests {
     #[test]
     fn template_keeps_the_two_defaults_that_were_learned_the_hard_way() {
         let w = workflow("main", Some(60));
-        assert!(w.contains("fetch-depth: 0"), "浅克隆会让 release-hygiene 失效");
+        assert!(
+            w.contains("fetch-depth: 0"),
+            "浅克隆会让 release-hygiene 失效"
+        );
         assert!(w.contains("min-score: 60"));
         assert!(w.contains("branches: [main]"));
     }
@@ -92,9 +95,7 @@ mod tests {
     fn omitting_the_gate_produces_a_report_only_workflow() {
         let w = workflow("master", None);
         // 注释里会提到 `min-score: 60` 作为开启方式，所以只能看生效的那一行
-        let active = w
-            .lines()
-            .any(|l| l.trim_start().starts_with("min-score:"));
+        let active = w.lines().any(|l| l.trim_start().starts_with("min-score:"));
         assert!(!active, "未设门禁时不应有生效的 min-score 行");
         assert!(w.contains("branches: [master]"));
     }
@@ -132,9 +133,14 @@ mod tests {
         }
         // 有门禁时 with: 必须带着 min-score 一起出现
         let g = workflow("main", Some(70));
-        let with_at = g.lines().position(|l| l.trim() == "with:").expect("有门禁时应当有 with:");
+        let with_at = g
+            .lines()
+            .position(|l| l.trim() == "with:")
+            .expect("有门禁时应当有 with:");
         assert!(
-            g.lines().skip(with_at).any(|l| l.trim_start().starts_with("min-score:")),
+            g.lines()
+                .skip(with_at)
+                .any(|l| l.trim_start().starts_with("min-score:")),
             "with: 底下必须有 min-score"
         );
     }

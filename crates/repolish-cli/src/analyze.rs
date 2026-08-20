@@ -108,7 +108,11 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
     }
 
     let opts = RunOptions {
-        mode: if common.remote { Mode::Remote } else { Mode::Local },
+        mode: if common.remote {
+            Mode::Remote
+        } else {
+            Mode::Local
+        },
         only: common.only.iter().cloned().collect(),
         skip: common.skip.iter().cloned().collect(),
     };

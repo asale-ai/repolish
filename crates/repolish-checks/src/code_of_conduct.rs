@@ -28,7 +28,9 @@ impl Check for CodeOfConduct {
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome {
-        let found = DIRS.iter().flat_map(|d| NAMES.iter().map(move |n| format!("{d}{n}")))
+        let found = DIRS
+            .iter()
+            .flat_map(|d| NAMES.iter().map(move |n| format!("{d}{n}")))
             .find_map(|c| {
                 ctx.files
                     .iter()

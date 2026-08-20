@@ -55,7 +55,10 @@ impl Check for RepoDescription {
         if is_just_the_name(desc, repo_name) {
             return Outcome::scored(
                 4,
-                vec![Evidence::new(".", format!("the description only repeats the project name: \"{desc}\""))],
+                vec![Evidence::new(
+                    ".",
+                    format!("the description only repeats the project name: \"{desc}\""),
+                )],
                 vec![Fix::new(
                     Severity::P1,
                     "A description that repeats the name says nothing. Say what problem it \
@@ -101,7 +104,8 @@ fn is_just_the_name(desc: &str, repo_name: &str) -> bool {
 }
 
 fn has_cjk(s: &str) -> bool {
-    s.chars().any(|c| matches!(c as u32, 0x4E00..=0x9FFF | 0x3040..=0x30FF | 0xAC00..=0xD7AF))
+    s.chars()
+        .any(|c| matches!(c as u32, 0x4E00..=0x9FFF | 0x3040..=0x30FF | 0xAC00..=0xD7AF))
 }
 
 fn truncate(s: &str, max: usize) -> String {
@@ -119,6 +123,9 @@ mod tests {
     fn name_repetition_is_detected_across_separators() {
         assert!(is_just_the_name("ripgrep", "ripgrep"));
         assert!(is_just_the_name("Rip-Grep", "ripgrep"));
-        assert!(!is_just_the_name("ripgrep recursively searches directories", "ripgrep"));
+        assert!(!is_just_the_name(
+            "ripgrep recursively searches directories",
+            "ripgrep"
+        ));
     }
 }

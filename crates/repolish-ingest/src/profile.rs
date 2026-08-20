@@ -56,7 +56,10 @@ const CODE_EXTS: &[&str] = &[
 ];
 
 pub fn detect(files: &FileIndex, readme: Option<&Readme>) -> Profile {
-    let code_files: usize = CODE_EXTS.iter().map(|e| files.content_extension_count(e)).sum();
+    let code_files: usize = CODE_EXTS
+        .iter()
+        .map(|e| files.content_extension_count(e))
+        .sum();
     let md_files = files.content_extension_count("md");
 
     // 资源集合：README 巨长、外链极多、几乎没有代码
@@ -97,7 +100,8 @@ fn has_executable_entry(files: &FileIndex) -> bool {
     // tokio 的 tests-integration/src/bin/ 都是内部测试用的二进制，
     // 把它们算作入口会让纯库项目被判成 CLI。
     if files.any_matching(|p| {
-        !is_fixture(p) && (p.ends_with("/src/main.rs") || p.contains("/src/bin/") || p.starts_with("src/bin/"))
+        !is_fixture(p)
+            && (p.ends_with("/src/main.rs") || p.contains("/src/bin/") || p.starts_with("src/bin/"))
     }) {
         return true;
     }
@@ -112,9 +116,9 @@ fn has_executable_entry(files: &FileIndex) -> bool {
         })
         .take(64)
         .any(|p| {
-            files.read(p).is_some_and(|t| {
-                t.contains("[[bin]]") || t.contains("[project.scripts]")
-            })
+            files
+                .read(p)
+                .is_some_and(|t| t.contains("[[bin]]") || t.contains("[project.scripts]"))
         });
     if manifest_declares_bin {
         return true;
@@ -125,8 +129,18 @@ fn has_executable_entry(files: &FileIndex) -> bool {
 /// 测试夹具 / 示例 / 基准目录。这些目录里的可执行文件不代表项目本身是 CLI。
 fn is_fixture(path: &str) -> bool {
     const FIXTURE_DIRS: &[&str] = &[
-        "test", "tests", "test_suite", "tests-integration", "testing",
-        "example", "examples", "bench", "benches", "fixture", "fixtures", "demo",
+        "test",
+        "tests",
+        "test_suite",
+        "tests-integration",
+        "testing",
+        "example",
+        "examples",
+        "bench",
+        "benches",
+        "fixture",
+        "fixtures",
+        "demo",
     ];
     path.split(0x2Fu8 as char)
         .any(|seg| FIXTURE_DIRS.contains(&seg.to_lowercase().as_str()))

@@ -147,12 +147,19 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
             }
         }
         if !opts.verbose && findings.iter().any(|(s, _, _)| *s == Severity::P3) {
-            let n = findings.iter().filter(|(s, _, _)| *s == Severity::P3).count();
+            let n = findings
+                .iter()
+                .filter(|(s, _, _)| *s == Severity::P3)
+                .count();
             let plural = if n == 1 { "suggestion" } else { "suggestions" };
             let _ = writeln!(
                 out,
                 "\n    {}",
-                paint(&format!("{n} more P3 {plural} — run with -v to see them"), c, Paint::Dim)
+                paint(
+                    &format!("{n} more P3 {plural} — run with -v to see them"),
+                    c,
+                    Paint::Dim
+                )
             );
         }
     }
@@ -176,7 +183,12 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
     if !report.coverage_limits.is_empty() {
         let _ = writeln!(out, "\n  {}", paint("Coverage limits", c, Paint::Bold));
         for limit in &report.coverage_limits {
-            let _ = writeln!(out, "    {} {}", paint("·", c, Paint::Dim), paint(limit, c, Paint::Dim));
+            let _ = writeln!(
+                out,
+                "    {} {}",
+                paint("·", c, Paint::Dim),
+                paint(limit, c, Paint::Dim)
+            );
         }
     }
 
@@ -209,10 +221,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
 
 /// 按终端显示宽度补齐（CJK 字符占两格），format! 的 width 按字符数算，会错位。
 fn pad(s: &str, width: usize) -> String {
-    let w: usize = s
-        .chars()
-        .map(|c| if is_wide(c) { 2 } else { 1 })
-        .sum();
+    let w: usize = s.chars().map(|c| if is_wide(c) { 2 } else { 1 }).sum();
     format!("{s}{}", " ".repeat(width.saturating_sub(w)))
 }
 

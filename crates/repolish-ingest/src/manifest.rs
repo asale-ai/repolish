@@ -41,7 +41,14 @@ impl Ecosystem {
         match self {
             Ecosystem::Cargo => &["cargo add", "cargo install"],
             Ecosystem::Npm => &["npm install", "npm i ", "yarn add", "pnpm add", "bun add"],
-            Ecosystem::Pypi => &["pip install", "pip3 install", "uv add", "uv pip install", "poetry add", "pipx install"],
+            Ecosystem::Pypi => &[
+                "pip install",
+                "pip3 install",
+                "uv add",
+                "uv pip install",
+                "poetry add",
+                "pipx install",
+            ],
             Ecosystem::Go => &["go get", "go install"],
             Ecosystem::Maven => &["<dependency>", "implementation "],
             Ecosystem::Gem => &["gem install"],
@@ -100,7 +107,10 @@ pub fn detect(files: &FileIndex) -> Vec<Manifest> {
         }
     }
     if files.contains("pyproject.toml") {
-        if let Some(m) = files.read("pyproject.toml").and_then(|t| parse_pyproject(&t)) {
+        if let Some(m) = files
+            .read("pyproject.toml")
+            .and_then(|t| parse_pyproject(&t))
+        {
             out.push(m);
         }
     } else if files.contains("setup.py") || files.contains("setup.cfg") {
@@ -230,7 +240,10 @@ fn parse_pyproject(text: &str) -> Option<Manifest> {
         .map(str::to_string);
 
     for src in [project, poetry] {
-        if let Some(s) = src.and_then(|p| p.get("scripts")).and_then(|s| s.as_table()) {
+        if let Some(s) = src
+            .and_then(|p| p.get("scripts"))
+            .and_then(|s| s.as_table())
+        {
             m.scripts.extend(s.keys().cloned());
             m.bins.extend(s.keys().cloned());
         }
@@ -247,7 +260,10 @@ fn parse_pyproject(text: &str) -> Option<Manifest> {
             .map(requirement_name)
             .collect();
     }
-    if let Some(t) = poetry.and_then(|p| p.get("dependencies")).and_then(|d| d.as_table()) {
+    if let Some(t) = poetry
+        .and_then(|p| p.get("dependencies"))
+        .and_then(|d| d.as_table())
+    {
         m.deps.extend(t.keys().cloned());
     }
     for src in [project, poetry] {
@@ -284,7 +300,9 @@ fn parse_gomod(text: &str) -> Option<Manifest> {
             let t = l.trim();
             let path = t.strip_prefix("require ").unwrap_or(t);
             let first = path.split_whitespace().next()?;
-            first.contains('/').then(|| first.rsplit('/').next().unwrap_or(first).to_string())
+            first
+                .contains('/')
+                .then(|| first.rsplit('/').next().unwrap_or(first).to_string())
         })
         .collect();
     Some(m)
@@ -360,7 +378,10 @@ mod tests {
     #[test]
     fn package_names_compare_across_separator_conventions() {
         // PyPI 上 my_pkg 与 my-pkg 是同一个包；npm 的 scope 不参与比对
-        assert_eq!(normalize_package_name("my_pkg"), normalize_package_name("My-Pkg"));
+        assert_eq!(
+            normalize_package_name("my_pkg"),
+            normalize_package_name("My-Pkg")
+        );
         assert_eq!(normalize_package_name("@scope/tool"), "tool");
     }
 }

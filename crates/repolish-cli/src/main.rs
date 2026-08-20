@@ -215,7 +215,10 @@ fn run_badge(args: BadgeArgs) -> u8 {
 
     println!("\nPaste this into your README:\n");
     match &ctx.slug {
-        Some(slug) => println!("{}\n", repolish_render::snippet(&slug.owner, &slug.name, &branch)),
+        Some(slug) => println!(
+            "{}\n",
+            repolish_render::snippet(&slug.owner, &slug.name, &branch)
+        ),
         None => {
             println!("{}\n", repolish_render::snippet("OWNER", "REPO", &branch));
             eprintln!(
@@ -292,7 +295,10 @@ fn run_init(args: InitArgs) -> u8 {
     exit::OK
 }
 
-fn write_badge(ctx: &repolish_ingest::RepoContext, report: &repolish_core::Report) -> Result<(), u8> {
+fn write_badge(
+    ctx: &repolish_ingest::RepoContext,
+    report: &repolish_core::Report,
+) -> Result<(), u8> {
     let Some(json) = repolish_render::badge_json(report) else {
         eprintln!("warning: coverage too low, no badge written");
         return Err(exit::LOW_COVERAGE);

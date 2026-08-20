@@ -147,7 +147,10 @@ fn from_html(html: &str) -> Option<(String, TitleSource)> {
     let i = img_at?;
     // 真 logo 不会是超链接。赞助商 logo 一律包在 <a href> 里，
     // 而 <a> 会出现在 <img> 之前。
-    if lower[..i].rfind("<a ").is_some_and(|a| lower[a..i].find("</a>").is_none()) {
+    if lower[..i]
+        .rfind("<a ")
+        .is_some_and(|a| lower[a..i].find("</a>").is_none())
+    {
         return None;
     }
     extract_alt(&html[i..]).map(|t| (t, TitleSource::ImageAlt))

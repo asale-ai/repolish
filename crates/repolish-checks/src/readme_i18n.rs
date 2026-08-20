@@ -54,9 +54,12 @@ impl Check for ReadmeI18n {
         }
 
         // 有译本却没有入口等于没有：读者从仓库首页只看得到主 README
-        let linked = translations
-            .iter()
-            .any(|t| readme.links.iter().any(|l| l.repo_path().eq_ignore_ascii_case(t)));
+        let linked = translations.iter().any(|t| {
+            readme
+                .links
+                .iter()
+                .any(|l| l.repo_path().eq_ignore_ascii_case(t))
+        });
 
         if !linked {
             return Outcome::scored(
@@ -93,7 +96,10 @@ impl Check for ReadmeI18n {
         Outcome::scored(
             8,
             evidence,
-            vec![Fix::new(Severity::P3, "Add another language if you have the capacity to keep it current")],
+            vec![Fix::new(
+                Severity::P3,
+                "Add another language if you have the capacity to keep it current",
+            )],
         )
     }
 }
@@ -101,7 +107,9 @@ impl Check for ReadmeI18n {
 /// `README.zh-CN.md` / `README_ja.md` / `docs/README-ko.md` → 语言代码
 fn translation_lang(path: &str) -> Option<&'static str> {
     let file = path.rsplit('/').next().unwrap_or(path).to_lowercase();
-    let stem = file.strip_suffix(".md").or_else(|| file.strip_suffix(".rst"))?;
+    let stem = file
+        .strip_suffix(".md")
+        .or_else(|| file.strip_suffix(".rst"))?;
     let rest = stem.strip_prefix("readme")?;
     let code = rest.trim_start_matches(['.', '_', '-']);
     LANGS.iter().find(|l| **l == code).copied()

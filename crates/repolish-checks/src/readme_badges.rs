@@ -30,13 +30,40 @@ const BADGE_HOSTS: &[&str] = &[
 
 /// (类别, URL 或 alt 文本中的特征串)。顺序即匹配优先级。
 const KINDS: &[(&str, &[&str])] = &[
-    ("build", &["workflow", "actions", "/ci", "build", "travis", "appveyor", "circleci"]),
+    (
+        "build",
+        &[
+            "workflow", "actions", "/ci", "build", "travis", "appveyor", "circleci",
+        ],
+    ),
     ("coverage", &["codecov", "coveralls", "coverage"]),
-    ("version", &["crates/v", "npm/v", "pypi/v", "version", "release", "badge.fury", "gem/v", "packagist"]),
+    (
+        "version",
+        &[
+            "crates/v",
+            "npm/v",
+            "pypi/v",
+            "version",
+            "release",
+            "badge.fury",
+            "gem/v",
+            "packagist",
+        ],
+    ),
     ("license", &["license", "licence"]),
     ("docs", &["docs.rs", "readthedocs", "docs-"]),
     ("downloads", &["downloads", "dm/", "dt/", "crates/d"]),
-    ("community", &["discord", "slack", "gitter", "twitter", "opencollective", "contributors"]),
+    (
+        "community",
+        &[
+            "discord",
+            "slack",
+            "gitter",
+            "twitter",
+            "opencollective",
+            "contributors",
+        ],
+    ),
 ];
 
 /// 徽章只在首屏才起作用，往下埋没人看
@@ -64,8 +91,11 @@ impl Check for ReadmeBadges {
             .iter()
             .filter(|l| l.is_image && is_badge(&l.url))
             .collect();
-        let badges: Vec<&repolish_md::LinkRef> =
-            all.iter().copied().filter(|l| l.line <= HEAD_LINES).collect();
+        let badges: Vec<&repolish_md::LinkRef> = all
+            .iter()
+            .copied()
+            .filter(|l| l.line <= HEAD_LINES)
+            .collect();
 
         if badges.is_empty() {
             // 有徽章但在折叠线以下，与「一个徽章都没有」不是一回事：
@@ -166,15 +196,28 @@ mod tests {
     #[test]
     fn recognizes_badge_urls() {
         assert!(is_badge("https://img.shields.io/crates/v/serde.svg"));
-        assert!(is_badge("https://github.com/o/r/actions/workflows/ci.yml/badge.svg"));
+        assert!(is_badge(
+            "https://github.com/o/r/actions/workflows/ci.yml/badge.svg"
+        ));
         // 项目自己的截图不是徽章
-        assert!(!is_badge("https://raw.githubusercontent.com/o/r/main/screenshot.png"));
+        assert!(!is_badge(
+            "https://raw.githubusercontent.com/o/r/main/screenshot.png"
+        ));
     }
 
     #[test]
     fn classifies_by_purpose() {
-        assert_eq!(classify("https://img.shields.io/crates/v/serde.svg"), Some("version"));
-        assert_eq!(classify("https://img.shields.io/badge/license-MIT-blue"), Some("license"));
-        assert_eq!(classify("https://codecov.io/gh/o/r/badge.svg"), Some("coverage"));
+        assert_eq!(
+            classify("https://img.shields.io/crates/v/serde.svg"),
+            Some("version")
+        );
+        assert_eq!(
+            classify("https://img.shields.io/badge/license-MIT-blue"),
+            Some("license")
+        );
+        assert_eq!(
+            classify("https://codecov.io/gh/o/r/badge.svg"),
+            Some("coverage")
+        );
     }
 }

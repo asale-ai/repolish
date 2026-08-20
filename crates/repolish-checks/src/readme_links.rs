@@ -20,7 +20,12 @@ impl Check for ReadmeLinkHealth {
         let Some(readme) = &ctx.readme else {
             return Outcome::inconclusive("no README, so there are no relative links to check");
         };
-        let name = readme.path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let name = readme
+            .path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
 
         let relative: Vec<_> = readme.links.iter().filter(|l| l.is_relative()).collect();
         if relative.is_empty() {
@@ -57,7 +62,11 @@ impl Check for ReadmeLinkHealth {
             .take(8)
             .map(|(link, path)| {
                 let what = if link.is_image { "image" } else { "link" };
-                Evidence::at(&name, link.line, format!("{what} target does not exist: {path}"))
+                Evidence::at(
+                    &name,
+                    link.line,
+                    format!("{what} target does not exist: {path}"),
+                )
             })
             .collect();
 

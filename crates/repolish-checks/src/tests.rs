@@ -115,9 +115,7 @@ fn scan_inline(ctx: &RepoContext) -> Vec<String> {
             SCANNABLE_EXTS.iter().any(|e| lower.ends_with(e))
         })
         .take(MAX_CONTENT_SCAN)
-        .filter(|p| {
-            ctx.files.read(p).is_some_and(|src| has_inline_test(&src))
-        })
+        .filter(|p| ctx.files.read(p).is_some_and(|src| has_inline_test(&src)))
         .map(|s| s.to_string())
         .collect()
 }

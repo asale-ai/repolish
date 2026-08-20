@@ -84,7 +84,10 @@ impl Check for ReleaseHygiene {
                     // 「1 tag, none of them」在别人的 REPOLISH.md 里读起来
                     // 就是机器写的。plural() 管得了名词后缀，管不了代词。
                     if total == 1 {
-                        format!("1 tag, and it is not in x.y.z form (`{}`)", git.tags[0].name)
+                        format!(
+                            "1 tag, and it is not in x.y.z form (`{}`)",
+                            git.tags[0].name
+                        )
                     } else {
                         format!(
                             "{total} tags, none of them in x.y.z form (for example `{}`)",

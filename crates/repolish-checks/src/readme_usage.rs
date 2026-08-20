@@ -30,7 +30,12 @@ impl Check for ReadmeUsageExample {
                 vec![Fix::new(Severity::P1, "Add a README with a usage example")],
             );
         };
-        let name = readme.path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let name = readme
+            .path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
 
         let total = readme.code_blocks.len();
         let tagged = readme
