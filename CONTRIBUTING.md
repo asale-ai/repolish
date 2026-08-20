@@ -13,6 +13,7 @@ cd repolish
 cargo build
 cargo test
 cargo clippy --all-targets
+cargo fmt --all -- --check
 ```
 
 To reproduce the manual acceptance run against real repositories:
@@ -63,7 +64,8 @@ Every check must satisfy:
 
 ## Pull requests
 
-- Run `cargo test` and `cargo clippy --all-targets` before pushing. CI runs both.
+- Run `cargo test`, `cargo clippy --all-targets` and `cargo fmt --all` before pushing.
+  CI runs all three, and `cargo fmt` is checked, not applied.
 - Keep commit messages descriptive; explain *why*, not just what.
 - If you changed check behaviour, re-run the fixtures and say in the PR which scores
   moved and why. A silent score change is the thing reviewers most need to see.

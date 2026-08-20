@@ -1,0 +1,6 @@
+# 只放「纯机械、不改行为」的提交。用法：
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub 的网页 blame 会自动读这个文件。
+
+# style: cargo fmt --all —— 全仓库首次格式化，36 个文件，0 行注释改动
+ff13bee032cef7ebe0408dd4534f186226d44431

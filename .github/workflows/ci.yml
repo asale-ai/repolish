@@ -26,7 +26,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy, rustfmt
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
 
@@ -35,6 +35,17 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets
+
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      # 格式与平台无关，跑一次就够——塞进 test 矩阵会白跑三遍
+      - run: cargo fmt --all -- --check
 
   msrv:
     name: minimum supported Rust version

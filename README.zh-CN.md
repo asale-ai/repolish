@@ -188,6 +188,7 @@ git clone https://github.com/asale-ai/repolish
 cd repolish
 cargo test
 cargo clippy --all-targets
+cargo fmt --all -- --check
 ./scripts/fetch-fixtures.sh
 ```
 
