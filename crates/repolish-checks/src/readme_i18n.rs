@@ -63,11 +63,14 @@ impl Check for ReadmeI18n {
                 7,
                 vec![Evidence::new(
                     translations[0],
-                    format!(
-                        "{} translation{} exist, but the main README links to none of them",
-                        translations.len(),
-                        crate::util::plural(translations.len())
-                    ),
+                    if translations.len() == 1 {
+                        "1 translation exists, but the main README does not link to it".to_string()
+                    } else {
+                        format!(
+                            "{} translations exist, but the main README links to none of them",
+                            translations.len()
+                        )
+                    },
                 )],
                 vec![Fix::new(
                     Severity::P3,

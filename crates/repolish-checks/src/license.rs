@@ -89,11 +89,14 @@ impl Check for License {
             6,
             vec![Evidence::new(
                 files[0],
-                format!(
-                    "{} license file{}, none matching a known standard license",
-                    files.len(),
-                    crate::util::plural(files.len())
-                ),
+                if files.len() == 1 {
+                    "the license file does not match any known standard license".to_string()
+                } else {
+                    format!(
+                        "{} license files, none matching a known standard license",
+                        files.len()
+                    )
+                },
             )],
             vec![Fix::new(
                 Severity::P2,

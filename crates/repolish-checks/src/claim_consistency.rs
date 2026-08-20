@@ -73,10 +73,12 @@ impl Check for ClaimConsistency {
         if broken.is_empty() {
             return Outcome::perfect(vec![Evidence::new(
                 &name,
-                format!(
-                    "all {total} command claim{} resolve to something in the repository",
-                    util::plural(total)
-                ),
+                if total == 1 {
+                    "the one command claim in the README resolves to something in the repository"
+                        .to_string()
+                } else {
+                    format!("all {total} command claims resolve to something in the repository")
+                },
             )]);
         }
 

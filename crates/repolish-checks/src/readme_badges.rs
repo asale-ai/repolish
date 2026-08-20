@@ -76,12 +76,15 @@ impl Check for ReadmeBadges {
                     vec![Evidence::at(
                         &name,
                         first.line,
-                        format!(
-                            "{} badge{}, all of them below line {} and out of the first screen",
-                            all.len(),
-                            crate::util::plural(all.len()),
-                            HEAD_LINES
-                        ),
+                        if all.len() == 1 {
+                            format!("the only badge sits below line {HEAD_LINES}, out of the first screen")
+                        } else {
+                            format!(
+                                "{} badges, all of them below line {} and out of the first screen",
+                                all.len(),
+                                HEAD_LINES
+                            )
+                        },
                     )],
                     vec![Fix::new(
                         Severity::P3,

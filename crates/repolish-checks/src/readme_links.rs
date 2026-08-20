@@ -41,11 +41,11 @@ impl Check for ReadmeLinkHealth {
         if broken.is_empty() {
             return Outcome::perfect(vec![Evidence::new(
                 &name,
-                format!(
-                    "all {} relative link{} resolve",
-                    relative.len(),
-                    crate::util::plural(relative.len())
-                ),
+                if relative.len() == 1 {
+                    "the one relative link resolves".to_string()
+                } else {
+                    format!("all {} relative links resolve", relative.len())
+                },
             )]);
         }
 

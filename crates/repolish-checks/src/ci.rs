@@ -2,8 +2,6 @@ use repolish_core::{
     Category, Check, Evidence, Fix, Outcome, Profile, RepoContext, Risk, Severity,
 };
 
-use crate::util;
-
 /// 是否配置了持续集成。
 ///
 /// 分档：无配置 = 0；有配置但看不出跑测试 = 7；配置中出现测试步骤 = 10
@@ -82,13 +80,21 @@ impl Check for CiPresent {
         match with_tests {
             Some(c) => Outcome::perfect(vec![Evidence::new(
                 c,
-                format!("{} CI config{}, this one running tests", configs.len(), util::plural(configs.len())),
+                if configs.len() == 1 {
+                    "the CI config runs tests".to_string()
+                } else {
+                    format!("{} CI configs, this one running tests", configs.len())
+                },
             )]),
             None => Outcome::scored(
                 7,
                 vec![Evidence::new(
                     &configs[0],
-                    format!("{} CI config{}, none of them running tests", configs.len(), util::plural(configs.len())),
+                    if configs.len() == 1 {
+                        "1 CI config, and it does not run tests".to_string()
+                    } else {
+                        format!("{} CI configs, none of them running tests", configs.len())
+                    },
                 )],
                 vec![Fix::new(
                     Severity::P2,

@@ -103,12 +103,18 @@ impl Check for RepoTopics {
                 base.min(UNVALIDATED_CAP),
                 vec![Evidence::new(
                     ".",
-                    format!(
-                        "none of the {} topic{} ({}) match anything in the repository: not the main language, not the dependencies, not the README headings",
-                        topics.len(),
-                        crate::util::plural(topics.len()),
-                        topics.join(", ")
-                    ),
+                    if topics.len() == 1 {
+                        format!(
+                            "the only topic ({}) matches nothing in the repository: not the main language, not the dependencies, not the README headings",
+                            topics[0]
+                        )
+                    } else {
+                        format!(
+                            "none of the {} topics ({}) match anything in the repository: not the main language, not the dependencies, not the README headings",
+                            topics.len(),
+                            topics.join(", ")
+                        )
+                    },
                 )],
                 vec![Fix::new(
                     Severity::P2,
@@ -120,12 +126,16 @@ impl Check for RepoTopics {
             );
         }
 
-        let note = format!(
-            "{} topic{}, {} of which match signals in the repository",
-            topics.len(),
-            crate::util::plural(topics.len()),
-            matched.len()
-        );
+        // 分词形式（matching）绕开单复数一致：`1 topic, 1 of which match` 是错的
+        let note = if topics.len() == 1 {
+            "1 topic, and it matches signals in the repository".to_string()
+        } else {
+            format!(
+                "{} topics, {} of them matching signals in the repository",
+                topics.len(),
+                matched.len()
+            )
+        };
         match size_advice {
             None => Outcome::perfect(vec![Evidence::new(".", note)]),
             Some(advice) => Outcome::scored(

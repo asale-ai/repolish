@@ -349,3 +349,49 @@ fn good_is_suggested(msg: &str, word: &str) -> bool {
         .nth(1)
         .is_some_and(|l| l.split(", ").any(|w| w.trim() == word))
 }
+
+/// 清单在子目录里的业务项目要判成 app，不能落到 unknown。
+///
+/// 来自一个 `server/` + `web/` 的真实项目：两个清单分别在
+/// `server/requirements.txt` 和 `web/package.json`，根目录一个都没有，
+/// 于是三条判据全落空。这是一整类项目的形状，不是个例。
+///
+/// 反过来，serde / tokio 那种 workspace 有**根** Cargo.toml，在上一步就
+/// 判成 library——区别正是「根目录发不发布东西」。
+#[test]
+fn subdirectory_manifests_make_it_an_app_not_unknown() {
+    let app = Fixture::new(
+        "profile-component-app",
+        &[
+            ("README.md", "# crm\n\nAn internal thing.\n"),
+            ("server/requirements.txt", "flask\n"),
+            ("server/main.py", "print('hi')\n"),
+            ("web/package.json", "{\"name\": \"web\"}\n"),
+        ],
+    );
+    let ctx = RepoContext::load(app.path(), None).expect("载入仓库");
+    assert_eq!(ctx.profile.as_str(), "app", "子目录清单应当判成 app");
+
+    // 根清单仍然优先判 library，不能被上面的规则抢走
+    let lib = Fixture::new(
+        "profile-root-workspace",
+        &[
+            ("README.md", "# thing\n\nA library.\n"),
+            ("Cargo.toml", "[workspace]\nmembers = [\"crates/*\"]\n"),
+            ("crates/a/Cargo.toml", "[package]\nname = \"a\"\n"),
+        ],
+    );
+    let ctx = RepoContext::load(lib.path(), None).expect("载入仓库");
+    assert_eq!(ctx.profile.as_str(), "library", "根清单应当判成 library");
+
+    // examples/ 下的清单不算——那是示例，不是这个仓库的组件
+    let ex = Fixture::new(
+        "profile-example-only",
+        &[
+            ("README.md", "# thing\n\nSomething.\n"),
+            ("examples/demo/package.json", "{\"name\": \"demo\"}\n"),
+        ],
+    );
+    let ctx = RepoContext::load(ex.path(), None).expect("载入仓库");
+    assert_ne!(ctx.profile.as_str(), "app", "示例目录里的清单不该判成 app");
+}

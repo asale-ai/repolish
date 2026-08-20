@@ -64,7 +64,8 @@ impl Check for ReadmeUsageExample {
                 8,
                 vec![Evidence::new(
                     &name,
-                    format!("{tagged} of {total} code blocks are tagged with a language"),
+                    // 分词形式绕开一致性：`1 of 4 code blocks are tagged` 别扭
+                    format!("{tagged} of {total} code blocks tagged with a language"),
                 )],
                 vec![Fix::new(
                     Severity::P3,

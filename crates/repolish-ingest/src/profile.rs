@@ -39,7 +39,9 @@ impl Profile {
             "cli" => Some(Profile::Cli),
             "docs" | "doc" => Some(Profile::Docs),
             "collection" | "awesome" => Some(Profile::Collection),
-            "auto" | "unknown" => None,
+            // `unknown` 是探测**结果**，不是可以指定的值——
+            // 落到这里会走 CLI 的报错分支，把可选值列出来
+            "auto" => None,
             _ => None,
         }
     }
@@ -48,6 +50,9 @@ impl Profile {
 const CODE_EXTS: &[&str] = &[
     "rs", "go", "py", "js", "ts", "tsx", "jsx", "java", "kt", "c", "h", "cpp", "hpp", "cs", "rb",
     "php", "swift", "scala", "ex", "exs", "dart", "lua", "zig",
+    // 前端框架的单文件组件就是代码本体。漏掉它们，一个 Vue 项目的
+    // 代码量会被数成接近零，从而被「Markdown 为主」判成文档站。
+    "vue", "svelte", "astro",
 ];
 
 pub fn detect(files: &FileIndex, readme: Option<&Readme>) -> Profile {
@@ -75,7 +80,7 @@ pub fn detect(files: &FileIndex, readme: Option<&Readme>) -> Profile {
     if has_package_manifest(files) {
         return Profile::Library;
     }
-    if has_deployment_config(files) {
+    if has_deployment_config(files) || is_component_app(files) {
         return Profile::App;
     }
 
@@ -127,20 +132,50 @@ fn is_fixture(path: &str) -> bool {
         .any(|seg| FIXTURE_DIRS.contains(&seg.to_lowercase().as_str()))
 }
 
+/// 发布用的包清单。出现在**根目录**才意味着「这个仓库发布一个包」。
+const MANIFESTS: &[&str] = &[
+    "Cargo.toml",
+    "package.json",
+    "pyproject.toml",
+    "setup.py",
+    "go.mod",
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "Gemfile",
+    "composer.json",
+];
+
+/// 子目录里出现即说明「这一层是一个可运行的组件」。比 MANIFESTS 宽：
+/// `requirements.txt` 不声明任何可发布的包，但它明确说明 `server/` 是个
+/// Python 服务。
+const COMPONENT_MARKERS: &[&str] = &[
+    "requirements.txt",
+    "Pipfile",
+    "Dockerfile",
+    "docker-compose.yml",
+    "docker-compose.yaml",
+];
+
 fn has_package_manifest(files: &FileIndex) -> bool {
-    const MANIFESTS: &[&str] = &[
-        "Cargo.toml",
-        "package.json",
-        "pyproject.toml",
-        "setup.py",
-        "go.mod",
-        "pom.xml",
-        "build.gradle",
-        "build.gradle.kts",
-        "Gemfile",
-        "composer.json",
-    ];
     MANIFESTS.iter().any(|m| files.contains(m))
+}
+
+/// 组件式应用：根目录没有任何清单，但子目录里有。
+///
+/// `server/` + `web/` 这种业务项目一整类都是这个形状，之前全部掉进
+/// `Unknown`。serde / tokio 那种 workspace 有**根**清单，在上一步就判成
+/// Library，走不到这里——两者的区别正是「根目录发不发布东西」。
+///
+/// 只看一层：`a/b/c/package.json` 不算，那更可能是依赖目录或深层示例。
+fn is_component_app(files: &FileIndex) -> bool {
+    files.any_matching(|p| {
+        if is_fixture(p) || p.matches('/').count() != 1 {
+            return false;
+        }
+        let name = p.rsplit('/').next().unwrap_or("");
+        MANIFESTS.contains(&name) || COMPONENT_MARKERS.contains(&name)
+    })
 }
 
 fn has_deployment_config(files: &FileIndex) -> bool {
