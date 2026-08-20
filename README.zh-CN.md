@@ -2,6 +2,7 @@
 
 **在命令行上诊断并改进「一个开源仓库在陌生人眼里是什么样」。**
 
+[![crates.io](https://img.shields.io/crates/v/repolish.svg)](https://crates.io/crates/repolish)
 [![repolish](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/asale-ai/repolish/main/.repolish/badge.json)](https://github.com/asale-ai/repolish)
 [![CI](https://github.com/asale-ai/repolish/actions/workflows/ci.yml/badge.svg)](https://github.com/asale-ai/repolish/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#许可证)
@@ -55,9 +56,15 @@ sudo install "repolish-v${VERSION}-${TARGET}/repolish" /usr/local/bin/
 Windows 的归档是 `.zip`，里面是 `repolish.exe`。全部产物见
 [releases 页面](https://github.com/asale-ai/repolish/releases)。
 
-### 从源码安装
+### 用 cargo 安装
 
-需要 Rust 1.88 或更新版本。尚未发布到 crates.io，直接从仓库装：
+需要 Rust 1.88 或更新版本。
+
+```bash
+cargo install repolish
+```
+
+想装未发布的 `main`：
 
 ```bash
 cargo install --git https://github.com/asale-ai/repolish repolish
@@ -168,7 +175,7 @@ repolish check . --remote --min-score 70
 | <br /> | <br />                                              |
 | ------ | --------------------------------------------------- |
 | ✅      | `check` —— 22 个检查项、`--remote`、JSON 输出、`--min-score` |
-| ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制  |
+| ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制、已发布到 crates.io  |
 | ⏳      | README 改写（`polish --apply`）、LLM 辅助建议                |
 
 检查项清单与 JSON schema 在 v1 冻结：增删检查项或改权重会改变分数在所有仓库上的

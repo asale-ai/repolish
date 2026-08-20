@@ -2,6 +2,7 @@
 
 **Score and improve what an open-source repository looks like to a first-time visitor — from the command line.**
 
+[![crates.io](https://img.shields.io/crates/v/repolish.svg)](https://crates.io/crates/repolish)
 [![repolish](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/asale-ai/repolish/main/.repolish/badge.json)](https://github.com/asale-ai/repolish)
 [![CI](https://github.com/asale-ai/repolish/actions/workflows/ci.yml/badge.svg)](https://github.com/asale-ai/repolish/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
@@ -57,9 +58,15 @@ sudo install "repolish-v${VERSION}-${TARGET}/repolish" /usr/local/bin/
 Windows archives are `.zip` and contain `repolish.exe`. Browse every asset on the
 [releases page](https://github.com/asale-ai/repolish/releases).
 
-### From source
+### With cargo
 
-Requires Rust 1.88 or newer. Not on crates.io yet, so install from the repository:
+Requires Rust 1.88 or newer.
+
+```bash
+cargo install repolish
+```
+
+To build the unreleased `main` instead:
 
 ```bash
 cargo install --git https://github.com/asale-ai/repolish repolish
@@ -174,7 +181,7 @@ saying so until it changes:
 | | |
 |---|---|
 | ✅ | `check` — 22 checks, `--remote`, JSON output, `--min-score` |
-| ✅ | `badge`, `report`, `init`, GitHub Action, pre-built binaries for 5 targets |
+| ✅ | `badge`, `report`, `init`, GitHub Action, pre-built binaries for 5 targets, published on crates.io |
 | ⏳ | README rewriting (`polish --apply`), LLM-assisted suggestions |
 
 The check set and the JSON schema are frozen for v1: adding, removing, or reweighting a
