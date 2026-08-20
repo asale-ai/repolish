@@ -120,17 +120,18 @@ checks drop out of the denominator. Reports label which one you are looking at.
 
 ## Status
 
-`repolish check` is complete and dogfooded on 12 real repositories. Everything else is
-not built yet, and this section will say so until it is:
+Everything below is either shipped or explicitly not built yet. This section will keep
+saying so until it changes:
 
 | | |
 |---|---|
 | ✅ | `check` — 22 checks, `--remote`, JSON output, `--min-score` |
-| ⏳ | `badge`, `report`, `init`, GitHub Action, pre-built binaries |
+| ✅ | `badge`, `report`, `init`, GitHub Action, pre-built binaries for 5 targets |
 | ⏳ | README rewriting (`polish --apply`), LLM-assisted suggestions |
 
-See [docs/06-路线图.md](docs/06-路线图.md) for the roadmap and a written record of every
-defect found during acceptance.
+The check set and the JSON schema are frozen for v1: adding, removing, or reweighting a
+check changes what a score means everywhere, so it is a versioned decision rather than
+ordinary work.
 
 ## Development
 

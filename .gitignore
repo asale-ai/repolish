@@ -1,3 +1,7 @@
 /target
 **/*.rs.bk
 Cargo.lock.bak
+
+# 内部判断（竞品调研 / 产品定位 / 路线图与决策记录）不进公开仓库。
+# 留在工作副本里，不跟着 clone 走。
+/.internal/

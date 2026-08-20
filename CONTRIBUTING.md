@@ -74,8 +74,9 @@ Every check must satisfy:
 ## Reporting bugs
 
 The most valuable bug report is "repolish said X about repository Y, and it is wrong."
-Include the repository URL, the check id, and what you expected. Every acceptance defect
-recorded in `docs/06-路线图.md` started as exactly that.
+Include the repository URL, the check id, and what you expected. Nearly every judgement
+rule in this codebase started as exactly that — a real repository that broke an earlier
+assumption.
 
 ## Code of Conduct
 

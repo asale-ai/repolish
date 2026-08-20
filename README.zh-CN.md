@@ -115,17 +115,16 @@ repolish check . --only license,ci-present
 
 ## 当前状态
 
-`repolish check` 已完成，并在 12 个真实仓库上做过验收。其余部分尚未开始，
-在做完之前这一节会一直如实写着：
+下面每一项要么已经发了，要么明确还没做。在情况变化之前这一节会一直如实写着：
 
 | <br /> | <br />                                              |
 | ------ | --------------------------------------------------- |
 | ✅      | `check` —— 22 个检查项、`--remote`、JSON 输出、`--min-score` |
-| ⏳      | `badge`、`report`、`init`、GitHub Action、预编译二进制        |
+| ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制  |
 | ⏳      | README 改写（`polish --apply`）、LLM 辅助建议                |
 
-路线图，以及验收中发现的每一个缺陷的书面记录，见
-[docs/06-路线图.md](docs/06-路线图.md)。
+检查项清单与 JSON schema 在 v1 冻结：增删检查项或改权重会改变分数在所有仓库上的
+含义，因此那是一个带版本号的决定，而不是日常改动。
 
 ## 参与开发
 
