@@ -15,6 +15,7 @@ use comrak::{parse_document, Arena, Options};
 pub mod edit;
 pub mod section;
 pub mod title;
+pub mod toc;
 
 pub use section::SectionKind;
 pub use title::TitleSource;
@@ -195,6 +196,21 @@ impl Readme {
             }
         }
         latin + cjk * 3 / 5
+    }
+
+    /// 正文里最浅一层的标题，也就是目录该列的那些。
+    ///
+    /// 不能写死「h2」：ripgrep 的标题是 setext h2，正文小节全是 `###`，
+    /// 按 h2 取会得到一个空目录。取正文里实际出现的最浅层级才通用。
+    ///
+    /// 文档标题本身排掉——它是项目名，不是章节。
+    pub fn outline(&self) -> Vec<&Section> {
+        let after = self.title_end_line.unwrap_or(0);
+        let body: Vec<&Section> = self.sections.iter().filter(|s| s.line > after).collect();
+        let Some(min) = body.iter().map(|s| s.level).min() else {
+            return Vec::new();
+        };
+        body.into_iter().filter(|s| s.level == min).collect()
     }
 
     /// 往哪一行之后插徽章。
@@ -411,6 +427,11 @@ fn html_links(html: &str, start_line: usize) -> Vec<LinkRef> {
         i = end;
     }
     out
+}
+
+/// 字符串里有没有中日韩文字。`polish` 用它决定插进去的章节标题该用哪种语言。
+pub fn has_cjk(s: &str) -> bool {
+    s.chars().any(is_cjk)
 }
 
 /// 汉字、假名、谚文。标点不算——它们不承载信息量。
@@ -805,5 +826,37 @@ mod html_anchor_tests {
             .links
             .iter()
             .any(|l| l.is_image && l.url.contains("/b.svg")));
+    }
+}
+
+#[cfg(test)]
+mod outline_tests {
+    use super::*;
+
+    fn titles(md: &str) -> Vec<String> {
+        Readme::parse("README.md", md)
+            .outline()
+            .iter()
+            .map(|s| s.title.clone())
+            .collect()
+    }
+
+    #[test]
+    fn takes_the_shallowest_body_level() {
+        let md = "# Tool\n\n## A\n\n### A1\n\n## B\n";
+        assert_eq!(titles(md), vec!["A", "B"]);
+    }
+
+    #[test]
+    fn a_setext_h2_title_does_not_swallow_the_h3_sections() {
+        // ripgrep：标题是 setext h2，正文小节全是 `###`。
+        // 写死 h2 会既把标题算进目录，又漏掉全部正文小节。
+        let md = "ripgrep (rg)\n------------\n\n### CHANGELOG\n\ntext\n\n### Installation\n";
+        assert_eq!(titles(md), vec!["CHANGELOG", "Installation"]);
+    }
+
+    #[test]
+    fn a_readme_with_no_body_headings_has_no_outline() {
+        assert!(titles("# Tool\n\nJust prose.\n").is_empty());
     }
 }

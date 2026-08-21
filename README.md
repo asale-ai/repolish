@@ -115,8 +115,9 @@ repolish polish .                   # print the changes it would make
 repolish polish . --apply           # write them
 ```
 
-`polish` only makes changes that follow mechanically from the findings — today that is
-inserting the repolish badge, alongside the `.repolish/badge.json` it points at.
+`polish` only makes changes that follow mechanically from the findings: inserting the
+repolish badge (alongside the `.repolish/badge.json` it points at), and adding a table of
+contents built from your own headings.
 
 It **only inserts**. The diff is new lines and nothing else: your tabs, list markers,
 reference-style link definitions and line endings are preserved byte for byte. That is
@@ -201,7 +202,7 @@ saying so until it changes:
 |---|---|
 | ✅ | `check` — 22 checks, `--remote`, JSON output, `--min-score` |
 | ✅ | `badge`, `report`, `init`, GitHub Action, pre-built binaries for 5 targets, published on crates.io |
-| ✅ | `polish --apply` — inserts the badge; only-insert, never rewrites |
+| ✅ | `polish --apply` — badge and table of contents; only-insert, never rewrites |
 | ⏳ | Further polish edits, LLM-assisted suggestions |
 
 The check set and the JSON schema are frozen for v1: adding, removing, or reweighting a

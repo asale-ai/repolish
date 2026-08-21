@@ -33,8 +33,20 @@ pub fn plan(ctx: &RepoContext, report: &Report) -> Plan {
     let mut plan = Plan::default();
     if let Some(readme) = ctx.readme.as_ref() {
         badge(ctx, report, readme, &mut plan);
+        toc(report, readme, &mut plan);
     }
     plan
+}
+
+/// 某个检查项是否扣了分。
+///
+/// `polish` 落的每一刀都得对得上一条检查结果——阈值由检查项定义，
+/// 这边再写一遍迟早会漂。
+fn failing(report: &Report, id: &str) -> bool {
+    report.checks.iter().any(|c| {
+        c.id == id
+            && matches!(c.outcome, repolish_core::Outcome::Scored { score, .. } if score < 10)
+    })
 }
 
 /// repolish 徽章。
@@ -83,6 +95,76 @@ fn badge_insert(readme: &Readme, snippet: &str, marker: &str) -> Option<Insert> 
         "readme-badges: no repolish badge yet",
         anchor.lines_for(snippet),
     ))
+}
+
+/// 少于这个条目数就不插目录——两三行的目录只是噪声。
+const MIN_TOC_ITEMS: usize = 4;
+
+/// 目录。
+///
+/// 每一条都由作者自己的标题生成，一个字都不是编的；锚点按 GitHub 的
+/// slugger 算（见 [`repolish_md::toc`]），否则插进去的是一堆跳不到的死链。
+fn toc(report: &Report, readme: &Readme, plan: &mut Plan) {
+    if !failing(report, "readme-toc") {
+        return;
+    }
+    if let Some(insert) = toc_insert(readme) {
+        plan.inserts.push(insert);
+    }
+}
+
+/// 目录本身。门槛判定在 [`toc`]，这里只管「长什么样、插在哪」。
+fn toc_insert(readme: &Readme) -> Option<Insert> {
+    let outline = readme.outline();
+    if outline.len() < MIN_TOC_ITEMS {
+        return None;
+    }
+    let first = outline[0];
+
+    // 锚点要拿**全文**标题一起算：正文里有同名标题时，`-1` / `-2` 的编号
+    // 才不会错位。只算目录里列的那几个是不够的。
+    let anchors = repolish_md::toc::anchors(readme.sections.iter().map(|s| s.title.as_str()));
+
+    // 目录标题的层级跟着正文走。ripgrep 的小节是 `###`，插一个 `##` 进去
+    // 等于凭空多出一层，把它原本的层级结构切断了。
+    let hashes = "#".repeat(first.level as usize);
+    let mut lines = vec![format!("{hashes} {}", toc_word(&outline)), String::new()];
+    for s in &outline {
+        let anchor = readme
+            .sections
+            .iter()
+            .position(|x| x.line == s.line)
+            .map(|i| anchors[i].clone())
+            .unwrap_or_else(|| repolish_md::toc::anchor(&s.title));
+        lines.push(format!("- [{}](#{anchor})", s.title));
+    }
+    lines.push(String::new());
+
+    Some(Insert::new(
+        first.line - 1,
+        format!(
+            "readme-toc: {} sections over {} lines, with no table of contents",
+            readme.sections.len(),
+            readme.raw.lines().count()
+        ),
+        lines,
+    ))
+}
+
+/// 目录该叫「Contents」还是「目录」。
+///
+/// 这一段是写进**别人的** README 的，跟着人家的语言走。repolish 自己的
+/// 报告一律英文，那是另一回事——见 CONTRIBUTING 的第三条规则。
+fn toc_word(outline: &[&repolish_md::Section]) -> &'static str {
+    let cjk = outline
+        .iter()
+        .filter(|s| repolish_md::has_cjk(&s.title))
+        .count();
+    if cjk * 2 > outline.len() {
+        "目录"
+    } else {
+        "Contents"
+    }
 }
 
 /// 把计划应用到原文上。
@@ -157,5 +239,77 @@ mod tests {
     fn no_title_means_no_anchor_and_no_edit() {
         // 认不出标题就不猜位置。宁可不改，也不要插到一个说不清的地方。
         assert!(polish("just prose, no heading at all\n").is_none());
+    }
+}
+
+#[cfg(test)]
+mod toc_tests {
+    use super::*;
+    use repolish_md::edit::apply;
+
+    fn toc(md: &str) -> Option<String> {
+        let readme = Readme::parse("README.md", md);
+        toc_insert(&readme).map(|i| apply(&readme.raw, &[i]))
+    }
+
+    #[test]
+    fn lists_the_body_sections_with_github_anchors() {
+        let md = "# Tool\n\nTagline.\n\n## Why & how\n\na\n\n## Install\n\nb\n\n## Usage\n\nc\n\n## License\n\nd\n";
+        let out = toc(md).unwrap();
+        assert!(out.contains("## Contents\n"));
+        assert!(out.contains("- [Why & how](#why--how)\n"));
+        assert!(out.contains("- [License](#license)\n"));
+        // 目录插在第一个正文小节之前，标语之后
+        let lines: Vec<&str> = out.lines().collect();
+        assert_eq!(lines[0], "# Tool");
+        assert_eq!(lines[2], "Tagline.");
+        assert_eq!(lines[4], "## Contents");
+        assert_eq!(lines[11], "## Why & how");
+    }
+
+    #[test]
+    fn the_toc_heading_matches_the_level_of_the_sections_it_lists() {
+        // ripgrep：小节是 `###`。插一个 `##` 进去等于凭空多出一层。
+        let md = "rg\n--\n\n### A\n\na\n\n### B\n\nb\n\n### C\n\nc\n\n### D\n\nd\n";
+        let out = toc(md).unwrap();
+        assert!(out.contains("### Contents\n"), "{out}");
+        assert!(out.contains("- [A](#a)\n"));
+    }
+
+    #[test]
+    fn a_chinese_readme_gets_a_chinese_heading() {
+        let md =
+            "# 工具\n\n## 为什么做这个\n\na\n\n## 安装\n\nb\n\n## 用法\n\nc\n\n## 许可证\n\nd\n";
+        let out = toc(md).unwrap();
+        assert!(out.contains("## 目录\n"), "{out}");
+        assert!(out.contains("- [安装](#安装)\n"));
+    }
+
+    #[test]
+    fn duplicate_headings_elsewhere_shift_the_numbering() {
+        // 正文里另有一个 `### Usage`。GitHub 按全文顺序编号，
+        // 只算目录里那几条会把第二个 Usage 的锚点算成 `usage` 而不是 `usage-1`。
+        let md = "# Tool\n\n## Usage\n\na\n\n### Usage\n\nb\n\n## Notes\n\nc\n\n## Usage\n\nd\n\n## End\n\ne\n";
+        let out = toc(md).unwrap();
+        assert!(out.contains("- [Usage](#usage)\n"), "{out}");
+        assert!(out.contains("- [Usage](#usage-2)\n"), "{out}");
+    }
+
+    #[test]
+    fn a_short_outline_is_left_alone() {
+        // 两三行的目录只是噪声
+        assert!(toc("# Tool\n\n## A\n\na\n\n## B\n\nb\n").is_none());
+    }
+
+    #[test]
+    fn everything_outside_the_inserted_block_is_byte_identical() {
+        let md =
+            "# Tool\n\n*  keep\n\thard tab\n\n## A\n\na\n\n## B\n\nb\n\n## C\n\nc\n\n## D\n\nd\n";
+        let out = toc(md).unwrap();
+        let before: Vec<&str> = md.lines().collect();
+        let after: Vec<&str> = out.lines().collect();
+        let added = after.len() - before.len();
+        assert_eq!(&after[..5], &before[..5]);
+        assert_eq!(&after[5 + added..], &before[5..]);
     }
 }

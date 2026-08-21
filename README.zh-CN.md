@@ -113,8 +113,8 @@ repolish polish .                   # 打印它会做哪些改动
 repolish polish . --apply           # 落盘
 ```
 
-`polish` 只做能从检查结果里机械推出来的改动——目前是插入 repolish 徽章，
-以及它指向的那份 `.repolish/badge.json`。
+`polish` 只做能从检查结果里机械推出来的改动：插入 repolish 徽章（以及它指向的
+那份 `.repolish/badge.json`），以及用你自己的标题生成一份目录。
 
 它**只插入**。产出的 diff 全是新增行：制表符、列表标记、引用式链接定义、
 行尾都逐字节保留。这不是为谨慎而谨慎——把 README 过一遍 Markdown 格式化器
@@ -194,7 +194,7 @@ repolish check . --remote --min-score 70
 | ------ | --------------------------------------------------- |
 | ✅      | `check` —— 22 个检查项、`--remote`、JSON 输出、`--min-score` |
 | ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制、已发布到 crates.io  |
-| ✅      | `polish --apply` —— 插入徽章；只增量插入，不重写                |
+| ✅      | `polish --apply` —— 插入徽章与目录；只增量插入，不重写            |
 | ⏳      | polish 的更多改动、LLM 辅助建议                              |
 
 检查项清单与 JSON schema 在 v1 冻结：增删检查项或改权重会改变分数在所有仓库上的
