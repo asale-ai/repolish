@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use comrak::nodes::{AstNode, NodeValue};
 use comrak::{parse_document, Arena, Options};
 
+pub mod edit;
 pub mod section;
 pub mod title;
 
@@ -83,7 +84,13 @@ pub struct Readme {
     /// 文档标题。ATX / setext / HTML / logo alt 都算，识别规则见 [`title`]。
     pub title: Option<String>,
     pub title_line: Option<usize>,
+    /// 标题**结束**行。setext 标题跨两行，插入锚点得落在下划线之后
+    pub title_end_line: Option<usize>,
     pub title_source: Option<TitleSource>,
+    /// 只由图片（含被链接包住的图片）构成、且至少有一张看着像徽章的段落。
+    /// `polish` 往这里追加徽章，而不是另起一行——一排徽章分成两段
+    /// 在渲染出来就是两行，作者摆好的版被破坏了。
+    pub badge_rows: Vec<BadgeRow>,
     /// 标题之后的首个有实质内容的段落；徽章行与纯图片行不算
     pub tagline: Option<String>,
     pub sections: Vec<Section>,
@@ -139,15 +146,19 @@ impl Readme {
 
         let candidate = title::extract(root);
         let title_line = candidate.as_ref().map(|c| c.line);
+        let title_end_line = candidate.as_ref().map(|c| c.end_line);
         let tagline = extract_tagline(root, title_line);
         let sections = build_sections(&headings, &lines);
+        let badge_rows = badge_rows(root);
 
         Readme {
             path,
             raw,
             title: candidate.as_ref().map(|c| c.text.clone()),
             title_line,
+            title_end_line,
             title_source: candidate.map(|c| c.source),
+            badge_rows,
             tagline,
             sections,
             code_blocks,
@@ -185,6 +196,183 @@ impl Readme {
         }
         latin + cjk * 3 / 5
     }
+
+    /// 往哪一行之后插徽章。
+    ///
+    /// 优先追加到开头附近**已有的**徽章行——一排徽章被拆成两个段落，
+    /// 渲染出来就是两行。没有徽章行时退回标题之后。
+    ///
+    /// 「开头附近」用的是标题识别那套 40 行窗口：axios 的 README 正文中段
+    /// 也有徽章段落，追加到那里等于把徽章插进了正文。
+    pub fn badge_anchor(&self) -> Option<BadgeAnchor> {
+        self.badge_rows
+            .iter()
+            .filter(|r| r.start <= title::MAX_TITLE_LINE)
+            // 徽章最多的那一行才是「那排徽章」。开头常有一张独立的 logo，
+            // 它也是个只含图片的段落；挂在 logo 后面会跟 logo 挤在同一行。
+            // 并列时取靠前的——离标题越近越像首屏的那一排。
+            .max_by_key(|r| (r.images, std::cmp::Reverse(r.start)))
+            .map(|r| {
+                if r.html {
+                    BadgeAnchor::AfterHtmlBlock(r.end)
+                } else {
+                    BadgeAnchor::AppendToRow(r.end)
+                }
+            })
+            .or(self.title_end_line.map(BadgeAnchor::AfterTitle))
+    }
+}
+
+/// 徽章插到哪儿，以及**怎么**插。两种情形的空行处理不同：
+/// 追加到已有徽章行必须紧贴上一行，否则会被解析成新段落、渲染成新的一行；
+/// 插在标题之后则必须空一行，否则会粘进标题里。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BadgeAnchor {
+    /// 追加到一排 Markdown 徽章后面，紧贴上一行
+    AppendToRow(usize),
+    /// 上一块是 HTML（居中的徽章 `<div>`）。**必须空一行**——紧跟在 HTML 块
+    /// 后面的 Markdown 会被并进那个块，徽章根本不会被解析成图片。
+    /// flask 和 fzf 就是这样把徽章吃掉的。
+    AfterHtmlBlock(usize),
+    AfterTitle(usize),
+}
+
+impl BadgeAnchor {
+    pub fn line(self) -> usize {
+        match self {
+            BadgeAnchor::AppendToRow(l)
+            | BadgeAnchor::AfterHtmlBlock(l)
+            | BadgeAnchor::AfterTitle(l) => l,
+        }
+    }
+
+    /// 插入的行，含必要的空行
+    pub fn lines_for(self, badge: &str) -> Vec<String> {
+        match self {
+            BadgeAnchor::AppendToRow(_) => vec![badge.to_string()],
+            BadgeAnchor::AfterHtmlBlock(_) | BadgeAnchor::AfterTitle(_) => {
+                vec![String::new(), badge.to_string()]
+            }
+        }
+    }
+}
+
+/// 一段只有图片的段落，且至少有一张看着像徽章。起止行 1-based。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BadgeRow {
+    pub start: usize,
+    pub end: usize,
+    /// 这一段里的图片张数。用来把「一排徽章」和「一张 logo」区分开。
+    pub images: usize,
+    /// 这一段是 HTML 块。决定插入时要不要先空一行。
+    pub html: bool,
+}
+
+/// 只由图片构成、且至少有一张看着像徽章的段落（含 HTML 徽章块）。
+fn badge_rows<'a>(root: &'a AstNode<'a>) -> Vec<BadgeRow> {
+    let mut out = Vec::new();
+    for node in root.children() {
+        let (start, end, is_html) = {
+            let d = node.data.borrow();
+            let html = match &d.value {
+                NodeValue::Paragraph => None,
+                NodeValue::HtmlBlock(h) => Some(h.literal.clone()),
+                _ => continue,
+            };
+            (d.sourcepos.start.line, d.sourcepos.end.line, html)
+        };
+        let html = is_html.is_some();
+        let images = match is_html {
+            // HTML 块：去掉标签后没有文字，就是一排居中的图片
+            Some(literal) => {
+                if !title::strip_tags(&literal).trim().is_empty() {
+                    continue;
+                }
+                html_images(&literal)
+            }
+            None => {
+                let mut images = Vec::new();
+                if !only_images(node, false, &mut images) {
+                    continue;
+                }
+                images
+            }
+        };
+        // 必须至少有一张**被链接包住的**徽章图。裸图是 logo 或截图：
+        // flask 开头那个 `<div>` 里只有 `flask-name.svg`，把徽章追加到它后面
+        // 就跑到 `# Flask` 前面去了。判据和 title.rs 用的是同一条——
+        // 真 logo 不会是超链接。
+        if images
+            .iter()
+            .any(|(url, linked)| *linked && looks_like_badge(url))
+        {
+            out.push(BadgeRow {
+                start,
+                end,
+                images: images.len(),
+                html,
+            });
+        }
+    }
+    out
+}
+
+/// HTML 里的图片，以及它是不是被 `<a>` 包着。
+fn html_images(html: &str) -> Vec<(String, bool)> {
+    let lower = html.to_lowercase();
+    html_links(html, 0)
+        .into_iter()
+        .filter(|l| l.is_image)
+        .map(|l| {
+            // 这张图之前最近的 `<a ` 后面还没有 `</a>`，说明它在链接里
+            let at = lower.find(&l.url.to_lowercase()).unwrap_or(0);
+            let linked = lower[..at]
+                .rfind("<a ")
+                .is_some_and(|a| !lower[a..at].contains("</a>"));
+            (l.url, linked)
+        })
+        .collect()
+}
+
+/// 图片 URL 像不像徽章。
+///
+/// 光凭「这一段只有图片」是不够的：ripgrep 的截图、项目 logo 都是独立成段的
+/// 单张图片。把 repolish 徽章追加到截图后面，就成了正文中间凭空多一个徽章。
+/// 徽章几乎一律是 SVG，且来自 shields / badgen 这类服务；截图一律是位图。
+fn looks_like_badge(url: &str) -> bool {
+    let u = url.to_lowercase();
+    let path = u.split(['?', '#']).next().unwrap_or(&u);
+    u.contains("shields.io")
+        || u.contains("badgen.net")
+        || u.contains("badge")
+        || path.ends_with(".svg")
+}
+
+/// 段落里除了图片、包着图片的链接和空白，还有没有别的东西。
+/// 是的话收走全部图片 URL。
+///
+/// 图片子树整个跳过——alt 文本是图片的一部分，不是段落里的散文。
+fn only_images<'a>(node: &'a AstNode<'a>, in_link: bool, out: &mut Vec<(String, bool)>) -> bool {
+    for child in node.children() {
+        let kind = { child.data.borrow().value.clone() };
+        match kind {
+            NodeValue::Image(i) => out.push((i.url.clone(), in_link)),
+            NodeValue::Text(t) => {
+                if !t.trim().is_empty() {
+                    return false;
+                }
+            }
+            NodeValue::SoftBreak | NodeValue::LineBreak => {}
+            NodeValue::HtmlInline(h) => out.extend(html_images(&h)),
+            NodeValue::Link(_) => {
+                if !only_images(child, true, out) {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
 }
 
 /// 从一段 HTML 里取出 `<img src>` 与 `<a href>`。
@@ -478,5 +666,144 @@ pip install x
             .map(|l| l.repo_path())
             .collect();
         assert_eq!(rel, vec!["docs/x.md", "docs/y.md"]);
+    }
+}
+
+#[cfg(test)]
+mod anchor_tests {
+    use super::*;
+
+    fn anchor(md: &str) -> Option<usize> {
+        Readme::parse("README.md", md)
+            .badge_anchor()
+            .map(|a| a.line())
+    }
+
+    #[test]
+    fn appends_to_an_existing_badge_row() {
+        let md = "# Tool\n\n[![CI](ci.svg)](ci)\n[![npm](npm.svg)](npm)\n\nProse.\n";
+        assert_eq!(anchor(md), Some(4));
+    }
+
+    #[test]
+    fn falls_back_to_the_title_when_there_are_no_badges() {
+        assert_eq!(anchor("# Tool\n\nProse.\n"), Some(1));
+    }
+
+    #[test]
+    fn setext_titles_anchor_below_the_underline() {
+        // ripgrep 的写法。锚点若取标题起始行，徽章会插进标题和下划线之间，
+        // 标题就变成了普通段落。
+        assert_eq!(anchor("ripgrep (rg)\n------------\n\nProse.\n"), Some(2));
+    }
+
+    #[test]
+    fn prose_paragraphs_are_not_badge_rows() {
+        // 语言切换行全是链接、没有图片，不是徽章行
+        let md = "# Tool\n\n[English](README.md) · [中文](README.zh-CN.md)\n\nProse.\n";
+        assert_eq!(anchor(md), Some(1));
+    }
+
+    #[test]
+    fn badge_rows_far_down_the_page_are_ignored() {
+        // axios 正文中段也有徽章段落；追加到那里等于把徽章插进正文
+        let mut md = String::from("# Tool\n\nProse.\n");
+        for _ in 0..50 {
+            md.push_str("filler\n\n");
+        }
+        md.push_str("[![x](x.svg)](x)\n");
+        assert_eq!(
+            Readme::parse("README.md", &md)
+                .badge_anchor()
+                .map(|a| a.line()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn centred_html_badge_blocks_count() {
+        // 徽章图必须是超链接。fzf 开头那个 `<div>` 里第一张是裸 logo，
+        // 后面几张才是包在 `<a>` 里的徽章；只认后者才不会挂到 logo 上。
+        let md =
+            "# Tool\n\n<p align=\"center\">\n  <a href=\"ci\"><img src=\"a.svg\"></a>\n</p>\n\nProse.\n";
+        assert_eq!(anchor(md), Some(5));
+    }
+}
+
+#[cfg(test)]
+mod badge_row_tests {
+    use super::*;
+
+    fn anchor(md: &str) -> Option<usize> {
+        Readme::parse("README.md", md)
+            .badge_anchor()
+            .map(|a| a.line())
+    }
+
+    #[test]
+    fn a_screenshot_paragraph_is_not_a_badge_row() {
+        // ripgrep 第 36 行：正文中间一张独立的截图，也是「只含图片的段落」。
+        // 不把它排掉，徽章就会被插进「Screenshot of search results」小节里。
+        let md = "# rg\n\n[![Build](https://img.shields.io/x.svg)](ci)\n\nProse.\n\n\
+                  ### Screenshot\n\n[![a shot](https://example.com/shot.png)](https://example.com/shot.png)\n";
+        assert_eq!(anchor(md), Some(3));
+    }
+
+    #[test]
+    fn the_row_with_the_most_badges_wins_over_a_lone_logo() {
+        // 开头一张 logo 单独成段，下面才是那排徽章。挂在 logo 后面会跟 logo 挤成一行。
+        let md = "# Tool\n\n![logo](logo.svg)\n\n\
+                  [![a](https://img.shields.io/a.svg)](a)\n[![b](https://img.shields.io/b.svg)](b)\n\nProse.\n";
+        assert_eq!(anchor(md), Some(6));
+    }
+
+    #[test]
+    fn ties_go_to_the_row_nearer_the_title() {
+        let md = "# Tool\n\n[![a](https://img.shields.io/a.svg)](a)\n\nProse.\n\n\
+                  [![b](https://img.shields.io/b.svg)](b)\n";
+        assert_eq!(anchor(md), Some(3));
+    }
+}
+
+#[cfg(test)]
+mod html_anchor_tests {
+    use super::*;
+
+    fn a(md: &str) -> Option<BadgeAnchor> {
+        Readme::parse("README.md", md).badge_anchor()
+    }
+
+    #[test]
+    fn a_lone_logo_is_not_a_badge_row() {
+        // flask 的开头。挂到这个 div 后面，徽章就跑到 `# Flask` 前面去了。
+        let md =
+            "<div align=\"center\"><img src=\"logo.svg\" alt=\"\"></div>\n\n# Flask\n\nProse.\n";
+        assert_eq!(a(md), Some(BadgeAnchor::AfterTitle(3)));
+    }
+
+    #[test]
+    fn html_badge_blocks_need_a_blank_line_after_them() {
+        // 紧跟在 HTML 块后面的 Markdown 会被并进那个块，徽章不会被解析成图片。
+        let md = "<div>\n  <a href=\"ci\"><img src=\"https://img.shields.io/a.svg\"></a>\n</div>\n\n# Tool\n";
+        let anchor = a(md).unwrap();
+        assert_eq!(anchor, BadgeAnchor::AfterHtmlBlock(3));
+        assert_eq!(
+            anchor.lines_for("BADGE"),
+            vec!["".to_string(), "BADGE".to_string()]
+        );
+
+        // 真插一遍：徽章必须被解析成图片节点，而不是被 HTML 块吃掉
+        let out = edit::apply(
+            md,
+            &[edit::Insert::new(
+                3,
+                "badge",
+                anchor.lines_for("![b](https://img.shields.io/b.svg)"),
+            )],
+        );
+        assert!(Readme::parse("README.md", out)
+            .links
+            .iter()
+            .any(|l| l.is_image && l.url.contains("/b.svg")));
     }
 }

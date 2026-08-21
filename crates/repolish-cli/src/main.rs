@@ -1,6 +1,9 @@
 //! repolish —— 开源仓库诊断 / 优化工具
 //!
-//! M3 实现 `check` / `badge` / `report` / `init`。`polish` 在 M4。
+//! `check` / `badge` / `report` / `init` / `polish`。
+//!
+//! `polish` 只做能机械落实的改动，且**只增量插入**——为什么不能让 AST
+//! 产出文本，见 repolish-md 的 crate 文档。
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -10,6 +13,7 @@ use repolish_render::RenderOptions;
 
 mod analyze;
 mod init;
+mod polish;
 
 use analyze::{analyze, write_file, Analysis, Common};
 
@@ -44,6 +48,22 @@ enum Command {
     Report(ReportArgs),
     /// Generate a GitHub Actions workflow
     Init(InitArgs),
+    /// Apply the fixes that can be made mechanically, and print the rest
+    Polish(PolishArgs),
+}
+
+#[derive(Parser)]
+struct PolishArgs {
+    #[command(flatten)]
+    common: Common,
+
+    /// Write the changes. Without it, polish only prints what it would do
+    #[arg(long)]
+    apply: bool,
+
+    /// Apply outside a git repository too, where there is nothing to undo with
+    #[arg(long)]
+    force: bool,
 }
 
 #[derive(Parser)]
@@ -132,6 +152,7 @@ fn main() -> ExitCode {
         Command::Badge(args) => run_badge(args),
         Command::Report(args) => run_report(args),
         Command::Init(args) => run_init(args),
+        Command::Polish(args) => run_polish(args),
     };
     ExitCode::from(code)
 }
@@ -317,4 +338,76 @@ fn verdict(report: &repolish_core::Report, min_score: Option<u8>) -> u8 {
         Some(min) if score < min => exit::BELOW_MIN_SCORE,
         _ => exit::OK,
     }
+}
+
+fn run_polish(args: PolishArgs) -> u8 {
+    let Analysis { ctx, report } = match analyze(&args.common) {
+        Ok(a) => a,
+        Err(code) => return code,
+    };
+
+    let plan = polish::plan(&ctx, &report);
+    if plan.is_empty() {
+        println!("Nothing to apply — everything polish can fix mechanically is already in place.");
+        println!("Run `repolish check .` for the findings that still need a human.");
+        return exit::OK;
+    }
+
+    let rel = |p: &std::path::Path| {
+        p.strip_prefix(&ctx.root)
+            .unwrap_or(p)
+            .display()
+            .to_string()
+            .replace(std::path::MAIN_SEPARATOR, "/")
+    };
+
+    println!();
+    if let Some(readme) = ctx.readme.as_ref() {
+        if !plan.inserts.is_empty() {
+            println!("  {}", rel(&readme.path));
+            for insert in &plan.inserts {
+                for line in insert.lines.iter().filter(|l| !l.is_empty()) {
+                    println!("    + {}", line);
+                }
+                println!("      {}", insert.reason);
+            }
+            println!();
+        }
+    }
+    for (path, _) in &plan.side_files {
+        println!("  {}  (new file)", rel(path));
+    }
+
+    if !args.apply {
+        println!("\n  Dry run — nothing written. Re-run with --apply to write it.");
+        return exit::OK;
+    }
+
+    // 没有 git 就没有撤销键。`polish --apply` 改的是别人的 README，
+    // 在一个连 `git checkout` 都用不了的目录里默默改文件是不能接受的。
+    if ctx.git.is_none() && !args.force {
+        eprintln!(
+            "error: {} is not a git repository, so there is no way to undo this.\n\
+             Re-run with --force if you have another way to recover the file",
+            ctx.root.display()
+        );
+        return exit::BAD_USAGE;
+    }
+
+    if let Some(readme) = ctx.readme.as_ref() {
+        if !plan.inserts.is_empty() {
+            let out = polish::polished(readme, &plan);
+            if let Err(code) = write_file(&readme.path, &out) {
+                return code;
+            }
+        }
+    }
+    for (path, content) in &plan.side_files {
+        if let Err(code) = write_file(path, content) {
+            return code;
+        }
+    }
+
+    println!("  Written. Review with `git diff`, undo with `git checkout -- .`");
+    exit::OK
 }

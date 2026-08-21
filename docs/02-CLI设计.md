@@ -15,7 +15,7 @@ repolish badge .                 # 写 .repolish/badge.json + 打印可复制的
 repolish report .                # 写 REPOLISH.md
 repolish init                    # 生成 .github/workflows/repolish.yml
 
-repolish polish . --llm          # 生成 README 改写建议（不落盘，打印 diff）
+repolish polish .                # 打印能机械落实的改动，不落盘
 repolish polish . --apply        # 直接改文件，用户自行 commit
 ```
 
@@ -220,3 +220,56 @@ jobs:
 Action 内部还需把分数写入 `$GITHUB_STEP_SUMMARY`，使每次运行页顶部展示健康度卡片。
 
 想要自动开 PR 的用户，在模板中改用 `peter-evans/create-pull-request` 承接 `polish --apply` 的产物。
+
+## `polish`
+
+把**能机械落实**的建议直接写进 README。默认只打印，`--apply` 才落盘。
+
+一条硬边界：**只增量插入，不重写任何已有内容**。产出的 diff 必须全是新增行，
+别的行改动一个字节都算 bug。
+
+这不是保守，是被验出来的。`comrak` 的 `parse_document` → `format_commonmark`
+往返在 12 个真实 README 上 **0/12 无损**：引用式链接被展平（serde 底部那张
+徽章 URL 表整个消失）、setext 标题变 ATX、`*` 列表标记变 `-`、制表符变空格。
+ripgrep 541→466 行，axios 2851→2839 行。见 `crates/repolish-md/examples/roundtrip.rs`。
+
+所以实现走文本层：AST 只回答「插在第几行」（`sourcepos`），原文按行切开、
+拼入、接回，行尾跟着锚点行走。见 `crates/repolish-md/examples/locate.rs`，
+15 份真实 README 上 15/15 只多出插入的那几行。
+
+### 目前能落实的
+
+| 改动 | 触发条件 |
+|---|---|
+| 插入 repolish 徽章 | README 里还没有，且能算出仓库 slug，且覆盖率够得上出徽章 |
+
+覆盖率不足时**连徽章文件都不写**——往别人 README 里插一个指向不存在文件的
+链接，比不插更糟。同理，`.repolish/badge.json` 不存在时会一并写出。
+
+### 徽章插在哪
+
+按可信度依次：
+
+1. 开头 40 行内**已有的**那排徽章之后（徽章最多的那一段；并列取靠前的）
+2. 那排徽章若是 HTML 块，插入前必须空一行——紧跟 HTML 块的 Markdown 会被
+   并进那个块，徽章根本不会被解析成图片（flask、fzf 都栽在这里）
+3. 没有徽章行时，插在标题之后（空一行）
+4. 连标题都认不出来就**什么都不做**
+
+「一排徽章」的判据是：段落里只有图片，且**至少有一张被 `<a>` 或 `[]()` 包着的
+徽章图**。裸图是 logo 或截图——ripgrep 正文里那张截图、flask 开头那张 logo，
+都是「只含图片的段落」，挂上去就跑到正文中间或标题前面了。判据和 `title.rs`
+用的是同一条：真 logo 不会是超链接。
+
+### 已知落点不理想
+
+axios 与 awesome 的 README 开头是几百行 HTML（赞助商表格、居中 hero），
+标题节点本身就横跨到 421 / 77 行，徽章会落在那一大块之后。位置合法、
+文档结构不受损，但离首屏很远。这两个是 `fetch-fixtures.sh` 里特意留着的样本。
+
+### 安全边界
+
+- 默认不落盘。`--apply` 才写。
+- 不在 git 仓库里时拒绝 `--apply`，除非 `--force`——没有 `git checkout` 就没有撤销键。
+- 幂等：已经有徽章就什么都不做，判据是 URL 里的 `.repolish/badge.json` 路径，
+  不是整段 snippet（分支名不同不该被当成两个徽章）。

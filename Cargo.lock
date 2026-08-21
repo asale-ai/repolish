@@ -1849,6 +1849,7 @@ dependencies = [
  "repolish-checks",
  "repolish-core",
  "repolish-ingest",
+ "repolish-md",
  "repolish-render",
  "serde_json",
 ]

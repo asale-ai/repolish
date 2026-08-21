@@ -21,6 +21,7 @@ path = "src/main.rs"
 repolish-core.workspace = true
 repolish-ingest.workspace = true
 repolish-checks.workspace = true
+repolish-md.workspace = true
 repolish-render.workspace = true
 clap.workspace = true
 anyhow.workspace = true

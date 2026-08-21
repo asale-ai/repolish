@@ -19,7 +19,7 @@ use comrak::nodes::{AstNode, NodeValue};
 
 /// 超出这个行号的标题不再视为文档标题。
 /// 放宽到 40 行是为了容纳开头的大段徽章 / 横幅。
-const MAX_TITLE_LINE: usize = 40;
+pub(crate) const MAX_TITLE_LINE: usize = 40;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TitleSource {
@@ -36,6 +36,9 @@ pub enum TitleSource {
 #[derive(Debug, Clone)]
 pub struct Candidate {
     pub line: usize,
+    /// 标题节点的结束行。setext 标题跨两行，插入锚点必须落在下划线之后，
+    /// 否则会插进标题和它的下划线中间，把标题拆成一段普通段落。
+    pub end_line: usize,
     pub text: String,
     pub source: TitleSource,
 }
@@ -46,9 +49,10 @@ pub fn extract<'a>(root: &'a AstNode<'a>) -> Option<Candidate> {
     let mut seen_heading = false;
 
     for node in root.descendants() {
-        let (line, kind) = {
+        let (line, end_line, kind) = {
             let data = node.data.borrow();
             let line = data.sourcepos.start.line;
+            let end_line = data.sourcepos.end.line;
             let kind = match &data.value {
                 NodeValue::Heading(h) => Kind::Heading {
                     level: h.level,
@@ -58,7 +62,7 @@ pub fn extract<'a>(root: &'a AstNode<'a>) -> Option<Candidate> {
                 NodeValue::Image(_) => Kind::Image,
                 _ => Kind::Other,
             };
-            (line, kind)
+            (line, end_line, kind)
         };
 
         if line > MAX_TITLE_LINE {
@@ -78,6 +82,7 @@ pub fn extract<'a>(root: &'a AstNode<'a>) -> Option<Candidate> {
                 if !text.is_empty() {
                     candidates.push(Candidate {
                         line,
+                        end_line,
                         text,
                         source: if setext {
                             TitleSource::Setext
@@ -89,7 +94,12 @@ pub fn extract<'a>(root: &'a AstNode<'a>) -> Option<Candidate> {
             }
             Kind::Html(literal) => {
                 if let Some((text, source)) = from_html(&literal) {
-                    candidates.push(Candidate { line, text, source });
+                    candidates.push(Candidate {
+                        line,
+                        end_line,
+                        text,
+                        source,
+                    });
                 }
             }
             Kind::Image => {
@@ -100,6 +110,7 @@ pub fn extract<'a>(root: &'a AstNode<'a>) -> Option<Candidate> {
                 if !alt.is_empty() {
                     candidates.push(Candidate {
                         line,
+                        end_line,
                         text: alt,
                         source: TitleSource::ImageAlt,
                     });
@@ -171,7 +182,7 @@ fn heading_text(html: &str, lower: &str, start: usize) -> Option<String> {
     extract_alt(inner)
 }
 
-fn strip_tags(html: &str) -> String {
+pub(crate) fn strip_tags(html: &str) -> String {
     let mut out = String::new();
     let mut depth = 0usize;
     for c in html.chars() {

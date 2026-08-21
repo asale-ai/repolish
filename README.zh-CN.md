@@ -106,6 +106,24 @@ repolish check . --only license,ci-present
 `--remote` 从环境变量读取 `GITHUB_TOKEN` 或 `GH_TOKEN`。没有 token 时走匿名配额，
 每小时 60 次。
 
+### 把能改的直接改掉
+
+```bash
+repolish polish .                   # 打印它会做哪些改动
+repolish polish . --apply           # 落盘
+```
+
+`polish` 只做能从检查结果里机械推出来的改动——目前是插入 repolish 徽章，
+以及它指向的那份 `.repolish/badge.json`。
+
+它**只插入**。产出的 diff 全是新增行：制表符、列表标记、引用式链接定义、
+行尾都逐字节保留。这不是为谨慎而谨慎——把 README 过一遍 Markdown 格式化器
+再写回去，在 12 个真实 README 上 12 个都有损；一个教别人把仓库弄体面的工具，
+没有资格顺手重排别人的排版。
+
+不在 git 仓库里时 `--apply` 会拒绝执行，除非加 `--force`——`git checkout`
+就是那个撤销键。
+
 ### 用作 CI 门禁
 
 在 GitHub 上，action 直接收阈值：
@@ -176,7 +194,8 @@ repolish check . --remote --min-score 70
 | ------ | --------------------------------------------------- |
 | ✅      | `check` —— 22 个检查项、`--remote`、JSON 输出、`--min-score` |
 | ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制、已发布到 crates.io  |
-| ⏳      | README 改写（`polish --apply`）、LLM 辅助建议                |
+| ✅      | `polish --apply` —— 插入徽章；只增量插入，不重写                |
+| ⏳      | polish 的更多改动、LLM 辅助建议                              |
 
 检查项清单与 JSON schema 在 v1 冻结：增删检查项或改权重会改变分数在所有仓库上的
 含义，因此那是一个带版本号的决定，而不是日常改动。

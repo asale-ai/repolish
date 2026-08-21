@@ -108,6 +108,25 @@ repolish check . --only license,ci-present
 `--remote` reads `GITHUB_TOKEN` or `GH_TOKEN` from the environment. Without a token it
 falls back to the anonymous quota of 60 requests per hour.
 
+### Fixing what can be fixed
+
+```bash
+repolish polish .                   # print the changes it would make
+repolish polish . --apply           # write them
+```
+
+`polish` only makes changes that follow mechanically from the findings — today that is
+inserting the repolish badge, alongside the `.repolish/badge.json` it points at.
+
+It **only inserts**. The diff is new lines and nothing else: your tabs, list markers,
+reference-style link definitions and line endings are preserved byte for byte. That is
+not caution for its own sake — round-tripping a README through a Markdown formatter is
+lossy on 12 of 12 real-world READMEs, and a tool that teaches people to tidy their
+repository has no business reflowing their prose.
+
+`--apply` refuses to run outside a git repository unless you pass `--force`, because
+`git checkout` is the undo button.
+
 ### As a CI gate
 
 On GitHub, the action takes the threshold directly:
@@ -182,7 +201,8 @@ saying so until it changes:
 |---|---|
 | ✅ | `check` — 22 checks, `--remote`, JSON output, `--min-score` |
 | ✅ | `badge`, `report`, `init`, GitHub Action, pre-built binaries for 5 targets, published on crates.io |
-| ⏳ | README rewriting (`polish --apply`), LLM-assisted suggestions |
+| ✅ | `polish --apply` — inserts the badge; only-insert, never rewrites |
+| ⏳ | Further polish edits, LLM-assisted suggestions |
 
 The check set and the JSON schema are frozen for v1: adding, removing, or reweighting a
 check changes what a score means everywhere, so it is a versioned decision rather than
