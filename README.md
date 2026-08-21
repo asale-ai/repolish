@@ -49,7 +49,7 @@ Every release ships binaries for five targets, each with a `.sha256` beside it:
 `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`.
 
 ```bash
-VERSION=0.1.0
+VERSION=0.2.0
 TARGET=x86_64-unknown-linux-gnu
 curl -fsSL "https://github.com/asale-ai/repolish/releases/download/v${VERSION}/repolish-v${VERSION}-${TARGET}.tar.gz" | tar -xz
 sudo install "repolish-v${VERSION}-${TARGET}/repolish" /usr/local/bin/
@@ -78,7 +78,7 @@ cargo install --git https://github.com/asale-ai/repolish repolish
 - uses: actions/checkout@v4
   with:
     fetch-depth: 0
-- uses: asale-ai/repolish@v0.1.0
+- uses: asale-ai/repolish@v0.2.0
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -133,7 +133,7 @@ repository has no business reflowing their prose.
 On GitHub, the action takes the threshold directly:
 
 ```yaml
-- uses: asale-ai/repolish@v0.1.0
+- uses: asale-ai/repolish@v0.2.0
   with:
     min-score: 70
   env:

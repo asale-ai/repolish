@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0        # required: the default depth of 1 fetches no tags
-      - uses: asale-ai/repolish@v0.1.0
+      - uses: asale-ai/repolish@v0.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -38,7 +38,7 @@ API call failed — deliberately different, so a rate limit does not read as a q
 regression.
 
 ```yaml
-      - uses: asale-ai/repolish@v0.1.0
+      - uses: asale-ai/repolish@v0.2.0
         with:
           min-score: 70
         env:
@@ -52,7 +52,7 @@ The badge is served from your own repository — shields.io reads
 also means the file has to be committed for the badge to update.
 
 ```yaml
-      - uses: asale-ai/repolish@v0.1.0
+      - uses: asale-ai/repolish@v0.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -68,7 +68,7 @@ also means the file has to be committed for the badge to update.
 ## Use the score in later steps
 
 ```yaml
-      - uses: asale-ai/repolish@v0.1.0
+      - uses: asale-ai/repolish@v0.2.0
         id: repolish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

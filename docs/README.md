@@ -13,7 +13,7 @@
 
 ## 当前状态
 
-v0.1.0 已发布到 GitHub Releases 与 crates.io。22 个检查项冻结，JSON schema 冻结在 `schemaVersion: 1`。
+v0.2.0 已发布到 GitHub Releases 与 crates.io。22 个检查项冻结，JSON schema 冻结在 `schemaVersion: 1`。
 
 - 语言：**Rust**（MSRV 1.88）
 - 形态：**仅 CLI** + GitHub Action，不做托管服务

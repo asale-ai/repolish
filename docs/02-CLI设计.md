@@ -199,7 +199,7 @@ jobs:
           fetch-depth: 0
 
       # remote 与 badge 默认开启；args 作为逃生舱可覆盖全部开关
-      - uses: asale-ai/repolish@v0.1.0
+      - uses: asale-ai/repolish@v0.2.0
         with:
           min-score: 60
         env:
