@@ -135,7 +135,7 @@
   <text class="t" x="74" y="368" font-size="13" fill="#edebfa" text-anchor="start" font-weight="700">readme-length</text>
   <text class="t" x="74" y="386" font-size="12" fill="#8b87a3" text-anchor="start">Move the API details, configuration reference, and advanced usage into `docs/`, and leave the README with…</text>
   <rect x="36" y="416" width="808" height="1" fill="#35334a"/>
-  <text class="t" x="36" y="440" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · 47c8e8f6</text>
+  <text class="t" x="36" y="440" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · 3ed81487</text>
   <text class="t" x="844" y="440" font-size="12" fill="#8b87a3" text-anchor="end">repolish v0.3.0</text>
   <text class="t" x="36" y="458" font-size="11" fill="#8b87a3" text-anchor="start">评分过程确定，不涉及任何模型。</text>
 </svg>
