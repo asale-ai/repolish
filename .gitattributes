@@ -33,6 +33,11 @@
 
 # 生成物：GitHub 语言统计里忽略，diff 时折叠
 Cargo.lock          -diff linguist-generated
-# 由 repolish 与 repolish-render 的 logo example 写出，不要手改
-assets/*.svg        linguist-generated
-.repolish/card.svg  -diff linguist-generated
+# 由 repolish 与 repolish-render 的 logo example 写出，不要手改。
+# 渲染是确定性的，所以这些文件在内容没变时不会产生 diff——
+# 折叠它们是因为读一段几百行的矩形坐标对 review 没有任何帮助。
+assets/*.svg           linguist-generated
+.repolish/*.svg        -diff linguist-generated
+.repolish/tables/*.svg -diff linguist-generated
+# `repolish skill` 写出的智能体说明，改内容请改 crates/repolish-cli/src/skill.md
+skills/*/SKILL.md      linguist-generated

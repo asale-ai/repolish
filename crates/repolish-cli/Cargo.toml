@@ -24,7 +24,6 @@ repolish-checks.workspace = true
 repolish-md.workspace = true
 repolish-render.workspace = true
 clap.workspace = true
-anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true

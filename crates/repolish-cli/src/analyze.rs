@@ -43,6 +43,15 @@ pub struct Common {
 
     #[arg(long, global = true)]
     pub no_color: bool,
+
+    /// Colour palette for the SVG it writes
+    #[arg(long, global = true, value_enum)]
+    pub theme: Option<crate::style::Theme>,
+
+    /// Language for the text inside the SVG it writes.
+    /// Defaults to whatever language the README is written in
+    #[arg(long, global = true, value_enum)]
+    pub lang: Option<crate::style::CardLang>,
 }
 
 impl Common {
@@ -50,6 +59,19 @@ impl Common {
     /// `--no-color` 只是把用户的意图递进去，别的判断不在这里重写一遍。
     pub fn level(&self) -> repolish_render::ColorLevel {
         repolish_render::ColorLevel::detect(self.no_color, std::io::stdout().is_terminal())
+    }
+
+    /// 卡片渲染选项。命令行 > 配置文件 > 默认，语言的默认是「跟着 README 走」。
+    pub fn card_options(
+        &self,
+        ctx: &RepoContext,
+        cfg: &crate::config::Readme,
+    ) -> repolish_render::Options {
+        let readme = ctx.readme.as_ref().map(|r| r.raw.as_str()).unwrap_or("");
+        repolish_render::Options {
+            palette: self.theme.or(cfg.theme).unwrap_or_default().palette(),
+            lang: self.lang.or(cfg.lang).unwrap_or_default().resolve(readme),
+        }
     }
 }
 

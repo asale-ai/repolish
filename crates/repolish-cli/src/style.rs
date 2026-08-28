@@ -76,6 +76,121 @@ pub enum Align {
     Center,
 }
 
+/// SVG 产物的色板。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Theme {
+    // 这几条注释是 clap 的 --help 文案，所以是英文——工具吐给使用者的每一个字
+    // 都是英文，见 CONTRIBUTING 的第三条。为什么这么设计写在下面的普通注释里。
+    /// Neon on near-black, the same palette as the terminal report
+    #[default]
+    Dark,
+    /// Warm paper, dark ink. A dark card in a light README is a hole in the page
+    Porcelain,
+}
+
+impl Theme {
+    pub fn palette(self) -> &'static repolish_render::Palette {
+        match self {
+            Theme::Dark => &repolish_render::DARK,
+            Theme::Porcelain => &repolish_render::PORCELAIN,
+        }
+    }
+}
+
+/// SVG 里那些字用什么语言写。
+///
+/// 默认跟着 README 走，而不是跟着系统 locale 走：卡片是贴进**别人的
+/// README** 的，它该说那份 README 的语言，不是运行这条命令的人的语言。
+/// CI 里跑一次 `LANG=C` 就把中文 README 顶上的卡片换成英文，是很荒唐的。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CardLang {
+    /// Follow the README, judged by how much of it is CJK
+    #[default]
+    Auto,
+    En,
+    #[value(name = "zh-CN")]
+    #[serde(rename = "zh-CN")]
+    ZhCn,
+}
+
+impl CardLang {
+    pub fn resolve(self, readme: &str) -> repolish_render::Lang {
+        match self {
+            CardLang::Auto => repolish_render::Lang::detect(readme),
+            CardLang::En => repolish_render::Lang::En,
+            CardLang::ZhCn => repolish_render::Lang::ZhCn,
+        }
+    }
+}
+
+/// README 顶部那张图的宽度。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogoWidth {
+    /// 通栏，输出 `width="100%"`。品牌横幅要的就是这个——固定像素宽的横幅
+    /// 在宽屏上会缩在左上角，在手机上又会撑破版心。
+    ///
+    /// 这个枚举不是 `ValueEnum`（它走 `FromStr`），所以这段注释不会进 --help，
+    /// 可以是中文。
+    Full,
+    Px(u32),
+}
+
+impl LogoWidth {
+    /// `<img>` 上的 width 属性值
+    pub fn attr(self) -> String {
+        match self {
+            LogoWidth::Full => "100%".to_string(),
+            LogoWidth::Px(n) => n.to_string(),
+        }
+    }
+}
+
+impl std::str::FromStr for LogoWidth {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.eq_ignore_ascii_case("full") || s == "100%" {
+            return Ok(LogoWidth::Full);
+        }
+        s.trim_end_matches("px")
+            .parse::<u32>()
+            .map(LogoWidth::Px)
+            .map_err(|_| format!("expected a pixel width or `full`, got `{s}`"))
+    }
+}
+
+impl<'de> Deserialize<'de> for LogoWidth {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        // TOML 里 `logo-width = 420` 和 `logo-width = "full"` 都得能写。
+        // 只收字符串的话，写数字的人会拿到一个说不清的类型错误。
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Raw {
+            Num(u32),
+            Text(String),
+        }
+        match Raw::deserialize(d)? {
+            Raw::Num(n) => Ok(LogoWidth::Px(n)),
+            Raw::Text(s) => s.parse().map_err(serde::de::Error::custom),
+        }
+    }
+}
+
+/// README 里的表格怎么处理。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TableStyle {
+    /// Leave tables exactly as they are
+    #[default]
+    Keep,
+    /// Draw each table as an SVG and fold the original into <details>.
+    /// The original stays: an image has no text layer, so screen readers,
+    /// grep and translation tools all read the folded copy
+    Svg,
+}
+
 /// 目录的排版。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -84,7 +199,7 @@ pub enum TocStyle {
     Bullet,
     Number,
     Roman,
-    /// 折进 `<details>`，长 README 里不占屏
+    /// Fold the contents into a <details> block, which long READMEs benefit from
     Fold,
 }
 
@@ -135,9 +250,17 @@ pub struct ReadmeStyle {
     /// README 顶部的图。**必须是仓库内的相对路径**——绝对路径在别人的
     /// 机器上打不开，而 `readme-link-health` 会立刻把它判成死链。
     pub logo: Option<String>,
-    pub logo_width: Option<u32>,
+    pub logo_width: Option<LogoWidth>,
     /// 生成项目结构树的深度。`None` = 不生成。
     pub tree_depth: Option<usize>,
+    /// SVG 产物的色板与语言
+    pub theme: Theme,
+    pub lang: repolish_render::Lang,
+    /// 插一张项目概览卡片，并把它写进 `.repolish/overview.svg`
+    pub overview: bool,
+    /// 在 README 末尾插分数卡片与「用 repolish 打磨过」一节
+    pub footer_card: bool,
+    pub tables: TableStyle,
 }
 
 impl fmt::Display for ReadmeStyle {
@@ -155,6 +278,31 @@ impl fmt::Display for ReadmeStyle {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 通栏横幅要 `width="100%"`，固定像素在宽屏上会缩成一小块
+    #[test]
+    fn logo_width_accepts_pixels_and_full() {
+        use std::str::FromStr;
+        assert_eq!(LogoWidth::from_str("420"), Ok(LogoWidth::Px(420)));
+        assert_eq!(LogoWidth::from_str("420px"), Ok(LogoWidth::Px(420)));
+        assert_eq!(LogoWidth::from_str("full"), Ok(LogoWidth::Full));
+        assert_eq!(LogoWidth::from_str("100%"), Ok(LogoWidth::Full));
+        assert!(LogoWidth::from_str("wide").is_err());
+        assert_eq!(LogoWidth::Full.attr(), "100%");
+        assert_eq!(LogoWidth::Px(300).attr(), "300");
+    }
+
+    /// 卡片说的该是那份 README 的语言，不是运行这条命令的人的语言
+    #[test]
+    fn card_language_follows_the_readme_unless_pinned() {
+        let zh = "# 工具\n\n这是一个给开源仓库打分的命令行工具，指出该先改哪里。\n";
+        assert_eq!(CardLang::Auto.resolve(zh), repolish_render::Lang::ZhCn);
+        assert_eq!(CardLang::En.resolve(zh), repolish_render::Lang::En);
+        assert_eq!(
+            CardLang::Auto.resolve("# Tool\n\nScore your repository.\n"),
+            repolish_render::Lang::En
+        );
+    }
 
     #[test]
     fn roman_numerals_are_lowercase_and_correct() {

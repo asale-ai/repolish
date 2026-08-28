@@ -39,11 +39,29 @@ inputs:
     default: "false"
   card:
     description: >
-      Write .repolish/card.svg, a self-contained report card to embed in the
-      README. Off by default: it is only worth committing once you have linked
-      it from somewhere.
+      Write .repolish/card.svg, the report card. It belongs at the *end* of the
+      README, under a "Polished with repolish" heading. Off by default: it is
+      only worth committing once you have linked it from somewhere.
     required: false
     default: "false"
+  overview:
+    description: >
+      Write .repolish/overview.svg, the project overview card — languages, file
+      composition, commit activity, licence. That one belongs at the *top* of
+      the README: the first thing a stranger sees should be the project, not our
+      score. Off by default, same reason as card.
+    required: false
+    default: "false"
+  theme:
+    description: 'Palette for the SVG cards: dark or porcelain'
+    required: false
+    default: dark
+  lang:
+    description: >
+      Language for the text inside the cards: auto, en or zh-CN.
+      auto follows whatever language the README is written in.
+    required: false
+    default: auto
   summary:
     description: Append the report to the job summary
     required: false
@@ -108,6 +126,9 @@ runs:
         IN_BADGE: ${{ inputs.badge }}
         IN_REPORT: ${{ inputs.report }}
         IN_CARD: ${{ inputs.card }}
+        IN_OVERVIEW: ${{ inputs.overview }}
+        IN_THEME: ${{ inputs.theme }}
+        IN_LANG: ${{ inputs.lang }}
         IN_SUMMARY: ${{ inputs.summary }}
         IN_ARGS: ${{ inputs.args }}
       run: |
@@ -145,6 +166,10 @@ runs:
           [ "$IN_REMOTE" = "true" ] && set -- "$@" --remote
           [ "$IN_BADGE" = "true" ] && set -- "$@" --badge
           [ "$IN_CARD" = "true" ] && set -- "$@" --card
+          [ "$IN_OVERVIEW" = "true" ] && set -- "$@" --overview
+          if [ "$IN_CARD" = "true" ] || [ "$IN_OVERVIEW" = "true" ]; then
+            set -- "$@" --theme "$IN_THEME" --lang "$IN_LANG"
+          fi
           [ "$want_md" = "true" ] && set -- "$@" --report
           [ -n "$IN_MIN_SCORE" ] && set -- "$@" --min-score "$IN_MIN_SCORE"
         fi

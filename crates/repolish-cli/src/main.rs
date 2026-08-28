@@ -13,11 +13,15 @@ use repolish_render::RenderOptions;
 
 mod analyze;
 mod config;
+mod demo;
 mod init;
 mod polish;
+mod record;
 mod scaffold;
 mod scan;
+mod skill;
 mod style;
+mod tables;
 mod tree;
 
 use analyze::{analyze, write_file, Analysis, Common};
@@ -53,8 +57,12 @@ enum Command {
     Report(ReportArgs),
     /// Score every repository in a directory and rank them
     Scan(ScanArgs),
-    /// Write .repolish/card.svg, a report card to embed in your README
+    /// Write the SVG cards to embed in your README
     Card(CardArgs),
+    /// Record this project's CLI and write the animation
+    Demo(DemoArgs),
+    /// Write SKILL.md, which teaches a coding agent how to drive repolish
+    Skill(SkillArgs),
     /// Generate a GitHub Actions workflow
     Init(InitArgs),
     /// Apply the fixes that can be made mechanically, and print the rest
@@ -96,13 +104,29 @@ struct PolishArgs {
     #[arg(long)]
     logo: Option<String>,
 
-    /// Width in pixels for the logo
+    /// Width for the logo: a pixel count, or `full` for a full-width banner
     #[arg(long)]
-    logo_width: Option<u32>,
+    logo_width: Option<style::LogoWidth>,
 
     /// Append a project structure tree this many levels deep
     #[arg(long)]
     tree_depth: Option<usize>,
+
+    /// Insert a project overview card below the badges, and write it
+    #[arg(long)]
+    overview: bool,
+
+    /// Insert the repolish report card at the end, under its own heading
+    #[arg(long)]
+    footer_card: bool,
+
+    /// Render README tables as SVG, folding the original into <details>
+    #[arg(long, value_enum)]
+    tables: Option<style::TableStyle>,
+
+    /// Shorthand for --overview --footer-card --tables svg
+    #[arg(long)]
+    visuals: bool,
 }
 
 #[derive(Parser)]
@@ -125,9 +149,13 @@ struct CheckArgs {
     #[arg(long)]
     report: bool,
 
-    /// Also write .repolish/card.svg
+    /// Also write .repolish/card.svg, the score card
     #[arg(long)]
     card: bool,
+
+    /// Also write .repolish/overview.svg, the project overview card
+    #[arg(long)]
+    overview: bool,
 
     /// Show P3 suggestions and passing checks as well
     #[arg(short, long)]
@@ -180,13 +208,102 @@ struct CardArgs {
     #[command(flatten)]
     common: Common,
 
-    /// Output path; defaults to .repolish/card.svg in the repository root
+    /// Which cards to write. Comma-separated; repeatable
+    #[arg(long, value_enum, value_delimiter = ',', default_value = "overview")]
+    kind: Vec<CardKind>,
+
+    /// Output path. Only valid with a single --kind; the defaults are
+    /// .repolish/overview.svg, .repolish/card.svg and .repolish/tables/
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Print the SVG instead of writing the file. Only valid with a single --kind
+    #[arg(long)]
+    stdout: bool,
+}
+
+/// 这几张图说的是不同的事，在 README 里的位置也不同——
+/// 见 `repolish_render::overview` 的模块说明。
+///
+/// **`card` 会覆盖已有文件，`polish` 不会。** 分工是有意的：`polish` 负责
+/// 第一次把引用插进 README，`card` 负责此后每一次重画。不能重画的话，
+/// README 上迟早挂着一张过期的图。
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+enum CardKind {
+    /// What this project is: languages, activity, licence. Goes at the top of the README
+    Overview,
+    /// What repolish scored it. Goes at the bottom, under a "Polished with repolish" heading
+    Score,
+    /// Redraw the SVG for every table in the README that polish has already wrapped
+    Tables,
+    /// All of the above
+    All,
+}
+
+#[derive(Parser)]
+#[command(after_help = "\
+This RUNS the commands it records — that is the whole point, and it is why the score in \
+the recording is a real score rather than a staged one. Only point it at a repository \
+whose commands you are willing to execute. Use --dry-run to see the list first.")]
+struct DemoArgs {
+    #[command(flatten)]
+    common: Common,
+
+    /// Output path; defaults to .repolish/demo.svg in the repository root
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+
+    /// The command to record. Repeat for several. Defaults to the detected binary's --help
+    #[arg(long = "cmd")]
+    commands: Vec<String>,
+
+    /// List the commands it would run, and run nothing
+    #[arg(long)]
+    dry_run: bool,
+
+    /// Also write a VHS tape, for rendering a GIF with charmbracelet/vhs instead
+    #[arg(long)]
+    tape: bool,
+
+    /// Milliseconds per keystroke in the animation
+    #[arg(long, default_value = "45")]
+    type_ms: u32,
 
     /// Print the SVG instead of writing the file
     #[arg(long)]
     stdout: bool,
+}
+
+#[derive(Parser)]
+#[command(after_help = "\
+Without --target this writes SKILL.md into a repository, so it travels with the code. \
+With --target it installs into the agent's own directory on this machine, where it \
+applies to every project you open.")]
+struct SkillArgs {
+    /// Path to write into
+    #[arg(default_value = ".")]
+    path: PathBuf,
+
+    /// Install into an agent's skill directory instead of writing into a repository.
+    /// Comma-separated; `detect` picks the agents that are actually installed
+    #[arg(long, value_delimiter = ',')]
+    target: Vec<String>,
+
+    /// List the known agents and whether each one is installed here
+    #[arg(long)]
+    list: bool,
+
+    /// Output path; defaults to SKILL.md in that directory
+    #[arg(short, long, conflicts_with = "target")]
+    output: Option<PathBuf>,
+
+    /// Print it instead of writing the file
+    #[arg(long)]
+    stdout: bool,
+
+    /// Overwrite an existing file
+    #[arg(long)]
+    force: bool,
 }
 
 #[derive(Parser)]
@@ -225,6 +342,8 @@ fn main() -> ExitCode {
         Command::Report(args) => run_report(args),
         Command::Scan(args) => run_scan(args),
         Command::Card(args) => run_card(args),
+        Command::Demo(args) => run_demo(args),
+        Command::Skill(args) => run_skill(args),
         Command::Init(args) => run_init(args),
         Command::Polish(args) => run_polish(args),
     };
@@ -276,12 +395,30 @@ fn run_check(args: CheckArgs) -> u8 {
         }
         eprintln!("wrote {}", path.display());
     }
-    if args.card {
-        let path = ctx.root.join(repolish_render::svg::CARD_PATH);
-        if let Err(code) = write_file(&path, &repolish_render::card(&report)) {
-            return code;
+    if args.card || args.overview {
+        let cfg = match crate::config::load(args.common.config.as_deref(), &ctx.root) {
+            Ok(c) => c.readme,
+            Err(e) => {
+                eprintln!("error: {e}");
+                return exit::BAD_USAGE;
+            }
+        };
+        let opts = args.common.card_options(&ctx, &cfg);
+        if args.overview {
+            let facts = repolish_render::Facts::from_ctx(&ctx);
+            let path = ctx.root.join(repolish_render::OVERVIEW_PATH);
+            if let Err(code) = write_file(&path, &repolish_render::overview(&facts, &opts)) {
+                return code;
+            }
+            eprintln!("wrote {}", path.display());
         }
-        eprintln!("wrote {}", path.display());
+        if args.card {
+            let path = ctx.root.join(repolish_render::CARD_PATH);
+            if let Err(code) = write_file(&path, &repolish_render::card(&report, &opts)) {
+                return code;
+            }
+            eprintln!("wrote {}", path.display());
+        }
     }
 
     // 命令行永远赢：CI 里能改的只有那一行
@@ -443,7 +580,220 @@ fn run_card(args: CardArgs) -> u8 {
         Err(code) => return code,
     };
 
-    let svg = repolish_render::card(&report);
+    let cfg = match crate::config::load(args.common.config.as_deref(), &ctx.root) {
+        Ok(c) => c.readme,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return exit::BAD_USAGE;
+        }
+    };
+    let opts = args.common.card_options(&ctx, &cfg);
+
+    let wants = |k: CardKind| args.kind.contains(&k) || args.kind.contains(&CardKind::All);
+    let single =
+        args.kind.len() == 1 && args.kind[0] != CardKind::All && args.kind[0] != CardKind::Tables;
+
+    // 每张图的默认路径不同，所以 --output 和 --stdout 只在选定一张时说得清
+    if (args.output.is_some() || args.stdout) && !single {
+        eprintln!(
+            "error: --output and --stdout each handle a single SVG, but --kind {} produces several",
+            args.kind
+                .iter()
+                .map(|k| format!("{k:?}").to_lowercase())
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        eprintln!("note: run it once per kind, or drop the flag to write the default paths");
+        return exit::BAD_USAGE;
+    }
+
+    let mut written: Vec<String> = Vec::new();
+    if wants(CardKind::Overview) {
+        let facts = repolish_render::Facts::from_ctx(&ctx);
+        let svg = repolish_render::overview(&facts, &opts);
+        if args.stdout {
+            print!("{svg}");
+            return exit::OK;
+        }
+        let path = args
+            .output
+            .clone()
+            .unwrap_or_else(|| ctx.root.join(repolish_render::OVERVIEW_PATH));
+        if let Err(code) = write_file(&path, &svg) {
+            return code;
+        }
+        written.push(relative(&ctx.root, &path));
+    }
+    if wants(CardKind::Score) {
+        let svg = repolish_render::card(&report, &opts);
+        if args.stdout {
+            print!("{svg}");
+            return exit::OK;
+        }
+        let path = args
+            .output
+            .clone()
+            .unwrap_or_else(|| ctx.root.join(repolish_render::CARD_PATH));
+        if let Err(code) = write_file(&path, &svg) {
+            return code;
+        }
+        written.push(relative(&ctx.root, &path));
+    }
+    if wants(CardKind::Tables) {
+        let Some(readme) = ctx.readme.as_ref() else {
+            eprintln!("error: no README to take tables from");
+            return exit::NOT_A_REPO;
+        };
+        // 只重画 polish 已经包过的那些。给一张没人引用的表生成 SVG，
+        // 落下的是一个孤儿文件——它会被提交、被一直带着，而没有任何东西
+        // 指向它。要新增一张，先让 polish 去包：
+        //     repolish polish . --apply --tables svg
+        let mut unwrapped = 0usize;
+        for table in tables::render(readme, &opts, |w| eprintln!("note: {w}")) {
+            if !tables::already_wrapped(readme, table.start_line) {
+                unwrapped += 1;
+                continue;
+            }
+            let path = table.path(&ctx.root);
+            if let Err(code) = write_file(&path, &table.svg) {
+                return code;
+            }
+            written.push(table.rel);
+        }
+        if unwrapped > 0 {
+            println!(
+                "{unwrapped} table(s) in the README are not wrapped yet, so nothing was \
+                 drawn for them.\n  To wrap them: repolish polish . --apply --tables svg"
+            );
+        }
+        if written.is_empty() {
+            println!(
+                "No table in {} is worth drawing (needs {}–{} rows and at least two columns).",
+                relative(&ctx.root, &readme.path),
+                tables::MIN_ROWS,
+                tables::MAX_ROWS
+            );
+        }
+    }
+
+    for rel in &written {
+        println!("wrote {rel}");
+    }
+    if written.is_empty() {
+        return exit::OK;
+    }
+
+    // 两张卡片的位置不一样，这一点比路径本身更值得说：
+    // 贴反了，一个陌生人点进仓库第一眼看到的就是我们的分数而不是这个项目
+    if wants(CardKind::Overview) || wants(CardKind::Score) {
+        println!("\nWhere they go:\n");
+    }
+    if wants(CardKind::Overview) {
+        println!(
+            "  near the top, under the badges:\n\n    <img src=\"{}\" alt=\"{} at a glance\" width=\"880\">\n",
+            repolish_render::OVERVIEW_PATH,
+            ctx.display_name()
+        );
+    }
+    if wants(CardKind::Score) {
+        println!(
+            "  at the end, under a \"Polished with repolish\" heading:\n\n    <img src=\"{}\" alt=\"repolish report card\" width=\"880\">\n",
+            repolish_render::CARD_PATH
+        );
+    }
+    println!(
+        "Or let polish place them: `repolish polish . --apply --visuals`.\n\
+         Everything here is a plain file in your own repository: no fonts, no scripts, \
+         nothing hosted by us."
+    );
+    exit::OK
+}
+
+/// 仓库相对路径，分隔符统一成 `/`——打印出来的路径要能直接贴进 README
+fn relative(root: &std::path::Path, path: &std::path::Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .display()
+        .to_string()
+        .replace(std::path::MAIN_SEPARATOR, "/")
+}
+
+fn run_demo(args: DemoArgs) -> u8 {
+    let root = match dunce::canonicalize(&args.common.path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: cannot access {}: {e}", args.common.path.display());
+            return exit::NOT_A_REPO;
+        }
+    };
+    let ctx = match repolish_ingest::RepoContext::load(&root, None) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("error: {e:#}");
+            return exit::NOT_A_REPO;
+        }
+    };
+
+    let commands = if args.commands.is_empty() {
+        // 录一段跑不起来的命令比没有录屏更糟。认不出可执行文件就明说，
+        // 并告诉他怎么手动指定——而不是拿仓库名去赌。
+        let Some(bin) = demo::binary(&ctx) else {
+            eprintln!(
+                "error: no command-line binary detected in {}.\n\
+                 note: repolish demo records a CLI. If this project has one, name the \
+                 commands yourself:\n      repolish demo . --cmd \"yourtool --help\"",
+                root.display()
+            );
+            return exit::BAD_USAGE;
+        };
+        demo::default_commands(&bin)
+    } else {
+        args.commands.clone()
+    };
+
+    // 执行别人机器上的程序这件事，必须让使用者看得见——干跑时更是唯一的输出
+    if args.dry_run {
+        println!("Would run these, in {}:\n", relative(&root, &root));
+        for c in &commands {
+            println!("  $ {c}");
+        }
+        println!("\nNothing was run. Drop --dry-run to record.");
+        return exit::OK;
+    }
+
+    println!("Recording in {}:", root.display());
+    let recording = match record::run(&commands, &root, |c| println!("  $ {c}")) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: {e}");
+            eprintln!(
+                "note: the command has to be on PATH. For a project you have not installed, \
+                 build it first and put the build directory on PATH"
+            );
+            return exit::BAD_USAGE;
+        }
+    };
+
+    // 失败的命令照录——一条报错也是真实输出——但绝不能不声不响：
+    // 一段悄悄录进了错误的演示，比没有演示伤得更久
+    for (cmd, code) in &recording.failures {
+        eprintln!("warning: `{cmd}` exited with {code}; its output is in the recording as-is");
+    }
+
+    let cfg = match crate::config::load(args.common.config.as_deref(), &ctx.root) {
+        Ok(c) => c.readme,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return exit::BAD_USAGE;
+        }
+    };
+    let opts = args.common.card_options(&ctx, &cfg);
+    let timing = repolish_render::Timing {
+        type_ms: args.type_ms,
+        ..Default::default()
+    };
+    let svg = repolish_render::cast(&recording.steps, &timing, &opts);
+
     if args.stdout {
         print!("{svg}");
         return exit::OK;
@@ -451,28 +801,182 @@ fn run_card(args: CardArgs) -> u8 {
 
     let path = args
         .output
-        .unwrap_or_else(|| ctx.root.join(repolish_render::svg::CARD_PATH));
+        .clone()
+        .unwrap_or_else(|| root.join(demo::SVG_PATH));
     if let Err(code) = write_file(&path, &svg) {
         return code;
     }
-    println!("wrote {}", path.display());
+    let rel = relative(&root, &path);
+    println!("\nwrote {rel}");
 
-    let rel = path
-        .strip_prefix(&ctx.root)
-        .unwrap_or(&path)
-        .display()
-        .to_string()
-        .replace(std::path::MAIN_SEPARATOR, "/");
+    if args.tape {
+        let bin = demo::binary(&ctx).unwrap_or_else(|| "your-tool".into());
+        let tape_path = root.join(demo::TAPE_PATH);
+        if let Err(code) = write_file(&tape_path, &demo::tape(&bin, &commands, demo::GIF_PATH)) {
+            return code;
+        }
+        println!("wrote {}", relative(&root, &tape_path));
+        println!(
+            "  · render it to a GIF with: vhs {}",
+            relative(&root, &tape_path)
+        );
+    }
+
     println!(
-        "
-Paste this into your README:
-"
+        "\nPaste this into your README:\n\n    {}\n",
+        demo::snippet(&rel, "terminal recording")
     );
     println!(
-        "![repolish]({rel})
-"
+        "It is a plain SVG: no fonts, no scripts, nothing hosted by us, and the commands \n\
+         in it are real text you can select and copy."
     );
-    println!("The card is a plain file in your own repository: no fonts, no scripts, nothing hosted by us.");
+    exit::OK
+}
+
+fn run_skill(args: SkillArgs) -> u8 {
+    let md = skill::markdown();
+    if args.stdout {
+        print!("{md}");
+        return exit::OK;
+    }
+    if args.list {
+        return list_skill_targets();
+    }
+    if !args.target.is_empty() {
+        return install_skill(&args.target, &md, args.force);
+    }
+
+    // 没给 --target 就是写进一个仓库：技能跟着代码走，谁 clone 谁就有
+    let root = match dunce::canonicalize(&args.path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: cannot access {}: {e}", args.path.display());
+            return exit::NOT_A_REPO;
+        }
+    };
+    let path = args.output.unwrap_or_else(|| root.join(skill::SKILL_PATH));
+    if path.exists() && !args.force {
+        eprintln!(
+            "error: {} already exists. Pass --force to overwrite it",
+            path.display()
+        );
+        return exit::BAD_USAGE;
+    }
+    if let Err(code) = write_file(&path, &md) {
+        return code;
+    }
+    println!("wrote {}", relative(&root, &path));
+    println!(
+        "\nIt teaches an agent to measure before it edits, and never to rewrite a README \
+         wholesale.\nTo install it for every project instead: `repolish skill --target detect`."
+    );
+    exit::OK
+}
+
+fn list_skill_targets() -> u8 {
+    let Some(home) = skill::home() else {
+        eprintln!("error: could not determine your home directory (HOME / USERPROFILE)");
+        return exit::BAD_USAGE;
+    };
+    for t in skill::TARGETS {
+        // 装没装是一条事实，直说。列一个「可用」的目录而那家工具根本没装，
+        // 只会让人以为技能生效了。
+        let mark = if t.detected(&home) {
+            "· installed"
+        } else {
+            "  not found"
+        };
+        println!("{mark}  {:<10} {}", t.id, t.label);
+        println!("               ~/{}", t.skills_dir);
+        println!("               {}", t.docs);
+    }
+    println!("\n  · = detected on this machine");
+    println!("\n  repolish skill --target detect     install into the ones marked above");
+    println!("  repolish skill --target all        install into every one of them");
+    exit::OK
+}
+
+fn install_skill(requested: &[String], md: &str, force: bool) -> u8 {
+    let Some(home) = skill::home() else {
+        eprintln!("error: could not determine your home directory (HOME / USERPROFILE)");
+        return exit::BAD_USAGE;
+    };
+
+    let mut targets: Vec<&skill::Target> = Vec::new();
+    for name in requested {
+        match name.as_str() {
+            "all" => targets.extend(skill::TARGETS.iter()),
+            // 只装到真的存在的工具里。往一个没装 Codex 的机器上写
+            // ~/.codex/skills 会凭空造出一个目录，看着像那工具装了。
+            "detect" => targets.extend(skill::TARGETS.iter().filter(|t| t.detected(&home))),
+            id => match skill::Target::find(id) {
+                Some(t) => targets.push(t),
+                None => {
+                    eprintln!("error: unknown target \"{id}\"");
+                    eprintln!(
+                        "available: all, detect, {}",
+                        skill::TARGETS
+                            .iter()
+                            .map(|t| t.id)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                    return exit::BAD_USAGE;
+                }
+            },
+        }
+    }
+    targets.sort_by_key(|t| t.id);
+    targets.dedup_by_key(|t| t.id);
+
+    if targets.is_empty() {
+        println!("No agent detected on this machine, so nothing was installed.");
+        println!("Run `repolish skill --list` to see what is supported, or name one:");
+        println!("    repolish skill --target claude");
+        // 一台机器上没装任何智能体不是错误，只是没事可做
+        return exit::OK;
+    }
+
+    for t in &targets {
+        let path = t.skill_path(&home);
+        if path.exists() && !force {
+            println!(
+                "skipped {} — already installed (pass --force to replace)",
+                path.display()
+            );
+            continue;
+        }
+        if let Err(code) = write_file(&path, md) {
+            return code;
+        }
+        println!("installed {} ({})", path.display(), t.label);
+
+        if t.gemini_manifest {
+            // 清单点名了一个上下文文件，两个必须一起写：只写清单会让
+            // Gemini CLI 每次启动都指向一个不存在的路径
+            let dir = path
+                .parent()
+                .and_then(|p| p.parent())
+                .and_then(|p| p.parent())
+                .map(|p| p.to_path_buf());
+            let Some(dir) = dir else { continue };
+            if let Err(code) = write_file(
+                &dir.join("gemini-extension.json"),
+                &skill::gemini_manifest(),
+            ) {
+                return code;
+            }
+            if let Err(code) = write_file(&dir.join("GEMINI.md"), &skill::gemini_context()) {
+                return code;
+            }
+            println!("installed {}", dir.join("gemini-extension.json").display());
+        }
+    }
+
+    println!(
+        "\nThe skill calls `repolish` by name, so it has to be on PATH.\n\
+         Check with: repolish --version"
+    );
     exit::OK
 }
 
@@ -568,6 +1072,22 @@ fn run_polish(args: PolishArgs) -> u8 {
         logo: args.logo.or(cfg.logo),
         logo_width: args.logo_width.or(cfg.logo_width),
         tree_depth: args.tree_depth.or(cfg.tree_depth),
+        theme: args.common.theme.or(cfg.theme).unwrap_or_default(),
+        lang: args
+            .common
+            .lang
+            .or(cfg.lang)
+            .unwrap_or_default()
+            .resolve(readme_raw),
+        // --visuals 是三个开关的简写。命令行开了就是开，配置文件里的
+        // false 不该把命令行显式给的开关关掉——命令行永远赢。
+        overview: args.overview || args.visuals || cfg.overview.unwrap_or(false),
+        footer_card: args.footer_card || args.visuals || cfg.footer_card.unwrap_or(false),
+        tables: match (args.tables, args.visuals) {
+            (Some(t), _) => t,
+            (None, true) => style::TableStyle::Svg,
+            (None, false) => cfg.tables.unwrap_or_default(),
+        },
     };
 
     let plan = polish::plan(&ctx, &report, &style);

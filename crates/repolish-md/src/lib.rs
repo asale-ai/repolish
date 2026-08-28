@@ -14,6 +14,7 @@ use comrak::{parse_document, Arena, Options};
 
 pub mod edit;
 pub mod section;
+pub mod tables;
 pub mod title;
 pub mod toc;
 

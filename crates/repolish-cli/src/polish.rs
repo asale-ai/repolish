@@ -14,7 +14,7 @@ use repolish_md::edit::{apply, Insert};
 use repolish_md::Readme;
 
 use crate::scaffold;
-use crate::style::{Align, ReadmeStyle, TocStyle};
+use crate::style::{Align, LogoWidth, ReadmeStyle, TableStyle, TocStyle};
 use crate::tree;
 
 /// 要写出的一个新文件。
@@ -60,12 +60,25 @@ pub fn plan(ctx: &RepoContext, report: &Report, style: &ReadmeStyle) -> Plan {
     if let Some(readme) = ctx.readme.as_ref() {
         logo(ctx, readme, style, &mut plan);
         badge(ctx, report, readme, style, &mut plan);
+        overview_card(ctx, readme, style, &mut plan);
         toc(report, readme, style, &mut plan);
+        svg_tables(ctx, readme, style, &mut plan);
         project_tree(ctx, readme, style, &mut plan);
+        // 最后一刀，落在文件末尾：分数卡片是给作者和顺着它找来的下一个作者
+        // 看的，不是给第一次点进这个仓库的人看的
+        footer_card(ctx, report, readme, style, &mut plan);
     }
     templates(ctx, report, &mut plan);
     contributing(ctx, report, &mut plan);
     plan
+}
+
+/// 卡片渲染用的色板与语言
+fn card_options(style: &ReadmeStyle) -> repolish_render::Options {
+    repolish_render::Options {
+        palette: style.theme.palette(),
+        lang: style.lang,
+    }
 }
 
 /// README 顶部的图。
@@ -103,8 +116,10 @@ fn logo(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mut Plan
 /// 少这一行，下面的 `# Name` 就不再是标题，`readme-title-tagline` 会把正文里
 /// 第一个小节标题当成项目名，10 分掉到 6 分。徽章那一刀早就记着这个坑
 /// （flask、fzf 都栽过），这里是同一个。
-fn logo_lines(src: &str, width: Option<u32>, align: Align) -> Vec<String> {
-    let width = width.map(|w| format!(" width=\"{w}\"")).unwrap_or_default();
+fn logo_lines(src: &str, width: Option<LogoWidth>, align: Align) -> Vec<String> {
+    let width = width
+        .map(|w| format!(" width=\"{}\"", w.attr()))
+        .unwrap_or_default();
     let mut lines = wrap(vec![format!("<img src=\"{src}\" alt=\"\"{width}>")], align);
     lines.push(String::new());
     lines
@@ -146,6 +161,243 @@ fn project_tree(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &
         format!("readme style: project tree requested by configuration (depth {depth})"),
         lines,
     ));
+}
+
+// ── 概览卡片 ────────────────────────────────────────────────
+
+/// README 顶部的项目概览卡片。
+///
+/// 和目录树一样，**不由检查结果驱动**：没有任何一项检查要求 README 里有
+/// 一张概览图。默认关闭，`--overview` 或配置里显式开了才生成，理由行里
+/// 也照实写「由配置要求」。
+///
+/// 位置在徽章之后、正文之前。它回答的是「这是什么项目」——语言构成、
+/// 提交活跃度、许可证——那正是一个陌生人点进来的头三秒要的东西。
+fn overview_card(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mut Plan) {
+    if !style.overview {
+        return;
+    }
+    if shows_image(readme, repolish_render::OVERVIEW_PATH) {
+        return;
+    }
+
+    let facts = repolish_render::Facts::from_ctx(ctx);
+    plan.add_file(
+        ctx.root.join(repolish_render::OVERVIEW_PATH),
+        repolish_render::overview(&facts, &card_options(style)),
+        "readme style: project overview card requested by configuration",
+    );
+
+    // 插在徽章那一排之后。插在徽章之前的话，一张图会把作者精心排好的
+    // 一行徽章挤到图下面去，看着像两个不相干的块。
+    let anchor = readme
+        .badge_rows
+        .last()
+        .map(|r| r.end)
+        .or(readme.title_end_line)
+        .or(readme.title_line);
+    let Some(anchor) = anchor else { return };
+
+    let alt = format!("{} at a glance", ctx.display_name());
+    let mut lines = vec![String::new()];
+    lines.extend(wrap(
+        vec![format!(
+            "<img src=\"{}\" alt=\"{}\" width=\"880\">",
+            repolish_render::OVERVIEW_PATH,
+            escape_attr(&alt)
+        )],
+        style.align,
+    ));
+    lines.push(String::new());
+
+    plan.inserts.push(Insert::new(
+        anchor,
+        "readme style: project overview card requested by configuration",
+        lines,
+    ));
+}
+
+// ── 页脚的分数卡片 ──────────────────────────────────────────
+
+/// README 末尾的「用 repolish 打磨过」一节。
+///
+/// 分数卡片放在这里而不是顶上，是想清楚过的：顶上属于**这个项目**，
+/// 一个陌生人点进来第一眼该看到的是它做什么，不是我们的工具给它打了几分。
+/// 而在末尾，读到这儿的人已经决定要不要用这个项目了——此时告诉他
+/// 「这份 README 是用 repolish 打磨的」，才是一条有用的信息而不是一块广告。
+fn footer_card(
+    ctx: &RepoContext,
+    report: &Report,
+    readme: &Readme,
+    style: &ReadmeStyle,
+    plan: &mut Plan,
+) {
+    if !style.footer_card {
+        return;
+    }
+    if shows_image(readme, repolish_render::CARD_PATH) {
+        return;
+    }
+    // 覆盖率不足时卡片上是一个 `--`。往别人 README 末尾贴一张没有分数的
+    // 分数卡片，比不贴更糟。
+    if report.score.is_none() {
+        return;
+    }
+
+    plan.add_file(
+        ctx.root.join(repolish_render::CARD_PATH),
+        repolish_render::card(report, &card_options(style)),
+        "readme style: repolish report card requested by configuration",
+    );
+
+    let cjk = readme_is_cjk(readme);
+    let level = readme.outline().first().map_or(2, |s| s.level) as usize;
+    let (heading, blurb) = if cjk {
+        (
+            "用 repolish 打磨",
+            format!(
+                "这张卡片由 [repolish](%URL%) 生成，是仓库里的一个普通文件——\
+                 没有外部字体、没有脚本、不由任何第三方托管。\
+                 想给自己的仓库打一次分：`{}`。",
+                "cargo install repolish && repolish check ."
+            ),
+        )
+    } else {
+        (
+            "Polished with repolish",
+            format!(
+                "This card is generated by [repolish]({}) and is a plain file in this \
+                 repository — no external fonts, no scripts, nothing hosted by a third party. \
+                 To score your own: `{}`.",
+                "%URL%", "cargo install repolish && repolish check ."
+            ),
+        )
+    };
+    let blurb = blurb.replace("%URL%", repolish_render::REPOLISH_URL);
+
+    let mut lines = vec![
+        String::new(),
+        format!("{} {heading}", "#".repeat(level)),
+        String::new(),
+    ];
+    lines.extend(wrap(
+        vec![format!(
+            "<img src=\"{}\" alt=\"repolish report card\" width=\"880\">",
+            repolish_render::CARD_PATH
+        )],
+        style.align,
+    ));
+    lines.push(String::new());
+    lines.push(blurb);
+    lines.push(String::new());
+
+    plan.inserts.push(Insert::new(
+        readme.raw.lines().count(),
+        "readme style: repolish report card requested by configuration",
+        lines,
+    ));
+}
+
+// ── 表格 ────────────────────────────────────────────────────
+
+/// README 里的表格 → SVG，原表格折进 `<details>`。
+///
+/// **这一刀是包，不是改。** 原表格的每一个字节都留在原处，只在它前后各插
+/// 一段。README 在 GitHub 上渲染表格，在 crates.io、npm 和各种聚合站上
+/// 却常常把管道符原样吐出来——一张图在哪儿都是同一张图。
+///
+/// 原文必须留着，这条不是可选项：图片没有文本层，读屏软件、`grep`、
+/// 翻译工具、以及下一个想改这张表的人，读的都是折起来的那份。
+///
+/// 选表与命名的规则在 [`crate::tables`]，与 `card --kind tables` 共用一份——
+/// 重画出来的文件名和当初插进 README 的对不上，比不重画更糟。
+fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mut Plan) {
+    if style.tables != TableStyle::Svg {
+        return;
+    }
+    let cjk = readme_is_cjk(readme);
+    let rendered = crate::tables::render(readme, &card_options(style), |w| {
+        eprintln!("note: {w}");
+    });
+
+    for table in rendered {
+        // 已经被包过一次了。再包一层会得到嵌套的 <details>，
+        // 而里层那张图早就画好了。
+        if crate::tables::already_wrapped(readme, table.start_line) {
+            continue;
+        }
+
+        plan.add_file(
+            table.path(&ctx.root),
+            table.svg.clone(),
+            format!(
+                "readme style: table at line {} rendered as SVG (requested by configuration)",
+                table.start_line
+            ),
+        );
+
+        let summary = match (&table.title, cjk) {
+            (Some(t), true) => format!("{t}（表格原文）"),
+            (Some(t), false) => format!("{t} as a table"),
+            (None, true) => "表格原文".to_string(),
+            (None, false) => "The same thing as a table".to_string(),
+        };
+        let alt = table.title.clone().unwrap_or_else(|| "table".to_string());
+
+        plan.inserts.push(Insert::new(
+            table.start_line - 1,
+            format!(
+                "readme style: SVG table for the table at line {}",
+                table.start_line
+            ),
+            vec![
+                format!(
+                    "<img src=\"{}\" alt=\"{}\" width=\"880\">",
+                    table.rel,
+                    escape_attr(&alt)
+                ),
+                String::new(),
+                "<details>".to_string(),
+                format!("<summary>{}</summary>", escape_attr(&summary)),
+                String::new(),
+            ],
+        ));
+        plan.inserts.push(Insert::new(
+            table.end_line,
+            format!(
+                "readme style: closing the folded table at line {}",
+                table.start_line
+            ),
+            vec![String::new(), "</details>".to_string()],
+        ));
+    }
+}
+
+/// HTML 属性值里的引号与尖括号。标题是作者写的，可能含任何东西。
+fn escape_attr(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+/// README 里已经**显示**了这张图吗。
+///
+/// 不能光看路径出现过没有：一份文档里提到 `.repolish/card.svg` 的方式，
+/// 除了贴图还有代码块、行内代码和散文——这份 README 自己就在「The cards」
+/// 一节里把两个路径都写了出来。按出现与否判断，那一节会让插入永远不发生。
+///
+/// 只认两种真正会渲染出图的写法：HTML 的 `src="…"` 与 Markdown 的 `](…)`。
+fn shows_image(readme: &Readme, path: &str) -> bool {
+    readme.raw.contains(&format!("src=\"{path}\""))
+        || readme.raw.contains(&format!("src='{path}'"))
+        || readme.raw.contains(&format!("]({path})"))
+}
+
+/// 这份 README 主要是中文吗。插进去的每一段文字都跟着它走——
+/// 我们的报告一律英文，那是另一回事，见 CONTRIBUTING 的第三条规则。
+fn readme_is_cjk(readme: &Readme) -> bool {
+    repolish_render::Lang::detect(&readme.raw) == repolish_render::Lang::ZhCn
 }
 
 /// 按对齐方式包一层。居中块里放 Markdown 语法是不渲染的，所以调用方
@@ -567,7 +819,7 @@ mod style_tests {
     #[test]
     fn the_logo_block_always_ends_with_a_blank_line() {
         for align in [Align::Left, Align::Center] {
-            let lines = logo_lines("assets/hero.svg", Some(420), align);
+            let lines = logo_lines("assets/hero.svg", Some(LogoWidth::Px(420)), align);
             assert_eq!(
                 lines.last().map(String::as_str),
                 Some(""),
@@ -591,8 +843,23 @@ mod style_tests {
 
     #[test]
     fn width_is_emitted_only_when_asked_for() {
-        let lines = logo_lines("a.svg", Some(300), Align::Left);
+        let lines = logo_lines("a.svg", Some(LogoWidth::Px(300)), Align::Left);
         assert!(lines[0].contains(r#"width="300""#), "{:?}", lines[0]);
+    }
+
+    /// 通栏横幅要 `width="100%"`：固定像素宽的图在宽屏上缩在左上角，
+    /// 在手机上又撑破版心
+    #[test]
+    fn a_full_width_logo_asks_for_a_percentage_not_a_pixel_count() {
+        let lines = logo_lines("assets/hero.svg", Some(LogoWidth::Full), Align::Center);
+        assert!(
+            lines.iter().any(|l| l.contains(r#"width="100%""#)),
+            "{lines:?}"
+        );
+        assert_eq!(
+            lines.first().map(String::as_str),
+            Some(r#"<p align="center">"#)
+        );
     }
 
     /// 居中块里放 Markdown 是不渲染的，所以 wrap 只接受 HTML；
@@ -637,5 +904,171 @@ mod style_tests {
         assert!(numbered.lines.iter().any(|l| l.starts_with("1. [A]")));
         assert!(roman.lines.iter().any(|l| l.starts_with("i. [A]")));
         assert!(roman.lines.iter().any(|l| l.starts_with("iv. [D]")));
+    }
+}
+
+#[cfg(test)]
+mod table_tests {
+    use super::*;
+    use repolish_md::edit::apply;
+
+    /// 只跑「包表格」这一刀：造一个完整的 RepoContext 要落地一个仓库，
+    /// 而这里要验的是插入的形状，不是探测。
+    fn wrap_tables(md: &str) -> String {
+        let readme = Readme::parse("README.md", md);
+        let mut inserts = Vec::new();
+        for found in repolish_md::tables::find(&readme.raw) {
+            if found.rows.len() < crate::tables::MIN_ROWS || found.headers.len() < 2 {
+                continue;
+            }
+            let title = readme
+                .sections
+                .iter()
+                .filter(|s| s.line < found.start_line)
+                .max_by_key(|s| s.line)
+                .map(|s| s.title.clone());
+            inserts.push(Insert::new(
+                found.start_line - 1,
+                "svg table",
+                vec![
+                    format!(
+                        "<img src=\"{}/01-x.svg\" alt=\"x\" width=\"880\">",
+                        crate::tables::TABLES_DIR
+                    ),
+                    String::new(),
+                    "<details>".to_string(),
+                    format!(
+                        "<summary>{}</summary>",
+                        title.unwrap_or_else(|| "table".into())
+                    ),
+                    String::new(),
+                ],
+            ));
+            inserts.push(Insert::new(
+                found.end_line,
+                "close",
+                vec![String::new(), "</details>".to_string()],
+            ));
+        }
+        apply(&readme.raw, &inserts)
+    }
+
+    const MD: &str = "# Tool\n\n## Exit codes\n\n| Code | Meaning |\n|---|---|\n| 0 | Success |\n| 1 | Too low |\n\nafter\n";
+
+    /// 这一刀是**包**，不是改：原表格的每一个字节都必须留在原处
+    #[test]
+    fn the_original_table_survives_byte_for_byte() {
+        let out = wrap_tables(MD);
+        assert!(out.contains("| Code | Meaning |\n|---|---|\n| 0 | Success |\n| 1 | Too low |\n"));
+        // 原文的每一行都还在，顺序也没变
+        let mut cursor = 0usize;
+        for line in MD.lines() {
+            let at = out[cursor..]
+                .find(line)
+                .unwrap_or_else(|| panic!("原文这一行不见了: {line:?}"));
+            cursor += at + line.len();
+        }
+    }
+
+    #[test]
+    fn the_image_goes_above_and_the_details_block_closes_below() {
+        let out = wrap_tables(MD);
+        let lines: Vec<&str> = out.lines().collect();
+        let img = lines.iter().position(|l| l.contains(".svg")).unwrap();
+        let open = lines.iter().position(|l| *l == "<details>").unwrap();
+        let table = lines.iter().position(|l| l.starts_with("| Code")).unwrap();
+        let close = lines.iter().position(|l| *l == "</details>").unwrap();
+        assert!(img < open && open < table && table < close, "{lines:#?}");
+        // <summary> 与表格之间必须空一行，否则 GitHub 不渲染折叠块里的表格
+        assert_eq!(lines[open + 2], "");
+        assert!(lines[open + 1].starts_with("<summary>"));
+    }
+
+    #[test]
+    fn the_summary_names_the_section_the_table_lives_in() {
+        assert!(wrap_tables(MD).contains("<summary>Exit codes</summary>"));
+    }
+
+    /// 两三行的表画成图没有增益，只是多一次网络请求
+    #[test]
+    fn a_one_row_table_is_left_alone() {
+        let md = "## X\n\n| a | b |\n|---|---|\n| 1 | 2 |\n";
+        assert_eq!(wrap_tables(md), md);
+    }
+
+    #[test]
+    fn crlf_readmes_keep_crlf() {
+        let md = MD.replace('\n', "\r\n");
+        let out = wrap_tables(&md);
+        assert!(!out.contains("\n\n"), "混进了 LF");
+        assert!(out.contains("<details>\r\n"));
+    }
+
+    /// 已经包过一次的表不能再包一层——里层那张图早就画好了
+    #[test]
+    fn attribute_values_are_escaped() {
+        assert_eq!(
+            escape_attr(r#"a "b" & <c>"#),
+            "a &quot;b&quot; &amp; &lt;c&gt;"
+        );
+    }
+}
+
+#[cfg(test)]
+mod footer_tests {
+    use super::*;
+
+    /// 提到路径不等于贴了图。这份 README 自己就在正文里写出了两个路径。
+    #[test]
+    fn a_path_mentioned_in_prose_does_not_count_as_showing_the_image() {
+        let path = repolish_render::CARD_PATH;
+        let prose = Readme::parse(
+            "README.md",
+            format!("# T\n\nRun `repolish card .` to write {path}.\n"),
+        );
+        assert!(!shows_image(&prose, path));
+
+        let html = Readme::parse(
+            "README.md",
+            format!("# T\n\n<img src=\"{path}\" alt=\"card\" width=\"880\">\n"),
+        );
+        assert!(shows_image(&html, path));
+
+        let md = Readme::parse("README.md", format!("# T\n\n![card]({path})\n"));
+        assert!(shows_image(&md, path));
+    }
+
+    /// 分数卡片必须落在文件末尾。落在顶上，一个陌生人点进这个仓库
+    /// 第一眼看到的就是我们的分数，而不是这个项目。
+    #[test]
+    fn the_score_card_section_is_appended_after_everything_else() {
+        let md = "# Tool\n\n## A\n\nx\n\n## License\n\nMIT\n";
+        let readme = Readme::parse("README.md", md);
+        let lines = vec![
+            String::new(),
+            "## Polished with repolish".to_string(),
+            String::new(),
+        ];
+        let insert = Insert::new(readme.raw.lines().count(), "r", lines);
+        let out = repolish_md::edit::apply(&readme.raw, &[insert]);
+        assert!(out.starts_with("# Tool\n"));
+        assert!(out.trim_end().ends_with("## Polished with repolish"));
+        let body = out.find("MIT").unwrap();
+        let card = out.find("Polished with repolish").unwrap();
+        assert!(body < card, "分数卡片跑到正文前面去了");
+    }
+
+    #[test]
+    fn a_chinese_readme_is_detected_so_the_section_can_follow_it() {
+        let zh = Readme::parse(
+            "README.md",
+            "# 工具\n\n给开源仓库的门面打分，并指出该先改哪一处。\n",
+        );
+        assert!(readme_is_cjk(&zh));
+        let en = Readme::parse(
+            "README.md",
+            "# Tool\n\nScore your repository's front door.\n",
+        );
+        assert!(!readme_is_cjk(&en));
     }
 }

@@ -26,7 +26,26 @@ pub struct GitFacts {
     /// origin 的 URL，用于推断 owner/repo
     pub remote_url: Option<String>,
     pub branch: Option<String>,
+    /// 最近 [`ACTIVITY_WEEKS`] 周的每周提交数，下标 0 是最老的一周。
+    /// 浅克隆下只有被拉下来的那部分历史，见 [`GitFacts::shallow`]。
+    pub activity: Vec<u32>,
+    /// 走图时实际数到的提交数，上限 [`WALK_LIMIT`]。
+    /// 卡片上写「N commits」时要能说清这是不是被截断的数
+    pub commits_seen: usize,
+    /// 是否撞到了 [`WALK_LIMIT`]
+    pub commits_truncated: bool,
 }
+
+/// 活跃度图的跨度。一年是解读一个仓库「还活着吗」的自然窗口——
+/// 再短会把一次正常的假期看成停更，再长则整条曲线都压成一根线。
+pub const ACTIVITY_WEEKS: usize = 52;
+
+/// 走图的上限。活跃度图只画一年，但提交不保证按时间序遍历，
+/// 所以只能按数量兜底而不能碰到窗口外就停。
+///
+/// linux 内核这种量级下，无上限地走完整个图要几秒钟——
+/// 一张概览卡片不值这个时间。
+const WALK_LIMIT: usize = 20_000;
 
 impl GitFacts {
     /// HEAD 距今天数。时钟异常（提交时间在未来）时返回 0。
@@ -78,6 +97,8 @@ pub fn load(root: &Path) -> Option<GitFacts> {
         .string("remote.origin.url")
         .map(|v| v.to_string());
 
+    let (activity, commits_seen, commits_truncated) = load_activity(&repo, head_time);
+
     GitFacts {
         head_id,
         head_time,
@@ -85,6 +106,9 @@ pub fn load(root: &Path) -> Option<GitFacts> {
         shallow: repo.is_shallow(),
         remote_url,
         branch,
+        activity,
+        commits_seen,
+        commits_truncated,
     }
     .into()
 }
@@ -117,6 +141,47 @@ fn load_tags(repo: &gix::Repository) -> Vec<Tag> {
         .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
+}
+
+/// 每周提交数，最近 [`ACTIVITY_WEEKS`] 周。
+///
+/// 窗口的**终点是 HEAD 的提交时间**，不是「现在」。一个两年没动的仓库若按
+/// 当前时间开窗，画出来的是一条整齐的零线——那看着像没数据，而不像停更。
+/// 以 HEAD 为终点，同一个 commit 在任何一天跑出来的图都一样，这也是卡片
+/// 能逐字节复现的前提。
+fn load_activity(repo: &gix::Repository, head_time: i64) -> (Vec<u32>, usize, bool) {
+    const WEEK: i64 = 7 * 86_400;
+    let mut weeks = vec![0u32; ACTIVITY_WEEKS];
+    let start = head_time - (ACTIVITY_WEEKS as i64 - 1) * WEEK;
+
+    let Ok(head) = repo.head_id() else {
+        return (weeks, 0, false);
+    };
+    let Ok(walk) = repo.rev_walk([head]).all() else {
+        return (weeks, 0, false);
+    };
+
+    let mut seen = 0usize;
+    let mut truncated = false;
+    for info in walk {
+        if seen >= WALK_LIMIT {
+            truncated = true;
+            break;
+        }
+        let Ok(info) = info else { continue };
+        let Ok(commit) = info.object() else { continue };
+        let Ok(time) = commit.time() else { continue };
+        seen += 1;
+        let t = time.seconds;
+        if t < start || t > head_time {
+            continue;
+        }
+        let bucket = ((t - start) / WEEK) as usize;
+        if let Some(slot) = weeks.get_mut(bucket) {
+            *slot += 1;
+        }
+    }
+    (weeks, seen, truncated)
 }
 
 #[cfg(test)]

@@ -41,9 +41,19 @@ pub struct Readme {
     /// 仓库内的相对路径。绝对路径在别人机器上打不开，
     /// `readme-link-health` 会立刻把它判成死链。
     pub logo: Option<String>,
-    pub logo_width: Option<u32>,
+    pub logo_width: Option<crate::style::LogoWidth>,
     /// 项目结构树的深度。缺省 = 不生成。
     pub tree_depth: Option<usize>,
+    /// SVG 产物的色板
+    pub theme: Option<crate::style::Theme>,
+    /// SVG 里那些字的语言。缺省跟着 README 走。
+    pub lang: Option<crate::style::CardLang>,
+    /// 插入项目概览卡片
+    pub overview: Option<bool>,
+    /// 在末尾插分数卡片与「用 repolish 打磨过」一节
+    pub footer_card: Option<bool>,
+    /// README 里的表格怎么处理
+    pub tables: Option<crate::style::TableStyle>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -115,6 +125,31 @@ mod tests {
     }
 
     /// 打错键名却什么都没发生，比报错更糟：使用者会以为配置生效了
+    /// TOML 里数字和 `"full"` 都得能写。只收字符串的话，
+    /// 写数字的人会拿到一个说不清的类型错误。
+    #[test]
+    fn logo_width_reads_both_a_number_and_the_word_full() {
+        use crate::style::LogoWidth;
+        let c = parse("[readme]\nlogo-width = 420\n").unwrap();
+        assert_eq!(c.readme.logo_width, Some(LogoWidth::Px(420)));
+        let c = parse("[readme]\nlogo-width = \"full\"\n").unwrap();
+        assert_eq!(c.readme.logo_width, Some(LogoWidth::Full));
+        assert!(parse("[readme]\nlogo-width = \"wide\"\n").is_err());
+    }
+
+    #[test]
+    fn the_visual_options_parse_from_the_readme_section() {
+        let c = parse(
+            "[readme]\ntheme = \"porcelain\"\nlang = \"zh-CN\"\noverview = true\n\
+             footer-card = true\ntables = \"svg\"\n",
+        )
+        .unwrap();
+        assert_eq!(c.readme.theme, Some(crate::style::Theme::Porcelain));
+        assert_eq!(c.readme.lang, Some(crate::style::CardLang::ZhCn));
+        assert_eq!(c.readme.overview, Some(true));
+        assert_eq!(c.readme.tables, Some(crate::style::TableStyle::Svg));
+    }
+
     #[test]
     fn a_misspelled_key_is_an_error_rather_than_a_silent_no_op() {
         let err = parse("profil = \"library\"\n").unwrap_err();
