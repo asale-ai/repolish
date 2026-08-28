@@ -248,6 +248,7 @@ fn all_messages_are_english() {
     let empty_remote = RemoteFacts {
         star_history: Vec::new(),
         star_note: None,
+        created_at: None,
         description: None,
         homepage: None,
         topics: Vec::new(),

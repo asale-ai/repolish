@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="880" height="648" viewBox="0 0 880 648" lang="zh-CN" role="img" aria-label="asale-ai/repolish — repository overview">
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="770" viewBox="0 0 880 770" lang="zh-CN" role="img" aria-label="asale-ai/repolish — repository overview">
   <defs>
     <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#7d56f4"/>
@@ -9,8 +9,8 @@
   <style>
     .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Noto Sans Mono CJK JP", "Microsoft YaHei", "Hiragino Sans", "Yu Gothic", monospace; }
   </style>
-  <rect x="0" y="0" width="880" height="648" rx="18.0" fill="#1a1a24"/>
-  <rect x="0.5" y="0.5" width="879" height="647" rx="17.5" fill="none" stroke="#35334a"/>
+  <rect x="0" y="0" width="880" height="770" rx="18.0" fill="#1a1a24"/>
+  <rect x="0.5" y="0.5" width="879" height="769" rx="17.5" fill="none" stroke="#35334a"/>
   <rect x="36" y="36" width="26" height="26" rx="6.8" fill="url(#brand)"/>
   <path d="M47.4 41.7Q49.2 48.8 56.3 50.6Q49.2 52.3 47.4 59.4Q45.7 52.3 38.6 50.6Q45.7 48.8 47.4 41.7Z" fill="#1a1a24"/>
   <path d="M55.8 38.6Q56.6 41.9 59.9 42.8Q56.6 43.6 55.8 46.9Q54.9 43.6 51.6 42.8Q54.9 41.9 55.8 38.6Z" fill="#1a1a24"/>
@@ -57,6 +57,7 @@
   <text class="t" x="844" y="46" font-size="11" fill="#8b87a3" text-anchor="end" letter-spacing="1.4">类型</text>
   <text class="t" x="844" y="62" font-size="14" fill="#edebfa" text-anchor="end" font-weight="700">cli</text>
   <text class="t" x="36" y="128" font-size="40" fill="#edebfa" text-anchor="start" font-weight="700">repolish</text>
+  <text class="t" x="844" y="112" font-size="14" fill="#edebfa" text-anchor="end" font-weight="700">3 星标</text>
   <text class="t" x="844" y="132" font-size="13" fill="#8b87a3" text-anchor="end">v0.3.0</text>
   <text class="t" x="36" y="152" font-size="13" fill="#8b87a3" text-anchor="start">在命令行上诊断并改进「一个开源仓库在陌生人眼里是什么样」。</text>
   <text class="t" x="36" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">111</text>
@@ -65,12 +66,15 @@
   <text class="t" x="136" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">2</text>
   <text class="t" x="150" y="178" font-size="12" fill="#8b87a3" text-anchor="start">门语言</text>
   <text class="t" x="205" y="178" font-size="13" fill="#35334a" text-anchor="start">·</text>
-  <text class="t" x="219" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">71</text>
+  <text class="t" x="219" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">74</text>
   <text class="t" x="242" y="178" font-size="12" fill="#8b87a3" text-anchor="start">次提交</text>
   <text class="t" x="297" y="178" font-size="13" fill="#35334a" text-anchor="start">·</text>
   <text class="t" x="311" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">3</text>
   <text class="t" x="325" y="178" font-size="12" fill="#8b87a3" text-anchor="start">个标签</text>
-  <text class="t" x="844" y="178" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">无</text>
+  <text class="t" x="380" y="178" font-size="13" fill="#35334a" text-anchor="start">·</text>
+  <text class="t" x="394" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">13</text>
+  <text class="t" x="417" y="178" font-size="12" fill="#8b87a3" text-anchor="start">个主题</text>
+  <text class="t" x="844" y="178" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">Apache-2.0</text>
   <rect x="36" y="194" width="808" height="1" fill="#35334a"/>
   <text class="t" x="36" y="224" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">语言构成 · 按文件数</text>
   <text class="t" x="844" y="224" font-size="12" fill="#8b87a3" text-anchor="end">111 个文件 · 7 类</text>
@@ -131,11 +135,18 @@
   <text class="t" x="844" y="480" font-size="12" fill="#8b87a3" text-anchor="end">48 峰值</text>
   <rect x="36" y="494" width="808" height="66" rx="6.0" fill="#222130"/>
   <line x1="44" y1="502" x2="836" y2="502" stroke="#35334a" stroke-width="1" stroke-dasharray="3 5"/>
-  <path d="M44.0 552.0 L59.5 552.0 L75.1 552.0 L90.6 552.0 L106.1 552.0 L121.6 552.0 L137.2 552.0 L152.7 552.0 L168.2 552.0 L183.8 552.0 L199.3 552.0 L214.8 552.0 L230.4 552.0 L245.9 552.0 L261.4 552.0 L276.9 552.0 L292.5 552.0 L308.0 552.0 L323.5 552.0 L339.1 552.0 L354.6 552.0 L370.1 552.0 L385.6 552.0 L401.2 552.0 L416.7 552.0 L432.2 552.0 L447.8 552.0 L463.3 552.0 L478.8 552.0 L494.4 552.0 L509.9 552.0 L525.4 552.0 L540.9 552.0 L556.5 552.0 L572.0 552.0 L587.5 552.0 L603.1 552.0 L618.6 552.0 L634.1 552.0 L649.6 552.0 L665.2 552.0 L680.7 552.0 L696.2 552.0 L711.8 552.0 L727.3 552.0 L742.8 552.0 L758.4 552.0 L773.9 552.0 L789.4 552.0 L804.9 502.0 L820.5 529.1 L836.0 551.0 L836.0 552 L44 552 Z" fill="#43e5d0" fill-opacity="0.35"/>
-  <path d="M44.0 552.0 L59.5 552.0 L75.1 552.0 L90.6 552.0 L106.1 552.0 L121.6 552.0 L137.2 552.0 L152.7 552.0 L168.2 552.0 L183.8 552.0 L199.3 552.0 L214.8 552.0 L230.4 552.0 L245.9 552.0 L261.4 552.0 L276.9 552.0 L292.5 552.0 L308.0 552.0 L323.5 552.0 L339.1 552.0 L354.6 552.0 L370.1 552.0 L385.6 552.0 L401.2 552.0 L416.7 552.0 L432.2 552.0 L447.8 552.0 L463.3 552.0 L478.8 552.0 L494.4 552.0 L509.9 552.0 L525.4 552.0 L540.9 552.0 L556.5 552.0 L572.0 552.0 L587.5 552.0 L603.1 552.0 L618.6 552.0 L634.1 552.0 L649.6 552.0 L665.2 552.0 L680.7 552.0 L696.2 552.0 L711.8 552.0 L727.3 552.0 L742.8 552.0 L758.4 552.0 L773.9 552.0 L789.4 552.0 L804.9 502.0 L820.5 529.1 L836.0 551.0" fill="none" stroke="#43e5d0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M44.0 552.0 L59.5 552.0 L75.1 552.0 L90.6 552.0 L106.1 552.0 L121.6 552.0 L137.2 552.0 L152.7 552.0 L168.2 552.0 L183.8 552.0 L199.3 552.0 L214.8 552.0 L230.4 552.0 L245.9 552.0 L261.4 552.0 L276.9 552.0 L292.5 552.0 L308.0 552.0 L323.5 552.0 L339.1 552.0 L354.6 552.0 L370.1 552.0 L385.6 552.0 L401.2 552.0 L416.7 552.0 L432.2 552.0 L447.8 552.0 L463.3 552.0 L478.8 552.0 L494.4 552.0 L509.9 552.0 L525.4 552.0 L540.9 552.0 L556.5 552.0 L572.0 552.0 L587.5 552.0 L603.1 552.0 L618.6 552.0 L634.1 552.0 L649.6 552.0 L665.2 552.0 L680.7 552.0 L696.2 552.0 L711.8 552.0 L727.3 552.0 L742.8 552.0 L758.4 552.0 L773.9 552.0 L789.4 552.0 L804.9 502.0 L820.5 526.0 L836.0 551.0 L836.0 552 L44 552 Z" fill="#43e5d0" fill-opacity="0.35"/>
+  <path d="M44.0 552.0 L59.5 552.0 L75.1 552.0 L90.6 552.0 L106.1 552.0 L121.6 552.0 L137.2 552.0 L152.7 552.0 L168.2 552.0 L183.8 552.0 L199.3 552.0 L214.8 552.0 L230.4 552.0 L245.9 552.0 L261.4 552.0 L276.9 552.0 L292.5 552.0 L308.0 552.0 L323.5 552.0 L339.1 552.0 L354.6 552.0 L370.1 552.0 L385.6 552.0 L401.2 552.0 L416.7 552.0 L432.2 552.0 L447.8 552.0 L463.3 552.0 L478.8 552.0 L494.4 552.0 L509.9 552.0 L525.4 552.0 L540.9 552.0 L556.5 552.0 L572.0 552.0 L587.5 552.0 L603.1 552.0 L618.6 552.0 L634.1 552.0 L649.6 552.0 L665.2 552.0 L680.7 552.0 L696.2 552.0 L711.8 552.0 L727.3 552.0 L742.8 552.0 L758.4 552.0 L773.9 552.0 L789.4 552.0 L804.9 502.0 L820.5 526.0 L836.0 551.0" fill="none" stroke="#43e5d0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
   <text class="t" x="36" y="574" font-size="11" fill="#8b87a3" text-anchor="start">52 周前</text>
   <text class="t" x="844" y="574" font-size="11" fill="#8b87a3" text-anchor="end">今天</text>
-  <rect x="36" y="596" width="808" height="1" fill="#35334a"/>
-  <text class="t" x="36" y="620" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · main · cargo</text>
-  <text class="t" x="844" y="620" font-size="12" fill="#8b87a3" text-anchor="end">生成于 repolish v0.3.0</text>
+  <text class="t" x="36" y="602" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">star 增长</text>
+  <text class="t" x="844" y="602" font-size="12" fill="#8b87a3" text-anchor="end">3 星标</text>
+  <rect x="36" y="616" width="808" height="66" rx="6.0" fill="#222130"/>
+  <path d="M44.0 674.0 L812.9 657.3 L836.0 624.0 L836.0 674 L44.0 674 Z" fill="#ffc53d" fill-opacity="0.28"/>
+  <path d="M44.0 674.0 L812.9 657.3 L836.0 624.0" fill="none" stroke="#ffc53d" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text class="t" x="36" y="696" font-size="11" fill="#8b87a3" text-anchor="start">自 2026-08</text>
+  <text class="t" x="844" y="696" font-size="11" fill="#8b87a3" text-anchor="end">2026-08</text>
+  <rect x="36" y="718" width="808" height="1" fill="#35334a"/>
+  <text class="t" x="36" y="742" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · main · cargo</text>
+  <text class="t" x="844" y="742" font-size="12" fill="#8b87a3" text-anchor="end">生成于 repolish v0.3.0</text>
 </svg>

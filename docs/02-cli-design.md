@@ -84,6 +84,10 @@ repository reached star *(k-1)×100+1*. Sampling a dozen pages therefore yields 
 
 Three consequences worth stating:
 
+- **The curve starts at the repository's creation, at zero stars.** That is not an
+  invented point — the repository genuinely had no stars then. It makes the left edge the
+  real beginning rather than "the first star", and it means a repository with a single
+  star still has a curve. Which is the owner most likely to want one.
 - **The last point is the newest stargazer's `starred_at`, not "now".** The curve is then
   entirely a function of remote state, so the same state renders the same file. Using the
   clock would give a slightly different tail on every run.

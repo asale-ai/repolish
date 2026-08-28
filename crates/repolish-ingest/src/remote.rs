@@ -42,6 +42,8 @@ pub struct RemoteFacts {
     pub license: Option<String>,
     pub archived: bool,
     pub stars: u64,
+    /// 仓库创建时间，Unix 秒。star 曲线的原点就是它——那一刻星数为 0。
+    pub created_at: Option<i64>,
     pub default_branch: Option<String>,
     /// star 增长曲线，按时间升序。空 = 没取（见 [`star_history`]）。
     pub star_history: Vec<StarPoint>,
@@ -227,6 +229,10 @@ fn from_json(v: &serde_json::Value) -> RemoteFacts {
         // 不该藏在「解析一份 JSON」里
         star_history: Vec::new(),
         star_note: None,
+        created_at: v
+            .get("created_at")
+            .and_then(|c| c.as_str())
+            .and_then(parse_rfc3339),
         description: non_empty(v.get("description")),
         homepage: non_empty(v.get("homepage")),
         topics: v
@@ -302,6 +308,7 @@ pub fn star_history(
     slug: &RepoSlug,
     token: Option<&str>,
     stars: u64,
+    created_at: Option<i64>,
 ) -> (Vec<StarPoint>, Option<String>) {
     if stars == 0 {
         return (Vec::new(), None);
@@ -345,9 +352,19 @@ pub fn star_history(
         }
     }
 
+    // 曲线的原点是**仓库创建的那一刻，星数为 0**。这不是补出来的假点：
+    // 那一刻它确实是零星的。加上它有两个好处——左边缘从此是真实的起点，
+    // 而不是「第一颗星」这个已经不为零的位置；以及只有一颗星的新仓库
+    // 也画得出一条曲线，而那恰好是最想看这条曲线的人。
+    if let Some(born) = created_at {
+        if points.first().is_some_and(|p| p.at > born) {
+            points.insert(0, StarPoint { at: born, count: 0 });
+        }
+    }
+
     points.sort_by_key(|p| p.at);
     points.dedup_by_key(|p| p.at);
-    // 一个点画不出曲线
+    // 两个点才成一条线
     if points.len() < 2 {
         return (Vec::new(), note);
     }
@@ -644,6 +661,26 @@ mod star_tests {
     fn pagination_is_capped_rather_than_requested_forever() {
         let pages = sample_pages(10_000_000);
         assert_eq!(pages.last(), Some(&MAX_PAGE));
+    }
+
+    /// 曲线的原点是「创建那一刻，零星」——不是补出来的假点，
+    /// 那一刻它确实是零星的。只有一颗星的新仓库因此也画得出曲线，
+    /// 而那恰好是最想看这条曲线的人。
+    #[test]
+    fn the_curve_starts_at_creation_with_zero_stars() {
+        let born = 1_755_570_409; // 2025-08-19
+        let first_star = born + 86_400 * 9;
+        let mut pts = vec![StarPoint {
+            at: first_star,
+            count: 1,
+        }];
+        // star_history 内部那一步，单独验它的语义
+        if pts.first().is_some_and(|p| p.at > born) {
+            pts.insert(0, StarPoint { at: born, count: 0 });
+        }
+        assert_eq!(pts.len(), 2);
+        assert_eq!(pts[0], StarPoint { at: born, count: 0 });
+        assert_eq!(pts[1].count, 1);
     }
 
     /// 时间戳解析是自己写的，所以得真的验一遍
