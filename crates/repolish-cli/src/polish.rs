@@ -13,29 +13,231 @@ use repolish_core::{RepoContext, Report};
 use repolish_md::edit::{apply, Insert};
 use repolish_md::Readme;
 
+use crate::scaffold;
+use crate::style::{Align, ReadmeStyle, TocStyle};
+use crate::tree;
+
+/// 要写出的一个新文件。
+pub struct NewFile {
+    pub path: PathBuf,
+    pub contents: String,
+    /// 哪一条检查结果要求它。干跑时逐条打出来——
+    /// 没有理由的新文件不该出现在别人的仓库里。
+    pub reason: String,
+}
+
 /// 一次运行要落的全部改动。
 #[derive(Default)]
 pub struct Plan {
     /// 对 README 的插入
     pub inserts: Vec<Insert>,
-    /// 需要一并写出的附带文件。徽章行指向 `.repolish/badge.json`，
+    /// 需要一并写出的新文件。徽章行指向 `.repolish/badge.json`，
     /// 那个文件不存在的话插进去的是一个 404——比不插更糟。
-    pub side_files: Vec<(PathBuf, String)>,
+    pub side_files: Vec<NewFile>,
 }
 
 impl Plan {
     pub fn is_empty(&self) -> bool {
         self.inserts.is_empty() && self.side_files.is_empty()
     }
+
+    /// 加一个新文件。**已存在就跳过**——polish 从不覆盖任何东西，
+    /// 这条不变量对新文件和对 README 一样硬。
+    fn add_file(&mut self, path: PathBuf, contents: String, reason: impl Into<String>) {
+        if path.exists() {
+            return;
+        }
+        self.side_files.push(NewFile {
+            path,
+            contents,
+            reason: reason.into(),
+        });
+    }
 }
 
-pub fn plan(ctx: &RepoContext, report: &Report) -> Plan {
+pub fn plan(ctx: &RepoContext, report: &Report, style: &ReadmeStyle) -> Plan {
     let mut plan = Plan::default();
     if let Some(readme) = ctx.readme.as_ref() {
-        badge(ctx, report, readme, &mut plan);
-        toc(report, readme, &mut plan);
+        logo(ctx, readme, style, &mut plan);
+        badge(ctx, report, readme, style, &mut plan);
+        toc(report, readme, style, &mut plan);
+        project_tree(ctx, readme, style, &mut plan);
     }
+    templates(ctx, report, &mut plan);
+    contributing(ctx, report, &mut plan);
     plan
+}
+
+/// README 顶部的图。
+///
+/// **`alt` 必须留空。** 非空 alt 会让这张图成为标题候选，而图片标题会把
+/// `readme-title-tagline` 从 10 分打到 5 分——polish 插一张 logo 反倒让分数掉了，
+/// 是不能接受的。空 alt 同时也是正确的无障碍语义：旁边已经有文字标题，
+/// 这张图是装饰性的，读屏软件应当跳过它。
+fn logo(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mut Plan) {
+    let Some(src) = style.logo.as_deref() else {
+        return;
+    };
+    if readme.raw.contains(src) {
+        return;
+    }
+    // 指向仓库外的图会被 readme-link-health 判成死链，等于用一条修复换一条扣分
+    if !ctx.has(src) {
+        eprintln!("warning: logo {src} is not in the repository, skipping it");
+        return;
+    }
+    let Some(anchor) = readme.title_line else {
+        return;
+    };
+
+    plan.inserts.push(Insert::new(
+        anchor - 1,
+        format!("readme style: logo requested by configuration ({src})"),
+        logo_lines(src, style.logo_width, style.align),
+    ));
+}
+
+/// logo 那几行。
+///
+/// 结尾**必须**空一行。图片块是 HTML，紧跟其后的 Markdown 会被并进那个块——
+/// 少这一行，下面的 `# Name` 就不再是标题，`readme-title-tagline` 会把正文里
+/// 第一个小节标题当成项目名，10 分掉到 6 分。徽章那一刀早就记着这个坑
+/// （flask、fzf 都栽过），这里是同一个。
+fn logo_lines(src: &str, width: Option<u32>, align: Align) -> Vec<String> {
+    let width = width.map(|w| format!(" width=\"{w}\"")).unwrap_or_default();
+    let mut lines = wrap(vec![format!("<img src=\"{src}\" alt=\"\"{width}>")], align);
+    lines.push(String::new());
+    lines
+}
+
+/// 项目结构树。
+///
+/// **这是唯一一把不由检查结果驱动的刀**：没有任何一项检查要求 README 里有
+/// 目录树。默认关闭，只有配置里显式给了 `tree-depth` 才生成，理由行里也
+/// 照实写「由配置要求」。命名这个例外，比假装它也是一条修复要诚实。
+fn project_tree(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mut Plan) {
+    let Some(depth) = style.tree_depth.filter(|d| *d > 0) else {
+        return;
+    };
+    if readme.sections.iter().any(|s| {
+        let t = s.title.to_lowercase();
+        t.contains("project structure") || t.contains("目录结构")
+    }) {
+        return;
+    }
+
+    let level = readme.outline().first().map_or(2, |s| s.level) as usize;
+    let mut lines = vec![
+        format!("{} Project structure", "#".repeat(level)),
+        String::new(),
+        "```".to_string(),
+    ];
+    lines.extend(
+        tree::render(&ctx.files, &ctx.display_name(), depth)
+            .lines()
+            .map(str::to_string),
+    );
+    lines.push("```".to_string());
+    lines.push(String::new());
+
+    // 插在最后：树是参考资料，不该挤在读者最需要的「这是什么、怎么用」前面
+    plan.inserts.push(Insert::new(
+        readme.raw.lines().count(),
+        format!("readme style: project tree requested by configuration (depth {depth})"),
+        lines,
+    ));
+}
+
+/// 按对齐方式包一层。居中块里放 Markdown 语法是不渲染的，所以调用方
+/// 传进来的必须已经是 HTML。
+fn wrap(lines: Vec<String>, align: Align) -> Vec<String> {
+    match align {
+        Align::Left => lines,
+        Align::Center => {
+            let mut out = vec!["<p align=\"center\">".to_string()];
+            out.extend(lines.into_iter().map(|l| format!("  {l}")));
+            out.push("</p>".to_string());
+            out
+        }
+    }
+}
+
+/// issue / PR 模板。
+///
+/// 这一刀最没有争议：GitHub 的表单 schema 问的是版本号、复现步骤、改了什么，
+/// 没有一处是项目特有的，因此没有可猜的余地。缺哪个补哪个——
+/// 已经有 issue 模板只缺 PR 模板时，不会顺手多写两个表单。
+fn templates(ctx: &RepoContext, report: &Report, plan: &mut Plan) {
+    if !failing(report, "issue-pr-template") {
+        return;
+    }
+    let project = ctx.display_name();
+    let dir = ctx.root.join(".github");
+
+    // 已经有任意一个 issue 模板就不再补：作者自己挑的形状不该被我们加料
+    let has_issue = ctx.files.any_matching(|p| {
+        let l = p.to_lowercase();
+        l.starts_with(".github/issue_template")
+            && !l.ends_with("/config.yml")
+            && !l.ends_with("/config.yaml")
+            && (l.ends_with(".md") || l.ends_with(".yml") || l.ends_with(".yaml"))
+    });
+    if !has_issue {
+        plan.add_file(
+            dir.join("ISSUE_TEMPLATE/bug_report.yml"),
+            scaffold::bug_report(&project),
+            "issue-pr-template: no issue template under `.github/`",
+        );
+        plan.add_file(
+            dir.join("ISSUE_TEMPLATE/feature_request.yml"),
+            scaffold::feature_request(&project),
+            "issue-pr-template: no issue template under `.github/`",
+        );
+    }
+
+    let test = scaffold::toolchain(&ctx.manifests).and_then(|t| t.test);
+    plan.add_file(
+        dir.join("pull_request_template.md"),
+        scaffold::pull_request_template(test.as_deref()),
+        "issue-pr-template: no PR template under `.github/`",
+    );
+}
+
+/// 贡献指南。
+///
+/// **探测不出包生态就不生成。** 那时构建与测试命令只能靠编，而写一份
+/// `<your build command here>` 进别人的仓库，比让这一项继续扣分更糟——
+/// 它会让检查项变绿，问题却还在那儿。
+fn contributing(ctx: &RepoContext, report: &Report, plan: &mut Plan) {
+    if !failing(report, "contributing") {
+        return;
+    }
+    // 已经有一份（哪怕很薄）就不动：polish 不重写，补内容是作者的事
+    let exists = ctx.files.any_matching(|p| {
+        let l = p.to_lowercase();
+        matches!(
+            l.as_str(),
+            "contributing.md" | ".github/contributing.md" | "docs/contributing.md"
+        )
+    });
+    if exists {
+        return;
+    }
+    let Some(t) = scaffold::toolchain(&ctx.manifests) else {
+        return;
+    };
+
+    plan.add_file(
+        ctx.root.join("CONTRIBUTING.md"),
+        scaffold::contributing(&ctx.display_name(), ctx.slug.as_ref(), &t),
+        format!(
+            "contributing: none in the repository root, .github/, or docs/ — build commands taken from the detected {} manifest",
+            ctx.manifests
+                .first()
+                .map(|m| m.ecosystem.as_str())
+                .unwrap_or("package")
+        ),
+    );
 }
 
 /// 某个检查项是否扣了分。
@@ -53,7 +255,13 @@ fn failing(report: &Report, id: &str) -> bool {
 ///
 /// 三个前提缺一不可：能算出仓库 slug（否则 URL 里的 owner/repo 只能靠猜）、
 /// 覆盖率够得上出徽章、README 里还没有。
-fn badge(ctx: &RepoContext, report: &Report, readme: &Readme, plan: &mut Plan) {
+fn badge(
+    ctx: &RepoContext,
+    report: &Report,
+    readme: &Readme,
+    style: &ReadmeStyle,
+    plan: &mut Plan,
+) {
     let Some(slug) = ctx.slug.as_ref() else {
         return;
     };
@@ -68,16 +276,38 @@ fn badge(ctx: &RepoContext, report: &Report, readme: &Readme, plan: &mut Plan) {
         .as_ref()
         .and_then(|g| g.branch.clone())
         .unwrap_or_else(|| "main".to_string());
-    let snippet = repolish_render::snippet(&slug.owner, &slug.name, &branch);
-
-    if let Some(insert) = badge_insert(readme, &snippet, repolish_render::BADGE_PATH) {
+    let shields = style.badge.as_str();
+    // 追加到已有的一排徽章里时必须用 Markdown：那一排是作者用 Markdown 写的，
+    // 混一行 HTML 进去会在渲染上留下一道接缝。只有另起一块时才谈得上对齐方式。
+    let inline = repolish_render::styled_snippet(&slug.owner, &slug.name, &branch, shields);
+    if let Some(insert) = badge_insert(readme, &inline, repolish_render::BADGE_PATH) {
+        let appended = readme.badge_anchor().is_some_and(|a| a.appends());
+        let insert = if appended || style.align == Align::Left {
+            insert
+        } else {
+            let html =
+                repolish_render::styled_snippet_html(&slug.owner, &slug.name, &branch, shields);
+            // 这一支只在「另起一块」时走到，而另起一块必须与上一行隔开——
+            // `BadgeAnchor::lines_for` 本来就是这么做的，换成 HTML 不能把它丢掉
+            let mut lines = wrap(vec![html], style.align);
+            lines.insert(0, String::new());
+            Insert::new(insert.after_line, insert.reason.clone(), lines)
+        };
         plan.inserts.push(insert);
     }
 
-    let path = ctx.root.join(repolish_render::BADGE_PATH);
-    if !path.exists() {
-        plan.side_files.push((path, json));
-    }
+    // 本地分把三个可发现性检查项剔出了分母，通常比远程分低几分。
+    // 标签上的 `(local)` 已经是诚实的，但一个默认跑 polish 的人不会知道
+    // 自己刚往 README 上贴了一个偏低的分数——所以这里说出来。
+    let reason = match report.mode {
+        repolish_core::Mode::Local => {
+            "readme-badges: the badge line points at this file — a local score; \
+             re-run with --remote, or let CI overwrite it"
+        }
+        repolish_core::Mode::Remote => "readme-badges: the badge line points at this file",
+    };
+
+    plan.add_file(ctx.root.join(repolish_render::BADGE_PATH), json, reason);
 }
 
 /// README 里该不该插徽章、插在哪。
@@ -104,17 +334,17 @@ const MIN_TOC_ITEMS: usize = 4;
 ///
 /// 每一条都由作者自己的标题生成，一个字都不是编的；锚点按 GitHub 的
 /// slugger 算（见 [`repolish_md::toc`]），否则插进去的是一堆跳不到的死链。
-fn toc(report: &Report, readme: &Readme, plan: &mut Plan) {
+fn toc(report: &Report, readme: &Readme, style: &ReadmeStyle, plan: &mut Plan) {
     if !failing(report, "readme-toc") {
         return;
     }
-    if let Some(insert) = toc_insert(readme) {
+    if let Some(insert) = toc_insert(readme, style.toc) {
         plan.inserts.push(insert);
     }
 }
 
 /// 目录本身。门槛判定在 [`toc`]，这里只管「长什么样、插在哪」。
-fn toc_insert(readme: &Readme) -> Option<Insert> {
+fn toc_insert(readme: &Readme, style: TocStyle) -> Option<Insert> {
     let outline = readme.outline();
     if outline.len() < MIN_TOC_ITEMS {
         return None;
@@ -128,15 +358,28 @@ fn toc_insert(readme: &Readme) -> Option<Insert> {
     // 目录标题的层级跟着正文走。ripgrep 的小节是 `###`，插一个 `##` 进去
     // 等于凭空多出一层，把它原本的层级结构切断了。
     let hashes = "#".repeat(first.level as usize);
-    let mut lines = vec![format!("{hashes} {}", toc_word(&outline)), String::new()];
-    for s in &outline {
+    let word = toc_word(&outline);
+    // fold 把目录收进 <details>：长 README 里一份二十条的目录本身就占满一屏
+    let mut lines = match style {
+        TocStyle::Fold => vec![
+            "<details>".to_string(),
+            format!("<summary>{word}</summary>"),
+            String::new(),
+        ],
+        _ => vec![format!("{hashes} {word}"), String::new()],
+    };
+    for (i, s) in outline.iter().enumerate() {
         let anchor = readme
             .sections
             .iter()
             .position(|x| x.line == s.line)
             .map(|i| anchors[i].clone())
             .unwrap_or_else(|| repolish_md::toc::anchor(&s.title));
-        lines.push(format!("- [{}](#{anchor})", s.title));
+        lines.push(format!("{} [{}](#{anchor})", style.marker(i), s.title));
+    }
+    if style == TocStyle::Fold {
+        lines.push(String::new());
+        lines.push("</details>".to_string());
     }
     lines.push(String::new());
 
@@ -249,7 +492,7 @@ mod toc_tests {
 
     fn toc(md: &str) -> Option<String> {
         let readme = Readme::parse("README.md", md);
-        toc_insert(&readme).map(|i| apply(&readme.raw, &[i]))
+        toc_insert(&readme, TocStyle::default()).map(|i| apply(&readme.raw, &[i]))
     }
 
     #[test]
@@ -311,5 +554,88 @@ mod toc_tests {
         let added = after.len() - before.len();
         assert_eq!(&after[..5], &before[..5]);
         assert_eq!(&after[5 + added..], &before[5..]);
+    }
+}
+
+#[cfg(test)]
+mod style_tests {
+    use super::*;
+    use crate::style::{Align, TocStyle};
+
+    /// 图片块后面不空一行，下面的 `# Name` 会被并进 HTML 块里，
+    /// 于是正文第一个小节标题被当成项目名——实测 10 分掉到 6 分。
+    #[test]
+    fn the_logo_block_always_ends_with_a_blank_line() {
+        for align in [Align::Left, Align::Center] {
+            let lines = logo_lines("assets/hero.svg", Some(420), align);
+            assert_eq!(
+                lines.last().map(String::as_str),
+                Some(""),
+                "{align:?} 缺少结尾空行: {lines:?}"
+            );
+        }
+    }
+
+    /// alt 必须为空：非空 alt 会让这张图成为标题候选，
+    /// 而图片标题会把 readme-title-tagline 从 10 分打到 5 分
+    #[test]
+    fn the_logo_carries_no_alt_text() {
+        let lines = logo_lines("assets/hero.svg", None, Align::Left);
+        let img = &lines[0];
+        assert!(img.contains(r#"alt="""#), "{img}");
+        assert!(
+            !img.contains("width="),
+            "没给宽度就不该有 width 属性: {img}"
+        );
+    }
+
+    #[test]
+    fn width_is_emitted_only_when_asked_for() {
+        let lines = logo_lines("a.svg", Some(300), Align::Left);
+        assert!(lines[0].contains(r#"width="300""#), "{:?}", lines[0]);
+    }
+
+    /// 居中块里放 Markdown 是不渲染的，所以 wrap 只接受 HTML；
+    /// 左对齐时不该凭空多包一层
+    #[test]
+    fn left_alignment_wraps_nothing() {
+        let out = wrap(vec!["<img src=\"a\">".into()], Align::Left);
+        assert_eq!(out, vec!["<img src=\"a\">".to_string()]);
+    }
+
+    #[test]
+    fn centering_wraps_in_a_paragraph_tag() {
+        let out = wrap(vec!["<img src=\"a\">".into()], Align::Center);
+        assert_eq!(
+            out.first().map(String::as_str),
+            Some(r#"<p align="center">"#)
+        );
+        assert_eq!(out.last().map(String::as_str), Some("</p>"));
+    }
+
+    #[test]
+    fn fold_style_closes_its_details_block() {
+        let readme = Readme::parse(
+            "README.md",
+            "# t\n\nintro\n\n## A\n\nx\n\n## B\n\ny\n\n## C\n\nz\n\n## D\n\nw\n",
+        );
+        let insert = toc_insert(&readme, TocStyle::Fold).expect("有目录可插");
+        assert_eq!(insert.lines.first().map(String::as_str), Some("<details>"));
+        assert!(
+            insert.lines.iter().any(|l| l == "</details>"),
+            "{:?}",
+            insert.lines
+        );
+    }
+
+    #[test]
+    fn numbered_and_roman_styles_change_only_the_marker() {
+        let md = "# t\n\nintro\n\n## A\n\nx\n\n## B\n\ny\n\n## C\n\nz\n\n## D\n\nw\n";
+        let readme = Readme::parse("README.md", md);
+        let numbered = toc_insert(&readme, TocStyle::Number).unwrap();
+        let roman = toc_insert(&readme, TocStyle::Roman).unwrap();
+        assert!(numbered.lines.iter().any(|l| l.starts_with("1. [A]")));
+        assert!(roman.lines.iter().any(|l| l.starts_with("i. [A]")));
+        assert!(roman.lines.iter().any(|l| l.starts_with("iv. [D]")));
     }
 }

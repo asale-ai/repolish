@@ -83,7 +83,7 @@ impl Registry {
         let id = check.id();
 
         if opts.skip.contains(id) || (!opts.only.is_empty() && !opts.only.contains(id)) {
-            return Outcome::skipped("filtered out by --only / --skip");
+            return Outcome::skipped("excluded by --only / --skip or .repolish.toml");
         }
         if !check.applies_to(ctx.profile) {
             return Outcome::NotApplicable {

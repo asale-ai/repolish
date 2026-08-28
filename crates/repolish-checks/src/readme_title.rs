@@ -1,4 +1,6 @@
-use repolish_core::{Category, Check, Evidence, Fix, Outcome, RepoContext, Risk, Severity};
+use repolish_core::{
+    Category, Check, Evidence, Fix, Outcome, Profile, RepoContext, Risk, Severity,
+};
 use repolish_md::TitleSource;
 
 /// README 首屏是否说清「这是什么」。
@@ -23,6 +25,12 @@ impl Check for ReadmeTitleTagline {
     }
     fn risk(&self) -> Risk {
         Risk::Critical
+    }
+
+    /// 资料仓库（`Profile::Meta`）**仍然适用**：那张名片开头有没有说清楚
+    /// 「这是谁、在做什么」，正是它存在的全部意义。
+    fn applies_to(&self, _profile: Profile) -> bool {
+        true
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome {

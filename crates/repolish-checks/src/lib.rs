@@ -89,6 +89,30 @@ mod registry_tests {
         assert_eq!(ids.len(), checks.len(), "存在重复的检查项 id");
     }
 
+    /// 资料仓库上保留哪几项，是一个显式决定，不能因为新增检查项而漂移。
+    ///
+    /// `Check::applies_to` 的默认值是「对 meta 不适用」，所以新加的检查项
+    /// 默认不会对组织名片开火——但反过来，谁要是不小心覆盖成了 `true`，
+    /// 这条断言会立刻拦住。
+    #[test]
+    fn meta_repositories_keep_exactly_the_readme_readability_checks() {
+        use repolish_core::Profile;
+        let checks = all();
+        let kept: Vec<&str> = checks
+            .iter()
+            .filter(|c| c.applies_to(Profile::Meta))
+            .map(|c| c.id())
+            .collect();
+        assert_eq!(
+            kept,
+            vec![
+                "readme-title-tagline",
+                "readme-link-health",
+                "readme-length"
+            ]
+        );
+    }
+
     /// 无 `--remote` 时被剔出分母的权重不能过半，否则本地模式永远出不了总分
     #[test]
     fn local_mode_keeps_enough_weight_to_score() {

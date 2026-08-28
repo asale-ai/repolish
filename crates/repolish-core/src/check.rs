@@ -62,8 +62,15 @@ pub trait Check: Send + Sync {
     }
 
     /// 该项目类型是否需要此项。返回 false → `NotApplicable`，不计入分母。
-    fn applies_to(&self, _profile: Profile) -> bool {
-        true
+    ///
+    /// 默认对 [`Profile::Meta`] 不适用：组织的 `.github` 资料仓库不是项目，
+    /// 要求它有 license、CI、测试只会产出满屏假警报。真正衡量「这段 README
+    /// 读得懂吗」的那几项显式覆盖回来。
+    ///
+    /// 默认值取「不适用」而不是「适用」，是因为这个方向的错是安全的：
+    /// 新加的检查项不会在没人过问的情况下突然对资料仓库开火。
+    fn applies_to(&self, profile: Profile) -> bool {
+        profile != Profile::Meta
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome;

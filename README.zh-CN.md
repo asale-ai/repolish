@@ -1,4 +1,4 @@
-# repolish
+<h1><img src="assets/wordmark.svg" alt="repolish" height="52"></h1>
 
 **在命令行上诊断并改进「一个开源仓库在陌生人眼里是什么样」。**
 
@@ -9,6 +9,11 @@
 [![Docs](https://img.shields.io/badge/docs-design%20notes-blue.svg)](docs/README.md)
 
 [English](README.md) · [中文](README.zh-CN.md)
+
+<img src=".repolish/card.svg" alt="repolish 给自己这个仓库打的分" width="880">
+
+<sup>这张卡片由 `repolish card .` 生成，每次 push 由 CI 提交。它就是本仓库里的一个
+普通文件——没有字体、没有脚本，我们不托管任何东西。</sup>
 
 ## 目录
 
@@ -90,8 +95,40 @@ cargo install --git https://github.com/asale-ai/repolish repolish
 repolish check .
 ```
 
-就这一条：它会打印分数、支撑分数的发现，以及在 `--remote` 下 GitHub 自己
-知道的那部分信息。
+就这一条。下面是它跑在 `demo/sample` 上的真实输出——那是一个故意写得很糙的仓库，你可以原样复现：
+
+```text
+  acme/taskvault  · cli (detected) · local · 52d9d0e4
+
+  SCORE   23 / 100    poor        ▄▄▄▄▄▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+
+  DISCOVERABILITY    ▄▄▄▄▄▄▁▁▁▁▁▁   56
+  COMPREHENSIBILITY  ▄▄▄▁▁▁▁▁▁▁▁▁   28
+  CREDIBILITY        ▄▁▁▁▁▁▁▁▁▁▁▁   13
+
+  CHECKS  ●○○○●●●○○●●●●●●●●●●●●●   17 scored · 5 not verified
+
+  ── TO FIX ──────────────────────────────────────────────────────────────
+
+   P1  claim-consistency
+       1 of the 1 verifiable command claims in the README no longer work.
+       Typing the first command from a README and getting an error is the
+       fastest way to lose a user
+       └ README.md:8  `scripts/setup.sh` — does not exist in the repository
+
+   P1  license
+       Add a LICENSE file. No license means all rights reserved — legally,
+       nobody may use your code
+       └ .  no LICENSE file in the repository root
+```
+
+这段输出里有三处才是这个工具的意义所在：
+
+- **`README.md:8`** —— 每一处扣分都指出文件，有行号的给行号。
+- **`5 not verified`** —— 判不了的检查项单独计数并逐条列名，绝不混进分数里当成通过。
+- **`local`** —— 报告永远标明这个分数出自哪一种基准，见[分数怎么来的](#分数怎么来的)。
+
+想看横幅、配色和完整的发现列表，跑 `repolish check . -v`。
 
 ## 用法
 
@@ -106,6 +143,83 @@ repolish check . --only license,ci-present
 `--remote` 从环境变量读取 `GITHUB_TOKEN` 或 `GH_TOKEN`。没有 token 时走匿名配额，
 每小时 60 次。
 
+### 扫描一整个组织
+
+`check` 回答「这个仓库哪里不行」；`scan` 回答的是另一个问题——**我这一堆仓库，先动哪一个，以及哪一条修一次能覆盖最多仓库**。
+
+```bash
+./scripts/clone-org.sh asale-ai        # 并排 clone 到本地
+repolish scan target/orgs/asale-ai --remote
+```
+
+```text
+  SCORE  REPOSITORY         DISC COMP CRED  FIRST THING TO FIX
+  ────────────────────────────────────────────────────────────────────────
+    65   agent-firewall       92   55   57   P1 readme-quickstart
+    75   token-meter          73   81   71   P2 repo-topics
+    85   anything-to-skill    78   90   85   P2 repo-topics
+    86   llm-verify           73   96   85   P2 issue-pr-template
+    91   asale                78   96   96   P2 readme-title-tagline
+    92   seo-geo-skill        87   86  100   P2 repo-topics
+    98   repolish             95   99  100   P2 repo-topics
+
+  7 repositories · median 86 · 2 below 80 · 2 P1 in total
+
+  ── FIX ONCE, LIFTS SEVERAL ─────────────────────────────────────────────
+
+     P2 repo-topics                   5 of 7 repositories
+     P2 issue-pr-template             4 of 7 repositories
+     P2 ci-present                    2 of 7 repositories
+```
+
+按分数升序，因为看这张表的人是来找活干的，不是来领奖的。最后那段是它区别于「跑 N 次 `check`」的全部理由：`issue-pr-template` 在 7 个仓库里缺 4 个，那就是写一次文件、收益乘以四的一刀。
+
+那一段按 **(检查项, 严重度)** 分组，而不是只按检查项。同一项在 0 分的仓库出 P1、在 7 分的仓库出 P2，混成一行再贴上更严重的那个标签，就会写出三条 P1 而实际只有一条。
+
+**`scan` 不负责 clone。** 那要求这个二进制会联网、带 git，而评分是离线优先的。把仓库弄到本地是 `git` 的事。
+
+`--remote` 下**一个仓库拉不到就整次扫描失败**（退出码 4），不会默不作声地退回本地分。把两种基准混在同一张表里排序，是这个工具最不该犯的错。
+
+### 报告卡片
+
+```bash
+repolish card .                     # 写出 .repolish/card.svg
+repolish card . --stdout            # 打印，不落盘
+```
+
+本文件顶上那张卡片就是它。这是徽章再往前走一步：分发方式完全一样——文件在**你自己的**
+仓库里，由你自己的 raw URL 提供，我们不托管任何东西——区别只是徽章上写得下一个数字，
+卡片写得下扣分在哪。
+
+它是一张自包含的 SVG。不引外部字体、不引脚本、不引远程图片：分数和 wordmark 是从一张
+点阵表转成矩形画出来的，因为读者机器上装没装 JetBrains Mono 不由我们决定。渲染是确定性的，
+同一个 commit 产出逐字节一致的文件，CI 不会提交一堆只有噪声的 diff。
+
+想让它一直是最新的，让 CI 和徽章一起写：
+
+```yaml
+- uses: asale-ai/repolish@v0.2.0
+  with:
+    card: true
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### 插入物的排版
+
+`polish` 插进去的东西长什么样是可配的，命令行或 `.repolish.toml` 的 `[readme]` 段都行：
+
+```bash
+repolish polish . --badge-style for-the-badge --toc-style fold --align center
+repolish polish . --logo assets/hero.png --logo-width 420 --tree-depth 2
+```
+
+`--badge-style` 取 shields.io 自己的值，`--toc-style` 有 `bullet` / `number` / `roman` / `fold`（最后一个把目录折进 `<details>`，长 README 很受用），`--tree-depth` 会在末尾追加一棵项目结构树。
+
+**这些一个分数都不动。** 检查项清单与权重在 v1 冻结；一个仓库不能靠换徽章样式让自己好看一点，否则分数在仓库之间就不可比了——而那正是这个工具存在的理由。
+
+`--badge-style` 不指定时会**跟着 README 里已有的徽章走**。一排徽章里混进一个样式不同的，比样式统一但不是我们的默认值更难看。
+
 ### 把能改的直接改掉
 
 ```bash
@@ -113,8 +227,15 @@ repolish polish .                   # 打印它会做哪些改动
 repolish polish . --apply           # 落盘
 ```
 
-`polish` 只做能从检查结果里机械推出来的改动：插入 repolish 徽章（以及它指向的
-那份 `.repolish/badge.json`），以及用你自己的标题生成一份目录。
+`polish` 只做能从检查结果里机械推出来的改动：repolish 徽章（以及它指向的那份
+`.repolish/badge.json`）、用你自己的标题生成的目录、GitHub 的 issue 与 PR 模板，
+以及一份 `CONTRIBUTING.md`——里面的构建与测试命令来自**探测到的包清单**：
+Cargo 项目写 `cargo test`，npm 项目只有 `package.json` 里真有 `test` 脚本时才写。
+
+推不出来的就不写。探测不出包生态就不生成 `CONTRIBUTING.md`，因为另一条路是写一句
+`<your build command here>`——那种文件会让检查项变绿而问题还在原地。行为准则则完全
+不生成：Contributor Covenant 里唯一项目特有的是举报邮箱，而一份留着占位符的行为准则，
+承诺了一条并不存在的举报通道。
 
 它**只插入**。产出的 diff 全是新增行：制表符、列表标记、引用式链接定义、
 行尾都逐字节保留。这不是为谨慎而谨慎——把 README 过一遍 Markdown 格式化器
@@ -194,8 +315,11 @@ repolish check . --remote --min-score 70
 | ------ | --------------------------------------------------- |
 | ✅      | `check` —— 22 个检查项、`--remote`、JSON 输出、`--min-score` |
 | ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制、已发布到 crates.io  |
-| ✅      | `polish --apply` —— 插入徽章与目录；只增量插入，不重写            |
-| ⏳      | polish 的更多改动、LLM 辅助建议                              |
+| ✅      | `polish --apply` —— 徽章、目录、issue / PR 模板、CONTRIBUTING；只增量插入，不重写            |
+| ✅      | `card` —— 自包含的 SVG 报告卡片，可直接贴进 README            |
+| ✅      | `scan` —— 给一个目录下所有仓库排名，并找出它们的共性缺项            |
+| ✅      | `.repolish.toml`，以及 `polish` 插入物的全部排版选项            |
+| ⏳      | LLM 辅助润色措辞，评分路径上依然没有模型                              |
 
 检查项清单与 JSON schema 在 v1 冻结：增删检查项或改权重会改变分数在所有仓库上的
 含义，因此那是一个带版本号的决定，而不是日常改动。

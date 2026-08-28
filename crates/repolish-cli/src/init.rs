@@ -61,13 +61,22 @@ jobs:
         run: |
           git config user.name  github-actions
           git config user.email github-actions@github.com
-          git add {badge}
+          git add {artifacts}
           git diff --staged --quiet || git commit -m "chore: update repolish score"
           git push
 "#,
         action = action_ref(),
-        badge = repolish_render::BADGE_PATH,
+        artifacts = artifacts_dir(),
     )
+}
+
+/// 提交整个 `.repolish/`，而不是单独点名 badge.json——
+/// action 还能写出 card.svg，逐个列举迟早会漏掉一个。
+fn artifacts_dir() -> &'static str {
+    repolish_render::BADGE_PATH
+        .split('/')
+        .next()
+        .expect("BADGE_PATH 应形如 .repolish/badge.json")
 }
 
 /// 固定到生成这份 workflow 的那个版本。浮动 tag 更省心，但也意味着

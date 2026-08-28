@@ -4,11 +4,10 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Terminal, Markdown and shields.io badge renderers for repolish. Internal crate, no API stability guarantees."
+description = "Terminal, SVG, Markdown and shields.io badge renderers for repolish. Internal crate, no API stability guarantees."
 repository = "https://github.com/asale-ai/repolish"
 
 [dependencies]
 repolish-core.workspace = true
-owo-colors.workspace = true
 serde.workspace = true
 serde_json.workspace = true

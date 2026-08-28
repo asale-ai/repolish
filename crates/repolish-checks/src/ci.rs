@@ -50,7 +50,7 @@ impl Check for CiPresent {
     }
 
     fn applies_to(&self, profile: Profile) -> bool {
-        profile != Profile::Collection
+        !matches!(profile, Profile::Collection | Profile::Meta)
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome {

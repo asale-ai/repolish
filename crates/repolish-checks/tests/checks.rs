@@ -422,3 +422,80 @@ fn subdirectory_manifests_make_it_an_app_not_unknown() {
     let ctx = RepoContext::load(ex.path(), None).expect("载入仓库");
     assert_ne!(ctx.profile.as_str(), "app", "示例目录里的清单不该判成 app");
 }
+
+/// 组织的 `.github` 资料仓库不是项目。
+///
+/// 实测踩到的：扫 asale-ai 全组织时，`asale-ai/.github` 被判 7/100 —— 它只有
+/// 一个 `profile/README.md`，却被要求有 license、CI、测试、CONTRIBUTING。
+/// 一屏假警报会让人开始怀疑整张表。
+#[test]
+fn org_profile_repositories_are_not_scored_like_projects() {
+    let fx = Fixture::new(
+        ".github",
+        &[(
+            "profile/README.md",
+            "# acme\n\nWe build small sharp tools. Everything here is Rust and \
+             ships as a single binary, because that is the shape that survives.\n",
+        )],
+    );
+    let ctx = RepoContext::load(fx.path(), None).expect("载入仓库");
+    assert_eq!(
+        ctx.profile,
+        repolish_ingest::Profile::Meta,
+        "应判为资料仓库"
+    );
+
+    // README 按 GitHub 的约定在 profile/ 下，不认这条就会报「没有 README」
+    assert!(ctx.readme.is_some(), "profile/README.md 应被认作 README");
+
+    let report = repolish_checks::registry().run(&ctx, &RunOptions::default());
+
+    let applicable: Vec<&str> = report
+        .checks
+        .iter()
+        .filter(|c| !matches!(c.outcome, Outcome::NotApplicable { .. }))
+        .map(|c| c.id)
+        .collect();
+    assert_eq!(
+        applicable,
+        vec![
+            "readme-title-tagline",
+            "readme-link-health",
+            "readme-length"
+        ],
+        "资料仓库只该保留衡量「这张名片读得懂吗」的三项"
+    );
+
+    // 分数要出得来：判不了总分会让 CI 拿到退出码 5，等于把资料仓库变成硬失败
+    assert!(report.score.is_some(), "资料仓库仍应给出总分");
+    assert!(
+        report.score.unwrap() >= 60,
+        "一张写得清楚的名片不该是低分：{:?}",
+        report.score
+    );
+}
+
+/// `owner == name` **不能**作为资料仓库的判据。
+///
+/// `chalk/chalk`、`eslint/eslint`、`prettier/prettier` 都是真项目；那条规则
+/// 只对**用户**的同名仓库成立，而 owner 是不是用户，不打一次 API 分不出来。
+#[test]
+fn a_repository_named_after_its_owner_is_still_a_project() {
+    let fx = Fixture::new(
+        "chalk",
+        &[
+            ("package.json", r#"{"name":"chalk","version":"1.0.0"}"#),
+            ("source/index.js", "module.exports = {};\n"),
+            (
+                "README.md",
+                "# chalk\n\nTerminal string styling done right.\n",
+            ),
+        ],
+    );
+    let ctx = RepoContext::load(fx.path(), None).expect("载入仓库");
+    assert_ne!(
+        ctx.profile,
+        repolish_ingest::Profile::Meta,
+        "同名仓库不是资料仓库"
+    );
+}

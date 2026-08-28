@@ -4,6 +4,7 @@
 //! 三者给出不同的分数会立刻毁掉信任。
 
 use std::collections::HashSet;
+use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use clap::Args;
@@ -25,8 +26,12 @@ pub struct Common {
     pub remote: bool,
 
     /// Override the detected project type
-    #[arg(long, global = true, default_value = "auto")]
-    pub profile: String,
+    #[arg(long, global = true)]
+    pub profile: Option<String>,
+
+    /// Path to the config file; defaults to .repolish.toml in the repository root
+    #[arg(long, global = true)]
+    pub config: Option<PathBuf>,
 
     /// Run only these checks (comma-separated)
     #[arg(long, global = true, value_delimiter = ',')]
@@ -41,34 +46,49 @@ pub struct Common {
 }
 
 impl Common {
-    pub fn color(&self) -> bool {
-        !self.no_color && std::env::var_os("NO_COLOR").is_none()
+    /// 终端色彩能力。探测规则在 `repolish_render::theme`——
+    /// `--no-color` 只是把用户的意图递进去，别的判断不在这里重写一遍。
+    pub fn level(&self) -> repolish_render::ColorLevel {
+        repolish_render::ColorLevel::detect(self.no_color, std::io::stdout().is_terminal())
     }
 }
 
 pub struct Analysis {
     pub ctx: RepoContext,
     pub report: Report,
+    /// 配置文件里的 `min_score`。命令行给了就用命令行的。
+    pub min_score: Option<u8>,
 }
 
 /// 失败时已经打印过错误，直接返回退出码。
 pub fn analyze(common: &Common) -> Result<Analysis, u8> {
-    let profile_override = if common.profile == "auto" {
-        None
-    } else {
-        match Profile::parse(&common.profile) {
+    let root = dunce::canonicalize(&common.path).map_err(|e| {
+        eprintln!("error: cannot access {}: {e}", common.path.display());
+        let _ = e;
+        exit::NOT_A_REPO
+    })?;
+
+    let config = crate::config::load(common.config.as_deref(), &root).map_err(|e| {
+        eprintln!("error: {e}");
+        exit::BAD_USAGE
+    })?;
+
+    // 命令行 > 配置文件 > 自动探测
+    let requested = common.profile.as_deref().or(config.profile.as_deref());
+    let profile_override = match requested {
+        None | Some("auto") => None,
+        Some(name) => match Profile::parse(name) {
             Some(p) => Some(p),
             None => {
                 eprintln!(
-                    "error: unknown profile \"{}\" — expected one of: auto, library, app, cli, docs, collection",
-                    common.profile
+                    "error: unknown profile \"{name}\" — expected one of: auto, library, app, cli, docs, collection, meta"
                 );
                 return Err(exit::BAD_USAGE);
             }
-        }
+        },
     };
 
-    let mut ctx = RepoContext::load(&common.path, profile_override).map_err(|e| {
+    let mut ctx = RepoContext::load(&root, profile_override).map_err(|e| {
         eprintln!("error: {e:#}");
         exit::NOT_A_REPO
     })?;
@@ -95,11 +115,14 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
 
     let registry = repolish_checks::registry();
 
+    // 空表示「没指定」，此时才轮到配置文件
+    let only = pick(&common.only, &config.checks.only);
+    let skip = pick(&common.skip, &config.checks.skip);
+
     let known: HashSet<&str> = registry.ids().into_iter().collect();
-    if let Some(bad) = common
-        .only
+    if let Some(bad) = only
         .iter()
-        .chain(common.skip.iter())
+        .chain(skip.iter())
         .find(|id| !known.contains(id.as_str()))
     {
         eprintln!("error: unknown check id \"{bad}\"");
@@ -113,12 +136,25 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
         } else {
             Mode::Local
         },
-        only: common.only.iter().cloned().collect(),
-        skip: common.skip.iter().cloned().collect(),
+        only: only.iter().cloned().collect(),
+        skip: skip.iter().cloned().collect(),
     };
 
     let report = registry.run(&ctx, &opts);
-    Ok(Analysis { ctx, report })
+    Ok(Analysis {
+        ctx,
+        report,
+        min_score: config.min_score,
+    })
+}
+
+/// 命令行给了就用命令行的，否则用配置文件的
+fn pick<'a>(cli: &'a [String], cfg: &'a [String]) -> &'a [String] {
+    if cli.is_empty() {
+        cfg
+    } else {
+        cli
+    }
 }
 
 /// 写文件并打印去向。父目录不存在时一并创建。

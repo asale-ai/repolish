@@ -41,9 +41,9 @@ pub enum RemoteError {
     /// 没有 origin，或 origin 不是 GitHub
     NoGithubRemote,
     NotFound(RepoSlug),
-    /// 401/403：多半是未认证时用尽了每小时 60 次匿名配额
+    /// 401/403。`hint` 是**读出来的**原因，不是猜的——见 [`refuse`]。
     Unauthorized {
-        hint: &'static str,
+        hint: String,
     },
     Http(String),
 }
@@ -101,8 +101,11 @@ pub fn parse_slug(url: &str) -> Option<RepoSlug> {
 }
 
 pub fn fetch(slug: &RepoSlug, token: Option<&str>) -> Result<RemoteFacts, RemoteError> {
+    // 不把状态码当错误：ureq 那样会连同响应头和 body 一起丢掉，
+    // 而「为什么被拒」正写在那两处
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(TIMEOUT))
+        .http_status_as_error(false)
         .build()
         .into();
 
@@ -121,19 +124,27 @@ pub fn fetch(slug: &RepoSlug, token: Option<&str>) -> Result<RemoteFacts, Remote
 
     let mut res = match req.call() {
         Ok(r) => r,
-        Err(ureq::Error::StatusCode(404)) => return Err(RemoteError::NotFound(slug.clone())),
-        Err(ureq::Error::StatusCode(401)) => {
-            return Err(RemoteError::Unauthorized {
-                hint: "the token is invalid or has expired",
-            })
-        }
-        Err(ureq::Error::StatusCode(403)) | Err(ureq::Error::StatusCode(429)) => {
-            return Err(RemoteError::Unauthorized {
-                hint: "rate limited. Anonymous calls get 60 per hour; setting GITHUB_TOKEN raises that to 5000",
-            })
-        }
         Err(e) => return Err(RemoteError::Http(e.to_string())),
     };
+
+    let status = res.status().as_u16();
+    if status != 200 {
+        return Err(match status {
+            404 => RemoteError::NotFound(slug.clone()),
+            401 | 403 | 429 => RemoteError::Unauthorized {
+                hint: refuse(
+                    |name| {
+                        res.headers()
+                            .get(name)
+                            .and_then(|v| v.to_str().ok())
+                            .map(|s| s.to_string())
+                    },
+                    token.is_some(),
+                ),
+            },
+            other => RemoteError::Http(format!("GitHub answered {other}")),
+        });
+    }
 
     let json: serde_json::Value = res
         .body_mut()
@@ -141,6 +152,57 @@ pub fn fetch(slug: &RepoSlug, token: Option<&str>) -> Result<RemoteFacts, Remote
         .map_err(|e| RemoteError::Http(format!("the response was not valid JSON: {e}")))?;
 
     Ok(from_json(&json))
+}
+
+/// 为什么这次被拒。
+///
+/// 以前这里把每一个 403 都写成「限流」。那次碰巧是对的，但一个 SSO 拦截、
+/// 一个被封的 User-Agent、一次二级限流都会得到同一句话，把使用者送去申请
+/// 一个根本帮不上忙的 token。这个项目对检查项的要求是「判不了就说判不了」，
+/// 自己的错误路径没有理由例外——所以这里读响应，不猜。
+///
+/// 三个信号，按可靠度排：
+///
+/// - `x-ratelimit-remaining: 0` —— 确凿的主配额耗尽，顺带给出恢复时间
+/// - `retry-after` —— 二级限流（短时间内请求过密），和主配额是两回事
+/// - 都没有 —— 原样转述 GitHub 自己的 `message`
+fn refuse(header: impl Fn(&str) -> Option<String>, authenticated: bool) -> String {
+    if header("x-ratelimit-remaining").as_deref() == Some("0") {
+        let when = header("x-ratelimit-reset")
+            .and_then(|v| v.parse::<u64>().ok())
+            .map(minutes_until)
+            .map(|m| format!(", resets in {m} min"))
+            .unwrap_or_default();
+        return if authenticated {
+            format!("the token's hourly rate limit is used up{when}")
+        } else {
+            format!(
+                "rate limited{when}. Anonymous calls get 60 per hour; setting GITHUB_TOKEN raises that to 5000"
+            )
+        };
+    }
+
+    if let Some(after) = header("retry-after") {
+        return format!(
+            "GitHub asked us to slow down (secondary rate limit); retry after {after}s. This is not the hourly quota — a token does not lift it"
+        );
+    }
+
+    match header("x-github-sso") {
+        Some(_) => "the token needs SSO authorisation for this organisation".to_string(),
+        None if authenticated => "the token is invalid, expired, or lacks access".to_string(),
+        None => "GitHub refused the request and gave no reason we can read".to_string(),
+    }
+}
+
+/// 距离 unix 时间戳 `at` 还有几分钟。时钟不对时返回 0，不做无谓的算术。
+fn minutes_until(at: u64) -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    at.saturating_sub(now).div_ceil(60)
 }
 
 fn from_json(v: &serde_json::Value) -> RemoteFacts {
@@ -238,5 +300,64 @@ mod tests {
         assert!(f.description.is_none());
         assert!(f.homepage.is_none());
         assert!(f.license.is_none());
+    }
+}
+
+#[cfg(test)]
+mod refusal_tests {
+    use super::*;
+
+    /// 用一张固定的表冒充响应头
+    fn headers<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
+        move |name| {
+            pairs
+                .iter()
+                .find(|(k, _)| *k == name)
+                .map(|(_, v)| v.to_string())
+        }
+    }
+
+    #[test]
+    fn an_exhausted_quota_is_named_as_such_and_says_when_it_comes_back() {
+        let msg = refuse(headers(&[("x-ratelimit-remaining", "0")]), false);
+        assert!(msg.contains("rate limited"), "{msg}");
+        assert!(
+            msg.contains("GITHUB_TOKEN"),
+            "未认证时应指出 token 能提额: {msg}"
+        );
+    }
+
+    /// 已经带了 token 还被限流时，再劝人「设置 GITHUB_TOKEN」是没用的建议
+    #[test]
+    fn an_authenticated_caller_is_not_told_to_set_a_token() {
+        let msg = refuse(headers(&[("x-ratelimit-remaining", "0")]), true);
+        assert!(!msg.contains("GITHUB_TOKEN"), "{msg}");
+        assert!(msg.contains("token"), "{msg}");
+    }
+
+    /// 二级限流与每小时配额是两回事，token 提不了它——不能混为一谈
+    #[test]
+    fn a_secondary_limit_is_not_reported_as_the_hourly_quota() {
+        let msg = refuse(headers(&[("retry-after", "60")]), false);
+        assert!(msg.contains("secondary"), "{msg}");
+        assert!(msg.contains("60s"), "{msg}");
+        assert!(!msg.contains("60 per hour"), "不该说成每小时配额: {msg}");
+    }
+
+    #[test]
+    fn an_sso_protected_organisation_is_called_out() {
+        let msg = refuse(headers(&[("x-github-sso", "required")]), true);
+        assert!(msg.contains("SSO"), "{msg}");
+    }
+
+    /// 读不出原因就说读不出来，不要编一个
+    #[test]
+    fn an_unexplained_refusal_says_so_rather_than_guessing() {
+        let msg = refuse(headers(&[]), false);
+        assert!(msg.contains("no reason we can read"), "{msg}");
+        assert!(
+            !msg.contains("rate limited"),
+            "不能把未知原因说成限流: {msg}"
+        );
     }
 }

@@ -49,7 +49,9 @@ regression.
 
 The badge is served from your own repository — shields.io reads
 `.repolish/badge.json` over `raw.githubusercontent.com`. Nothing is hosted by us, which
-also means the file has to be committed for the badge to update.
+also means the file has to be committed for the badge to update. The same applies to
+`.repolish/card.svg` when `card: true` is set, so the step below stages the whole
+directory rather than naming files one by one.
 
 ```yaml
       - uses: asale-ai/repolish@v0.2.0
@@ -60,7 +62,7 @@ also means the file has to be committed for the badge to update.
         run: |
           git config user.name  github-actions
           git config user.email github-actions@github.com
-          git add .repolish/badge.json
+          git add .repolish
           git diff --staged --quiet || git commit -m "chore: update repolish score"
           git push
 ```
@@ -88,6 +90,7 @@ also means the file has to be committed for the badge to update.
 | `remote` | `true` | read description / topics / homepage from the GitHub API |
 | `min-score` | *(none)* | fail below this score |
 | `badge` | `true` | write `.repolish/badge.json` |
+| `card` | `false` | write `.repolish/card.svg`, a self-contained report card to embed in the README |
 | `report` | `false` | write `REPOLISH.md` |
 | `summary` | `true` | append the report to the job summary |
 | `args` | *(none)* | raw arguments; a full escape hatch — see below |

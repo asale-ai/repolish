@@ -26,6 +26,21 @@ To reproduce the manual acceptance run against real repositories:
 The fixtures are shallow clones, matching what `actions/checkout` does by default. They
 are not committed.
 
+## Brand assets
+
+Everything under `assets/` is generated. Do not hand-edit those files — the logo in the
+README and the mark on the report card are drawn from one piece of geometry, and two
+hand-maintained copies become two different logos the first time someone edits one of
+them. Regenerate with:
+
+```bash
+cargo run -p repolish-render --example logo
+```
+
+The colours and the letterforms live in `repolish-render`'s `theme` and `glyph` modules,
+which the terminal renderer uses as well. Change them there and the terminal, the card
+and the logo all move together.
+
 ## The three rules that are not up for debate
 
 **1. Scoring is deterministic.** `repolish-core` must not depend on `repolish-llm`. The

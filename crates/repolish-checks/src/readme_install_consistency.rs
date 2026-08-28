@@ -37,7 +37,7 @@ impl Check for ReadmeInstallConsistency {
     }
 
     fn applies_to(&self, profile: Profile) -> bool {
-        !matches!(profile, Profile::Docs | Profile::Collection)
+        !matches!(profile, Profile::Docs | Profile::Collection | Profile::Meta)
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome {

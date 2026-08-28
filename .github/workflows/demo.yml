@@ -1,0 +1,40 @@
+# 渲染 demo/demo.gif 并提交回仓库。
+#
+# 只手动触发。GIF 是二进制大块，跟着每次 push 重渲一遍只会把 git 历史撑肥，
+# 而演示的内容一年也变不了几次。
+name: demo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    name: vhs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # tape 里敲的是裸 `repolish`，得让它指向这个 commit 构建出来的二进制，
+      # 而不是碰巧装在 runner 上的某个版本
+      - name: Build and put repolish on PATH
+        run: |
+          cargo build --release
+          echo "${GITHUB_WORKSPACE}/target/release" >> "$GITHUB_PATH"
+
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: demo/demo.tape
+
+      - name: Commit the gif
+        run: |
+          git config user.name  github-actions
+          git config user.email github-actions@github.com
+          git add demo/demo.gif
+          git diff --staged --quiet || git commit -m "chore: re-render the demo"
+          git push

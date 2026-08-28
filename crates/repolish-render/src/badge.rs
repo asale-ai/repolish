@@ -58,8 +58,37 @@ fn label_for(mode: Mode) -> String {
 /// `branch` 是徽章 JSON 所在的分支——raw.githubusercontent.com 的 URL 里必须写死
 /// 一个 ref，写默认分支即可。
 pub fn snippet(owner: &str, repo: &str, branch: &str) -> String {
+    styled_snippet(owner, repo, branch, "flat")
+}
+
+/// 带 shields 样式的版本。`style` 取 shields 的 `?style=` 取值。
+///
+/// `flat` 是 shields 自己的默认值，因此**不写进 URL**：一排徽章里只有我们这个
+/// 拖着一个多余的参数，看起来像是有什么特别之处，而它并没有。
+pub fn styled_snippet(owner: &str, repo: &str, branch: &str, style: &str) -> String {
     format!(
-        "[![repolish](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{BADGE_PATH})]({REPOLISH_URL})"
+        "[![repolish]({})]({REPOLISH_URL})",
+        shield_url(owner, repo, branch, style)
+    )
+}
+
+/// HTML 形式，给需要 `<p align="center">` 包裹的场合——
+/// 居中块里放 Markdown 图片语法是不渲染的。
+pub fn styled_snippet_html(owner: &str, repo: &str, branch: &str, style: &str) -> String {
+    format!(
+        r#"<a href="{REPOLISH_URL}"><img src="{}" alt="repolish"></a>"#,
+        shield_url(owner, repo, branch, style)
+    )
+}
+
+fn shield_url(owner: &str, repo: &str, branch: &str, style: &str) -> String {
+    let suffix = if style == "flat" {
+        String::new()
+    } else {
+        format!("&style={style}")
+    };
+    format!(
+        "https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{BADGE_PATH}{suffix}"
     )
 }
 
@@ -133,5 +162,41 @@ mod tests {
         let s = snippet("acme", "widget", "main");
         assert!(s.contains("raw.githubusercontent.com/acme/widget/main/.repolish/badge.json"));
         assert!(s.ends_with(&format!("]({REPOLISH_URL})")));
+    }
+}
+
+#[cfg(test)]
+mod style_tests {
+    use super::*;
+
+    /// flat 是 shields 的默认值，写进 URL 只是噪声
+    #[test]
+    fn the_default_style_adds_no_query_parameter() {
+        assert!(!styled_snippet("o", "r", "main", "flat").contains("style="));
+    }
+
+    #[test]
+    fn a_non_default_style_reaches_shields() {
+        let s = styled_snippet("o", "r", "main", "for-the-badge");
+        assert!(s.contains("&style=for-the-badge"), "{s}");
+        assert!(s.contains(BADGE_PATH), "{s}");
+    }
+
+    /// 居中块里放 Markdown 图片语法是不渲染的，必须给 HTML
+    #[test]
+    fn the_html_form_is_a_real_anchor_and_image() {
+        let s = styled_snippet_html("o", "r", "main", "flat-square");
+        assert!(s.starts_with("<a href="), "{s}");
+        assert!(s.contains("<img src="), "{s}");
+        assert!(s.contains("alt=\"repolish\""), "{s}");
+        assert!(!s.contains("!["), "不该混入 Markdown 语法: {s}");
+    }
+
+    #[test]
+    fn both_forms_point_at_the_same_file() {
+        let md = styled_snippet("acme", "widget", "main", "plastic");
+        let html = styled_snippet_html("acme", "widget", "main", "plastic");
+        let path = "raw.githubusercontent.com/acme/widget/main/.repolish/badge.json";
+        assert!(md.contains(path) && html.contains(path));
     }
 }

@@ -93,7 +93,7 @@ impl Check for DocsPresence {
 
     /// 文档站项目本身就是文档，无从再要求「另有文档」
     fn applies_to(&self, profile: Profile) -> bool {
-        profile != Profile::Docs
+        !matches!(profile, Profile::Docs | Profile::Meta)
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome {

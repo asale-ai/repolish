@@ -75,18 +75,19 @@ jobs:
       # 那样测的就不是这个 PR 的改动了。
       - name: Score this repository
         run: |
-          cargo run --release -- check . --remote --no-color --badge --report
+          cargo run --release -- check . --remote --no-color --badge --report --card
           cat REPOLISH.md >> "$GITHUB_STEP_SUMMARY"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 徽章要能更新，badge.json 就必须留在仓库里：
-      # shields.io 读的是 raw.githubusercontent.com 上的这个文件。
-      - name: Commit badge
+      # 徽章和卡片都必须留在仓库里：shields.io 读的是
+      # raw.githubusercontent.com 上的 badge.json，README 里的 <img> 指的是
+      # card.svg —— 两者都由这一次评分产出，不提交就永远停在旧分数上。
+      - name: Commit badge and card
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name  github-actions
           git config user.email github-actions@github.com
-          git add .repolish/badge.json REPOLISH.md
+          git add .repolish REPOLISH.md
           git diff --staged --quiet || git commit -m "chore: update repolish score"
           git push

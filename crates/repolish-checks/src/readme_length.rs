@@ -29,6 +29,8 @@ impl Check for ReadmeLength {
     /// 资源集合的 README 就是内容本体，长是它的形态而不是缺陷。
     /// 这条不在 docs/03 的例外表里，是 M2 实现时补的：
     /// 验收时 awesome 类仓库全部撞上「过长」，但那种仓库本来就该长。
+    /// 资料仓库（`Profile::Meta`）**仍然适用**：那张名片是不是短到什么都没说，
+    /// 正是它唯一值得判的事情之一。
     fn applies_to(&self, profile: Profile) -> bool {
         profile != Profile::Collection
     }

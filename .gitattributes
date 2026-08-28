@@ -11,6 +11,7 @@
 *.yaml    text eol=lf
 *.sh      text eol=lf
 *.snap    text eol=lf
+*.svg     text eol=lf
 
 # Windows 原生脚本必须是 CRLF
 *.bat     text eol=crlf
@@ -31,4 +32,7 @@
 *.ttf     binary
 
 # 生成物：GitHub 语言统计里忽略，diff 时折叠
-Cargo.lock  -diff linguist-generated
+Cargo.lock          -diff linguist-generated
+# 由 repolish 与 repolish-render 的 logo example 写出，不要手改
+assets/*.svg        linguist-generated
+.repolish/card.svg  -diff linguist-generated

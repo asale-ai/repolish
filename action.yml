@@ -37,6 +37,13 @@ inputs:
     description: Write REPOLISH.md
     required: false
     default: "false"
+  card:
+    description: >
+      Write .repolish/card.svg, a self-contained report card to embed in the
+      README. Off by default: it is only worth committing once you have linked
+      it from somewhere.
+    required: false
+    default: "false"
   summary:
     description: Append the report to the job summary
     required: false
@@ -100,6 +107,7 @@ runs:
         IN_MIN_SCORE: ${{ inputs['min-score'] }}
         IN_BADGE: ${{ inputs.badge }}
         IN_REPORT: ${{ inputs.report }}
+        IN_CARD: ${{ inputs.card }}
         IN_SUMMARY: ${{ inputs.summary }}
         IN_ARGS: ${{ inputs.args }}
       run: |
@@ -136,6 +144,7 @@ runs:
           set -- check "$IN_PATH" --no-color --format json
           [ "$IN_REMOTE" = "true" ] && set -- "$@" --remote
           [ "$IN_BADGE" = "true" ] && set -- "$@" --badge
+          [ "$IN_CARD" = "true" ] && set -- "$@" --card
           [ "$want_md" = "true" ] && set -- "$@" --report
           [ -n "$IN_MIN_SCORE" ] && set -- "$@" --min-score "$IN_MIN_SCORE"
         fi

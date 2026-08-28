@@ -44,10 +44,13 @@ impl RepoContext {
 
         let files = FileIndex::build(&root)?;
 
-        let readme = repolish_md::find_readme(&root).and_then(|p| {
-            let raw = std::fs::read_to_string(&p).ok()?;
-            Some(Readme::parse(p, raw))
-        });
+        let load_readme = |dir: &Path| {
+            repolish_md::find_readme(dir).and_then(|p| {
+                let raw = std::fs::read_to_string(&p).ok()?;
+                Some(Readme::parse(p, raw))
+            })
+        };
+        let mut readme = load_readme(&root);
 
         let git = git::load(&root);
         let slug = git
@@ -57,7 +60,18 @@ impl RepoContext {
 
         let manifests = manifest::detect(&files);
 
-        let detected = profile::detect(&files, readme.as_ref());
+        // 远端名优先：目录名可能被使用者改过
+        let repo_name = slug
+            .as_ref()
+            .map(|s| s.name.clone())
+            .or_else(|| root.file_name().map(|n| n.to_string_lossy().to_string()));
+        let detected = profile::detect(&files, readme.as_ref(), repo_name.as_deref());
+
+        // 资料仓库的 README 按 GitHub 的约定在 `profile/` 下，根目录通常是空的。
+        // 不认这条约定就会对着一个内容齐全的组织名片报「没有 README」。
+        if detected == Profile::Meta && readme.is_none() {
+            readme = load_readme(&root.join("profile"));
+        }
         let (profile, profile_overridden) = match profile_override {
             Some(p) => (p, true),
             None => (detected, false),

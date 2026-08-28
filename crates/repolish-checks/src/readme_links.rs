@@ -1,4 +1,6 @@
-use repolish_core::{Category, Check, Evidence, Fix, Outcome, RepoContext, Risk, Severity};
+use repolish_core::{
+    Category, Check, Evidence, Fix, Outcome, Profile, RepoContext, Risk, Severity,
+};
 
 /// README 里的相对链接与图片是否真的指向存在的文件。
 ///
@@ -14,6 +16,12 @@ impl Check for ReadmeLinkHealth {
     }
     fn risk(&self) -> Risk {
         Risk::Medium
+    }
+
+    /// 资料仓库（`Profile::Meta`）**仍然适用**：组织名片上的链接全是给陌生人点的，
+    /// 断了比在项目 README 里断了更难堪。
+    fn applies_to(&self, _profile: Profile) -> bool {
+        true
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome {

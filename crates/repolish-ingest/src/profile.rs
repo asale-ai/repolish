@@ -16,6 +16,9 @@ pub enum Profile {
     Cli,
     Docs,
     Collection,
+    /// 组织 / 用户的资料仓库（`OWNER/.github`），内容就是一张给人看的名片，
+    /// 不是项目。绝大多数检查项对它不适用。
+    Meta,
     /// 探测不出来时的兜底：所有检查项都适用
     Unknown,
 }
@@ -28,6 +31,7 @@ impl Profile {
             Profile::Cli => "cli",
             Profile::Docs => "docs",
             Profile::Collection => "collection",
+            Profile::Meta => "meta",
             Profile::Unknown => "unknown",
         }
     }
@@ -39,6 +43,7 @@ impl Profile {
             "cli" => Some(Profile::Cli),
             "docs" | "doc" => Some(Profile::Docs),
             "collection" | "awesome" => Some(Profile::Collection),
+            "meta" | "profile" => Some(Profile::Meta),
             // `unknown` 是探测**结果**，不是可以指定的值——
             // 落到这里会走 CLI 的报错分支，把可选值列出来
             "auto" => None,
@@ -55,12 +60,19 @@ const CODE_EXTS: &[&str] = &[
     "vue", "svelte", "astro",
 ];
 
-pub fn detect(files: &FileIndex, readme: Option<&Readme>) -> Profile {
+/// `name` 是仓库名（远端优先，其次目录名）。资料仓库靠名字识别，
+/// 光看文件内容认不出来——它和一个只有 README 的空项目长得一模一样。
+pub fn detect(files: &FileIndex, readme: Option<&Readme>, name: Option<&str>) -> Profile {
     let code_files: usize = CODE_EXTS
         .iter()
         .map(|e| files.content_extension_count(e))
         .sum();
     let md_files = files.content_extension_count("md");
+
+    // 最先判：资料仓库不是项目，后面那些「有没有代码入口」的判据对它没有意义
+    if is_meta(files, name, code_files) {
+        return Profile::Meta;
+    }
 
     // 资源集合：README 巨长、外链极多、几乎没有代码
     if code_files <= 2 {
@@ -88,6 +100,23 @@ pub fn detect(files: &FileIndex, readme: Option<&Readme>) -> Profile {
     }
 
     Profile::Unknown
+}
+
+/// 组织 / 用户的资料仓库。
+///
+/// 两条判据，都是 GitHub 自己的约定：
+///
+/// - 仓库名就是 `.github`
+/// - 根下有 `profile/README.md`，且整个仓库没有代码
+///
+/// **不能**用「owner 与 name 相同」这条：`chalk/chalk`、`eslint/eslint`、
+/// `prettier/prettier` 都是真项目，那条规则只对**用户**的同名仓库成立，
+/// 而 owner 是不是用户，不打一次 API 是分不出来的。
+fn is_meta(files: &FileIndex, name: Option<&str>, code_files: usize) -> bool {
+    if name == Some(".github") {
+        return true;
+    }
+    code_files == 0 && files.contains("profile/README.md")
 }
 
 fn has_executable_entry(files: &FileIndex) -> bool {

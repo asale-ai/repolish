@@ -63,7 +63,7 @@ impl Check for ReadmeQuickstart {
 
     /// 资源集合（awesome-list 类）没有可安装的东西
     fn applies_to(&self, profile: Profile) -> bool {
-        profile != Profile::Collection
+        !matches!(profile, Profile::Collection | Profile::Meta)
     }
 
     fn run(&self, ctx: &RepoContext) -> Outcome {

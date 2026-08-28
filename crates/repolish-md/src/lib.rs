@@ -262,6 +262,14 @@ impl BadgeAnchor {
         }
     }
 
+    /// 是否追加到已有的那排 Markdown 徽章里。
+    ///
+    /// 调用方据此决定用 Markdown 还是 HTML：那一排是作者用 Markdown 写的，
+    /// 混一行 HTML 进去会在渲染上留下一道接缝。只有另起一块时才谈得上对齐。
+    pub fn appends(self) -> bool {
+        matches!(self, BadgeAnchor::AppendToRow(_))
+    }
+
     /// 插入的行，含必要的空行
     pub fn lines_for(self, badge: &str) -> Vec<String> {
         match self {
