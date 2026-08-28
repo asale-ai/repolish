@@ -1,4 +1,6 @@
-# 02· CLI 设计
+# 02 · CLI 设计
+
+[English](02-cli-design.md) · [中文](02-cli-design.zh-CN.md)
 
 二进制名：`repolish`
 
@@ -99,12 +101,12 @@ repolish scan target/orgs/asale-ai --remote
   "label": "repolish",
   "message": "88/100",
   "color": "brightgreen",
-  "repolishVersion": "0.3.1",
+  "repolishVersion": "0.3.0",
   "mode": "remote"
 }
 ```
 
-配色阈值（草案）：`>=90` brightgreen，`>=75` green，`>=60` yellow，`>=40` orange，`<40` red。
+配色阈值：`>=90` brightgreen，`>=75` green，`>=60` yellow，`>=40` orange，`<40` red。这些数字来自 `repolish_core::band_index`，全仓库只有那一处。
 
 `repolishVersion` 与 `mode` 为非标准字段，shields.io 会忽略。
 
@@ -127,11 +129,11 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
 
 ### `--format json`
 
-**已冻结（`schemaVersion: 1`，M2）。** 字段只增不改；删字段或改含义必须递增 `schemaVersion`：
+**已冻结（`schemaVersion: 1`）。** 字段只增不改；删字段或改含义必须递增 `schemaVersion`：
 
 ```json
 {
-  "repolishVersion": "0.3.1",
+  "repolishVersion": "0.3.0",
   "schemaVersion": 1,
   "repository": { "owner": "...", "name": "...", "commit": "..." },
   "profile": { "detected": "cli", "overridden": false },
@@ -163,7 +165,7 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
 }
 ```
 
-`status` 取值：`scored` / `not_applicable` / `skipped` / `inconclusive`（对应 [01-技术架构.md](01-技术架构.md) 的 `Outcome`）。
+`status` 取值：`scored` / `not_applicable` / `skipped` / `inconclusive`（对应 [01-architecture](01-architecture.zh-CN.md) 的 `Outcome`）。
 
 `coverageLimits` 是顶层字段，收纳 `skipped` 与 `inconclusive` 两类，强制报告消费方看到「哪些没验证」。`not_applicable` 不进此列表。
 
@@ -189,7 +191,7 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
 |---|---|
 | **自包含** | 不引外部字体、脚本、远程图片。分数与 wordmark 走点阵转矩形——读者机器上有没有某个字体不由我们决定 |
 | **确定性** | 无时间戳、无随机数。同一个 commit 逐字节一致，否则 CI 每次都提交一堆只有噪声的 diff |
-| **深底恒定** | 不做 `prefers-color-scheme`：GitHub 把 SVG 当图片经 camo 代理渲染，媒体查询在那条链路上不可靠 |
+| **色板恒定** | 不做 `prefers-color-scheme`：GitHub 把 SVG 当图片经 camo 代理渲染，媒体查询在那条链路上不可靠 |
 
 `assets/` 下的 logo 与 wordmark 由 `cargo run -p repolish-render --example logo` 从**同一段几何**生成。手写两份，改了一处忘另一处，两个月后就是两个 logo。
 
@@ -261,7 +263,7 @@ SVG 有深浅两套完整色板（`--theme dark` / `porcelain`），终端只有
 
 ### 产出语言
 
-`reason` / `note` / `message` 一律英文，见 [03-评分维度.md](03-评分维度.md) 设计原则 6。
+`reason` / `note` / `message` 一律英文，见 [03-scoring](03-scoring.zh-CN.md) 设计原则 6。
 上面示例里的字符串是实际产出的原文。
 
 ### 终端输出
@@ -332,7 +334,7 @@ tables      = "svg"        # keep | svg
 两条刻意的限制：
 
 - **未知键直接报错**，不静默忽略。打错一个键名却什么都没发生，比报错更糟：使用者会以为配置生效了。报错会指出是哪个键，并列出合法值。
-- **不开放逐检查项的阈值。** 检查项清单与权重在 v1 冻结（见 [03-评分维度.md](03-评分维度.md)）；允许每个仓库自己调阈值，等于让分数在仓库之间不可比，而那正是这个工具存在的理由。`[checks.readme-length] min_words = 150` 这样的写法会被当作未知键拒绝。
+- **不开放逐检查项的阈值。** 检查项清单与权重在 v1 冻结（见 [03-scoring](03-scoring.zh-CN.md)）；允许每个仓库自己调阈值，等于让分数在仓库之间不可比，而那正是这个工具存在的理由。`[checks.readme-length] min_words = 150` 这样的写法会被当作未知键拒绝。
 - `--config` 指向的文件必须存在，找不到是错误。使用者以为自己指定了一份配置，静默回退到默认值会让他拿到一个解释不了的分数。
 
 ---
@@ -345,7 +347,7 @@ composite action 定义在**仓库根目录的 `action.yml`**（`uses: owner/rep
 为省掉重复的 API 调用，action 只跑一次 `check`，用 `--badge --report` 让同一次运行
 写出全部产物——分开跑意味着几份产物可能来自不同次的评分。
 
-`repolish init` 生成的 workflow 模板（草案）：
+`repolish init` 生成的 workflow 模板：
 
 ```yaml
 name: repolish
@@ -367,7 +369,7 @@ jobs:
           fetch-depth: 0
 
       # remote 与 badge 默认开启；args 作为逃生舱可覆盖全部开关
-      - uses: asale-ai/repolish@v0.2.0
+      - uses: asale-ai/repolish@v0.3.0
         with:
           min-score: 60
         env:

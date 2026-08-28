@@ -23,8 +23,11 @@ To reproduce the manual acceptance run against real repositories:
 ./target/debug/repolish check target/fixtures/ripgrep
 ```
 
-The fixtures are shallow clones, matching what `actions/checkout` does by default. They
-are not committed.
+`fetch-fixtures.sh` clones the 12 real repositories used for manual acceptance; each entry
+is annotated with the defect that repository originally exposed. The fixtures are shallow
+clones, matching what `actions/checkout` does by default, and are not committed.
+
+Design notes live in [docs/](docs/README.md).
 
 ## Brand assets
 
@@ -108,9 +111,15 @@ therefore goes through `repolish-render/src/i18n.rs`, which is a *struct* rather
 lookup table so a missing translation is a compile error rather than a silent fallback.
 The language follows the README (`--lang auto`), never the shell's locale.
 
-Code comments and the design docs under `docs/` are in Chinese; that is deliberate and
-separate. Recognising *Chinese* READMEs is input, not output, so the heading aliases in
-`section.rs` and the stop-word lists stay as they are.
+The design docs under `docs/` exist in both languages, following the same convention as
+the README: `01-architecture.md` is English and `01-architecture.zh-CN.md` is its
+translation. **Edit the English file first**, then bring the Chinese one along in the same
+pull request — a translation that silently falls behind is worse than no translation,
+because a reader cannot tell which one is current.
+
+Code comments stay in Chinese; that is deliberate and separate. Recognising *Chinese*
+READMEs is input, not output, so the heading aliases in `section.rs` and the stop-word
+lists stay as they are.
 
 ## Adding or changing a check
 

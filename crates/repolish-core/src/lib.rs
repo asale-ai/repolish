@@ -1,7 +1,7 @@
 //! 评分引擎的模型与聚合逻辑。
 //!
 //! 硬性边界：本 crate **不依赖 LLM**。评分必须纯确定性、可复现，
-//! 否则徽章没有公信力。见 docs/01-技术架构.md。
+//! 否则徽章没有公信力。见 docs/01-architecture.zh-CN.md。
 
 pub mod check;
 pub mod outcome;

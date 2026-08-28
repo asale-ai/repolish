@@ -31,7 +31,6 @@
 - [检查什么](#检查什么)
 - [分数怎么来的](#分数怎么来的)
 - [当前状态](#当前状态)
-- [参与开发](#参与开发)
 - [贡献](#贡献)
 - [许可证](#许可证)
 
@@ -69,22 +68,6 @@ curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh |
 
 Linux 版只有 glibc 构建。在 musl（Alpine）上安装脚本会直说并停下，而不是装一个根本跑不起来的二进制——那种情况请用 `cargo install repolish`。
 
-### 预编译二进制
-
-每个 release 提供五个目标的二进制，各自带一份 `.sha256`：
-`x86_64-unknown-linux-gnu`、`aarch64-unknown-linux-gnu`、`x86_64-apple-darwin`、
-`aarch64-apple-darwin`、`x86_64-pc-windows-msvc`。
-
-```bash
-VERSION=0.3.0
-TARGET=x86_64-unknown-linux-gnu
-curl -fsSL "https://github.com/asale-ai/repolish/releases/download/v${VERSION}/repolish-v${VERSION}-${TARGET}.tar.gz" | tar -xz
-sudo install "repolish-v${VERSION}-${TARGET}/repolish" /usr/local/bin/
-```
-
-Windows 的归档是 `.zip`，里面是 `repolish.exe`。全部产物见
-[releases 页面](https://github.com/asale-ai/repolish/releases)。
-
 ### 用 cargo 安装
 
 需要 Rust 1.88 或更新版本。
@@ -99,19 +82,7 @@ cargo install repolish
 cargo install --git https://github.com/asale-ai/repolish repolish
 ```
 
-### 在 GitHub Actions 里
-
-```yaml
-- uses: actions/checkout@v4
-  with:
-    fetch-depth: 0
-- uses: asale-ai/repolish@v0.3.0
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-`repolish init` 会替你生成一份完整的 workflow，并固定到生成它的那个版本。
-更多示例见 [action/README.md](action/README.md)。
+五个平台的发布归档（每个都带 `.sha256`）在[发布页](https://github.com/asale-ai/repolish/releases)。GitHub Action 的用法——`repolish init` 会替你生成 workflow——见 [action/README.md](action/README.md)。
 
 ## 快速开始
 
@@ -321,7 +292,7 @@ repolish card . --lang zh-CN        # 默认跟着你的 README 的语言走
 
 `--lang` 缺省是 **auto**，读的是你的 README，不是系统 locale——一张写着 `LANGUAGES · BY FILE` 的卡片贴在中文 README 顶上，是我们把自己的语言塞进了别人的门面。
 
-背后的取舍——为什么不做 `prefers-color-scheme`、为什么录屏第 0 帧是终态、为什么表格文件按 slug 而不是序号命名——写在 [docs/02-CLI设计.md](docs/02-CLI设计.md)。
+背后的取舍——为什么不做 `prefers-color-scheme`、为什么录屏第 0 帧是终态、为什么表格文件按 slug 而不是序号命名——写在 [docs/02-cli-design.zh-CN.md](docs/02-cli-design.zh-CN.md)。
 
 ## 给编码智能体用
 
@@ -340,7 +311,7 @@ repolish skill .                  # 或者把 SKILL.md 写进一个仓库
 ## 检查什么
 
 22 个检查项，分三类。完整定义、权重与阈值见
-[docs/03-评分维度.md](docs/03-评分维度.md)。
+[docs/03-scoring.zh-CN.md](docs/03-scoring.zh-CN.md)。
 
 | 类别       | 检查项                                                  |
 | -------- | ---------------------------------------------------- |
@@ -381,22 +352,6 @@ repolish skill .                  # 或者把 SKILL.md 写进一个仓库
 
 检查项清单与 JSON schema 在 v1 冻结：增删检查项或改权重会改变分数在所有仓库上的
 含义，因此那是一个带版本号的决定，而不是日常改动。
-
-## 参与开发
-
-```bash
-git clone https://github.com/asale-ai/repolish
-cd repolish
-cargo test
-cargo clippy --all-targets
-cargo fmt --all -- --check
-./scripts/fetch-fixtures.sh
-```
-
-`fetch-fixtures.sh` 会克隆用于人工验收的 12 个真实仓库，每一条都注明了这个仓库
-当初暴露出的缺陷。
-
-设计文档在 [docs/](docs/README.md)。发布流程——`./publish.sh` 做了什么、什么情况下它会拒绝启动——在 [CONTRIBUTING.md](CONTRIBUTING.md#releasing)。
 
 ## 贡献
 

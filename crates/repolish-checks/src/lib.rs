@@ -1,6 +1,6 @@
 //! v1 的 22 个检查项。
 //!
-//! 清单与权重冻结于 docs/03-评分维度.md：**增删检查项会改变分数口径**，
+//! 清单与权重冻结于 docs/03-scoring.zh-CN.md：**增删检查项会改变分数口径**，
 //! 必须走 minor 版本并同步 `schemaVersion` 的说明。
 //!
 //! 其中 3 项需要 `--remote`（GitHub API），无 `--remote` 时会被标为 `Skipped`

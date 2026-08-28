@@ -32,7 +32,6 @@ it belongs.</sup>
 - [What it checks](#what-it-checks)
 - [How scoring works](#how-scoring-works)
 - [Status](#status)
-- [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -82,22 +81,6 @@ The Linux builds are glibc-only. On musl (Alpine) the installer says so and
 stops rather than installing a binary that cannot run; use `cargo install
 repolish` there.
 
-### Pre-built binary
-
-Every release ships binaries for five targets, each with a `.sha256` beside it:
-`x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `x86_64-apple-darwin`,
-`aarch64-apple-darwin`, `x86_64-pc-windows-msvc`.
-
-```bash
-VERSION=0.3.0
-TARGET=x86_64-unknown-linux-gnu
-curl -fsSL "https://github.com/asale-ai/repolish/releases/download/v${VERSION}/repolish-v${VERSION}-${TARGET}.tar.gz" | tar -xz
-sudo install "repolish-v${VERSION}-${TARGET}/repolish" /usr/local/bin/
-```
-
-Windows archives are `.zip` and contain `repolish.exe`. Browse every asset on the
-[releases page](https://github.com/asale-ai/repolish/releases).
-
 ### With cargo
 
 Requires Rust 1.88 or newer.
@@ -112,19 +95,9 @@ To build the unreleased `main` instead:
 cargo install --git https://github.com/asale-ai/repolish repolish
 ```
 
-### In GitHub Actions
-
-```yaml
-- uses: actions/checkout@v4
-  with:
-    fetch-depth: 0
-- uses: asale-ai/repolish@v0.3.0
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-`repolish init` writes a complete workflow for you, pinned to the version that generated
-it. More examples in [action/README.md](action/README.md).
+Release archives for five targets, each with a `.sha256`, are on the
+[releases page](https://github.com/asale-ai/repolish/releases). For the GitHub Action —
+which `repolish init` will write a workflow for — see [action/README.md](action/README.md).
 
 ## Quick start
 
@@ -231,7 +204,7 @@ repositories' worth of score.
 `scan` does not clone — that would make this binary need the network and git, and scoring
 is offline-first. Under `--remote`, one repository failing to fetch fails the whole scan
 (exit code 4) rather than quietly mixing a local score into the table. See
-[docs/02-CLI设计.md](docs/02-CLI设计.md#scan) for how the shared-gaps section is grouped.
+[docs/02-cli-design.md](docs/02-cli-design.md#scan) for how the shared-gaps section is grouped.
 
 ### Styling what it inserts
 
@@ -248,7 +221,7 @@ repolish polish . --visuals         # --overview --footer-card --tables svg
 pinned to a fixed width huddles in the corner of a wide window and overflows a narrow one.
 Left unset, `--badge-style` follows whatever badges the README already uses: one badge in a
 different style from the rest of the row looks worse than a row that is uniformly not our
-default. Full list of options in [docs/02-CLI设计.md](docs/02-CLI设计.md).
+default. Full list of options in [docs/02-cli-design.md](docs/02-cli-design.md).
 
 **None of this moves a score.** The check list and weights are frozen at v1; a repository
 cannot make itself look better by picking a different badge style, because then scores
@@ -370,7 +343,7 @@ someone else's front door.
 
 The reasoning behind all of it — why no `prefers-color-scheme`, why frame zero of the
 recording is the finished state, why the tables are named by slug rather than by index —
-is in [docs/02-CLI设计.md](docs/02-CLI设计.md).
+is in [docs/02-cli-design.md](docs/02-cli-design.md).
 
 ## For coding agents
 
@@ -399,7 +372,7 @@ number moves because a model answered differently this morning is worth nothing.
 ## What it checks
 
 22 checks in three categories. Full definitions, weights and thresholds are in
-[docs/03-评分维度.md](docs/03-评分维度.md).
+[docs/03-scoring.md](docs/03-scoring.md).
 
 <img src=".repolish/tables/what-it-checks.svg" alt="What it checks" width="880">
 
@@ -462,28 +435,12 @@ The check set and the JSON schema are frozen for v1: adding, removing, or reweig
 check changes what a score means everywhere, so it is a versioned decision rather than
 ordinary work.
 
-## Development
-
-```bash
-git clone https://github.com/asale-ai/repolish
-cd repolish
-cargo test
-cargo clippy --all-targets
-cargo fmt --all -- --check
-./scripts/fetch-fixtures.sh
-```
-
-`fetch-fixtures.sh` clones the 12 real repositories used for manual acceptance. Each entry
-is annotated with the defect that repository originally exposed.
-
-Design documents live in [docs/](docs/README.md) and are written in Chinese. The release
-runbook — what `./publish.sh` does and why it refuses to start in some states — is in
-[CONTRIBUTING.md](CONTRIBUTING.md#releasing).
-
 ## Contributing
 
-Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). By
-participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers building
+the project, the three rules that are not up for debate, how to add a check, and the
+release runbook. Design notes are in [docs/](docs/README.md). By participating you agree
+to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

@@ -2,7 +2,7 @@
 //!
 //! 为什么不做 `repolish scan <ORG>` 直接从 GitHub 拉：那要求这个二进制会
 //! clone，也就要求它带上网络与 git。评分本身是离线优先的（见
-//! docs/01-技术架构.md），为了省一条 `git clone` 就把整个工具变成联网工具
+//! docs/01-architecture.zh-CN.md），为了省一条 `git clone` 就把整个工具变成联网工具
 //! 不划算。把仓库弄到本地是 `git` 的事，`scripts/clone-org.sh` 一行搞定；
 //! 这里只负责评分。
 //!

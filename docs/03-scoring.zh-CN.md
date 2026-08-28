@@ -1,5 +1,7 @@
 # 03 · 评分维度
 
+[English](03-scoring.md) · [中文](03-scoring.zh-CN.md)
+
 > 检查项清单已定稿于 v1 口径。具体判定阈值会在实现中微调，但**检查项集合与权重不再增删**——见文末「决策记录」。
 
 ## 权重定义
@@ -48,46 +50,46 @@
 
 ## 检查项清单
 
-`本地` = 无需网络；`远程` = 需 `--remote`。`M1` 列标记首批实现。
+`本地` = 无需网络；`远程` = 需 `--remote`。22 项全部已实现。
 
 ### 一、可发现性 Discoverability
 
-| id | 说明 | 风险 | 来源 | M1 |
-|---|---|---|---|---|
-| `repo-description` | 仓库 description 非空且具备信息量（非仅重复项目名） | High | 远程 | |
-| `repo-topics` | topics 数量合理，且与本地信号交叉验证通过 | High | 远程 | |
-| `repo-homepage` | 设置了 homepage 字段 | Low | 远程 | |
-| `readme-title-tagline` | README 首屏有项目名 + 一句话说明「这是什么」 | Critical | 本地 | ✅ |
-| `readme-badges` | 存在基础徽章（构建 / 版本 / 许可证） | Low | 本地 | |
+| id | 说明 | 风险 | 来源 |
+|---|---|---|---|
+| `repo-description` | 仓库 description 非空且具备信息量（非仅重复项目名） | High | 远程 |
+| `repo-topics` | topics 数量合理，且与本地信号交叉验证通过 | High | 远程 |
+| `repo-homepage` | 设置了 homepage 字段 | Low | 远程 |
+| `readme-title-tagline` | README 首屏有项目名 + 一句话说明「这是什么」 | Critical | 本地 |
+| `readme-badges` | 存在基础徽章（构建 / 版本 / 许可证） | Low | 本地 |
 
 ### 二、可理解性 Comprehensibility
 
-| id | 说明 | 风险 | 来源 | M1 |
-|---|---|---|---|---|
-| `readme-quickstart` | 存在安装 / 快速开始区块 | Critical | 本地 | ✅ |
-| `readme-usage-example` | 存在可复制的代码示例 | High | 本地 | ✅ |
-| `readme-install-consistency` | README 中的安装命令与实际包管理器清单一致 | High | 本地 | |
-| `readme-link-health` | README 中的相对链接与图片指向的文件真实存在 | Medium | 本地 | ✅ |
-| `readme-length` | 长度适中（过短信息不足，过长应拆分到 docs/） | Medium | 本地 | |
-| `readme-toc` | 较长的 README 提供目录 | Low | 本地 | |
-| `docs-presence` | 存在 `docs/` 目录或指向文档站的链接 | Medium | 本地 | |
+| id | 说明 | 风险 | 来源 |
+|---|---|---|---|
+| `readme-quickstart` | 存在安装 / 快速开始区块 | Critical | 本地 |
+| `readme-usage-example` | 存在可复制的代码示例 | High | 本地 |
+| `readme-install-consistency` | README 中的安装命令与实际包管理器清单一致 | High | 本地 |
+| `readme-link-health` | README 中的相对链接与图片指向的文件真实存在 | Medium | 本地 |
+| `readme-length` | 长度适中（过短信息不足，过长应拆分到 docs/） | Medium | 本地 |
+| `readme-toc` | 较长的 README 提供目录 | Low | 本地 |
+| `docs-presence` | 存在 `docs/` 目录或指向文档站的链接 | Medium | 本地 |
 | `readme-i18n` | 提供多语言 README | Low | 本地 | |
 
 ### 三、可信度 Credibility
 
-| id | 说明 | 风险 | 来源 | M1 |
-|---|---|---|---|---|
-| `license` | LICENSE 文件存在且可识别为标准许可证 | Critical | 本地 | ✅ |
-| `claim-consistency` | README 承诺的命令 / 脚本 / API 在代码中真实存在 | High | 本地 | |
-| `ci-present` | 存在 CI 配置 | High | 本地 | ✅ |
-| `tests-present` | 存在测试目录或测试文件 | High | 本地 | ✅ |
-| `activity` | 近 90 天内有提交 | High | 本地 | ✅ |
-| `contributing` | 存在 CONTRIBUTING | Medium | 本地 | |
-| `issue-pr-template` | `.github/` 下有 issue / PR 模板 | Medium | 本地 | |
-| `release-hygiene` | 有 tag / release，且 release 带说明 | Medium | 本地 | |
-| `code-of-conduct` | 存在行为准则 | Low | 本地 | |
+| id | 说明 | 风险 | 来源 |
+|---|---|---|---|
+| `license` | LICENSE 文件存在且可识别为标准许可证 | Critical | 本地 |
+| `claim-consistency` | README 承诺的命令 / 脚本 / API 在代码中真实存在 | High | 本地 |
+| `ci-present` | 存在 CI 配置 | High | 本地 |
+| `tests-present` | 存在测试目录或测试文件 | High | 本地 |
+| `activity` | 近 90 天内有提交 | High | 本地 |
+| `contributing` | 存在 CONTRIBUTING | Medium | 本地 |
+| `issue-pr-template` | `.github/` 下有 issue / PR 模板 | Medium | 本地 |
+| `release-hygiene` | 有 tag / release，且 release 带说明 | Medium | 本地 |
+| `code-of-conduct` | 存在行为准则 | Low | 本地 |
 
-**合计 22 项。M1 首批 8 项**：`readme-title-tagline`、`readme-quickstart`、`readme-usage-example`、`readme-link-health`、`license`、`ci-present`、`tests-present`、`activity` —— 全部无需网络。
+**合计 22 项**，全部已实现。其中 19 项无需网络。
 
 ---
 
@@ -109,13 +111,13 @@
 
 用三组本地信号构成期望 topic 词表：
 
-- 主语言与次语言（`tokei`）
+- 主语言与次语言（按扩展名统计文件数）
 - 依赖清单中的框架 / 生态名（`package.json`、`Cargo.toml`、`pyproject.toml` 等）
 - README 一级标题与 tagline 中的名词
 
 若现有 topics 与该词表**交集为空**，得分封顶 5 分，并在 `Fix` 中给出建议补充的 topic 列表（直接来自词表，无需 LLM）。
 
-**语义相关性不做判定。** LLM 模式下可以生成更好的 topic 建议文本，但**不影响分数**——守住「评分确定性」这条边界（见 [01-技术架构.md](01-技术架构.md)）。
+**语义相关性不做判定。** LLM 模式下可以生成更好的 topic 建议文本，但**不影响分数**——守住「评分确定性」这条边界（见 [01-architecture](01-architecture.zh-CN.md)）。
 
 ---
 
@@ -130,7 +132,7 @@
 | `cli` | 存在可执行入口定义（`[[bin]]`、`bin` 字段、`console_scripts`） |
 | `library` | 有包清单与发布配置，无可执行入口 |
 | `app` | 有 Dockerfile / 部署配置，无包发布元数据 |
-| `docs` | 内容以 Markdown 为主，代码占比极低（`tokei`） |
+| `docs` | 内容以 Markdown 为主，代码占比极低 |
 | `collection` | README 极长 + 大量外链 + 几乎无代码（awesome-list 类） |
 | `meta` | 仓库名为 `.github`，或有 `profile/README.md` 且无任何代码 |
 
@@ -191,7 +193,7 @@
 
 **5. 不重复 scorecard。** 安全维度（SAST、Fuzzing、签名、依赖固定等）一律不做，报告中链接过去即可。
 
-**6. 产出一律英文。** `Evidence` / `Fix` / `Inconclusive` 的文案、终端渲染、CLI 帮助与 `init` 生成的 workflow 注释都用英文；代码注释与本套设计文档保持中文。`REPOLISH.md` 会被提交进陌生人的仓库，混合语言的报告没人愿意留着。反过来，识别中文 README 的能力（`section.rs` 的标题别名、中文停用词）不受影响——那是输入，不是输出。`tests/checks.rs::all_messages_are_english` 守住这条。
+**6. 产出一律英文。** `Evidence` / `Fix` / `Inconclusive` 的文案、终端渲染、CLI 帮助与 `init` 生成的 workflow 注释都用英文；代码注释保持中文；设计文档中英各一份，以英文版为准。`REPOLISH.md` 会被提交进陌生人的仓库，混合语言的报告没人愿意留着。反过来，识别中文 README 的能力（`section.rs` 的标题别名、中文停用词）不受影响——那是输入，不是输出。`tests/checks.rs::all_messages_are_english` 与 `repolish-cli/tests/cli_is_english.rs` 守住这条。
 
 ---
 

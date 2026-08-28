@@ -1,7 +1,7 @@
 //! 聚合：风险加权平均 + 分母保护，以及**冻结的 JSON 输出契约**。
 //!
 //! `schemaVersion` 自 M2 起为 1。字段只增不改：删字段或改含义必须递增
-//! `schemaVersion`，因为 CI 门禁与徽章都在消费它。见 docs/02-CLI设计.md。
+//! `schemaVersion`，因为 CI 门禁与徽章都在消费它。见 docs/02-cli-design.zh-CN.md。
 
 use serde::Serialize;
 
@@ -171,7 +171,7 @@ impl Report {
             .and_then(|cs| cs.score)
     }
 
-    /// 徽章配色阈值，见 docs/02-CLI设计.md
+    /// 徽章配色阈值，见 docs/02-cli-design.zh-CN.md
     pub fn color(&self) -> &'static str {
         match self.score {
             Some(s) => ["brightgreen", "green", "yellow", "orange", "red"][band_index(s)],
