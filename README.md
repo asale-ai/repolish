@@ -57,29 +57,14 @@ number. And **it says when it does not know** — a check that cannot be decided
 curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
 ```
 
-Downloads the release binary for your platform, verifies its `.sha256`, installs
-it into `~/.local/bin`, and drops the [agent skill](#for-coding-agents) into
-whichever agents it finds on the machine. Read it first if you would rather not
-pipe a script into a shell — it is POSIX `sh`, about 200 lines, and it does
-exactly those four things.
+Downloads the release binary for your platform, verifies its `.sha256`, installs it into
+`~/.local/bin`, and drops the [agent skill](#for-coding-agents) into whichever agents it
+finds. It is POSIX `sh`, about 200 lines, and does exactly those four things — read it
+first if you would rather not pipe a script into a shell. `REPOLISH_VERSION`,
+`REPOLISH_BIN_DIR` and `REPOLISH_TARGET` override the defaults.
 
-<img src=".repolish/tables/one-line.svg" alt="One line" width="880">
-
-<details>
-<summary>One line as a table</summary>
-
-| Variable | Default | What it does |
-|---|---|---|
-| `REPOLISH_VERSION` | latest release | Install a specific tag, e.g. `v0.2.0` |
-| `REPOLISH_BIN_DIR` | `~/.local/bin` | Where the binary goes |
-| `REPOLISH_TARGET` | `detect` | Which agents get the skill: `detect`, `all`, `none`, or one id |
-| `REPOLISH_NO_SKILL` | unset | Set to `1` for the binary only |
-
-</details>
-
-The Linux builds are glibc-only. On musl (Alpine) the installer says so and
-stops rather than installing a binary that cannot run; use `cargo install
-repolish` there.
+The Linux builds are glibc-only. On musl the installer says so and stops rather than
+installing a binary that cannot run; use `cargo install repolish` there.
 
 ### With cargo
 
@@ -167,28 +152,18 @@ falls back to the anonymous quota of 60 requests per hour.
 
 ### Styling what it inserts
 
-Everything `polish` inserts is configurable, from the command line or from `[readme]` in
-`.repolish.toml`:
-
 ```bash
 repolish polish . --badge-style for-the-badge --toc-style fold --align center
 repolish polish . --logo assets/hero.svg --logo-width full --tree-depth 2
 repolish polish . --visuals         # --overview --footer-card --tables svg
 ```
 
-`--logo-width` takes a pixel count or **`full`**, which emits `width="100%"` — a banner
-pinned to a fixed width huddles in the corner of a wide window and overflows a narrow one.
-Left unset, `--badge-style` follows whatever badges the README already uses: one badge in a
-different style from the rest of the row looks worse than a row that is uniformly not our
-default. Full list of options in [docs/02-cli-design.md](docs/02-cli-design.md).
-
-**None of this moves a score.** The check list and weights are frozen at v1; a repository
-cannot make itself look better by picking a different badge style, because then scores
-would stop being comparable — which is the whole point.
-
-The logo, the tree and the cards are **not driven by a check**. Nothing asks for a banner.
-They stay off unless you ask, and `polish` says "requested by configuration" in its dry run
-rather than dressing them up as fixes.
+Also settable under `[readme]` in `.repolish.toml`; the full list is in
+[docs/02-cli-design.md](docs/02-cli-design.md). **None of it moves a score** — the check
+list and weights are frozen at v1, so a repository cannot look better by picking a
+different badge style. The logo, the tree and the cards are not driven by any check; they
+stay off unless you ask, and the dry run says "requested by configuration" rather than
+dressing them up as fixes.
 
 ### Fixing what can be fixed
 
@@ -197,22 +172,19 @@ repolish polish .                   # print the changes it would make
 repolish polish . --apply           # write them
 ```
 
-`polish` only makes changes that follow mechanically from the findings: the repolish badge
-(alongside the `.repolish/badge.json` it points at), a table of contents built from your
-own headings, GitHub issue and pull request templates, and a `CONTRIBUTING.md` whose build
-and test commands come from your **detected package manifest**.
+`polish` only makes changes that follow mechanically from the findings: the repolish
+badge, a table of contents built from your own headings, GitHub issue and pull request
+templates, and a `CONTRIBUTING.md` whose build and test commands come from your **detected
+package manifest**.
 
 **Where it cannot know, it does not write.** No manifest means no `CONTRIBUTING.md`,
 because the alternative is `<your build command here>` — a file that turns the check green
 while the problem stays exactly where it was.
 
 **It only inserts.** The diff is new lines and nothing else: your tabs, list markers,
-reference-style link definitions and line endings survive byte for byte. Round-tripping a
-README through a Markdown formatter is lossy on 12 of 12 real-world READMEs, and a tool
-that teaches people to tidy their repository has no business reflowing their prose.
-
-`--apply` refuses to run outside a git repository unless you pass `--force`, because
-`git checkout` is the undo button.
+reference-style link definitions and line endings survive byte for byte. `--apply` refuses
+to run outside a git repository unless you pass `--force`, because `git checkout` is the
+undo button.
 
 ### As a CI gate
 
@@ -268,42 +240,29 @@ repolish card . --kind score    # .repolish/card.svg     — what repolish score
 repolish card . --kind tables   # redraw the README's tables
 repolish demo .                 # run the CLI and record it as an animated SVG
 repolish polish . --apply --visuals   # insert all of the above into the README
+
+repolish card . --theme porcelain   # light palette, for a light-leaning README
+repolish card . --lang ja           # en / zh-CN / ja; by default it follows your README
 ```
 
 **Where each one goes is the point.** The overview card belongs at the top, under the
-badges: a stranger's first question is what this is, what it is written in, and whether
-it is still alive. The report card belongs at the [end](#polished-with-repolish) — at the
-top it would mean the first thing a visitor sees is our tool grading your project instead
-of your project. Earlier versions of this README had it the other way round, and it was
-wrong.
+badges: a stranger's first question is what this is and whether it is still alive. The
+report card belongs at the [end](#polished-with-repolish) — at the top it would mean the
+first thing a visitor sees is our tool grading your project instead of your project.
 
-**Tables become pictures, and the original is kept.** GitHub renders Markdown tables;
-crates.io, npm and most aggregators print the pipes. `--tables svg` draws each table once
-and folds the original into `<details>` beneath it — an image has no text layer, so screen
-readers, `grep` and the next person to edit that table all read the folded copy. The
-wrapping is pure insertion: the table's own bytes are untouched.
+`--tables svg` draws each README table as a picture and folds the original into
+`<details>` beneath it, in every language the repository has a README for. The original
+stays: an image has no text layer, so screen readers, `grep` and the next person to edit
+that table all read the folded copy.
 
-**The recording runs the commands.** `repolish demo` executes them and renders the result
-as an animated SVG driven by CSS keyframes — text, so it diffs; no `ttyd`, no `ffmpeg`, no
-GIF blobs in the history. The scores in the recording at the top of this page are what that
-run actually produced. Use `--dry-run` to see the commands first, and `--tape` if you would
-rather have a VHS tape for a registry that does not render SVG.
-
-Two adjustments, neither of which moves a score:
-
-```bash
-repolish card . --theme porcelain   # light palette, for a light-leaning README
-repolish card . --lang zh-CN        # or ja; by default it follows your README's language
-```
-
-`--lang` takes `en`, `zh-CN` or `ja`, and defaults to **auto**, which reads your README
-rather than your shell's locale — a card saying `LANGUAGES · BY FILE` on top of a Chinese
-README is our language pushed into someone else's front door. Detection looks for kana
-first, since Japanese and Chinese share their kanji and nothing else tells them apart.
+`repolish demo` **runs** the commands and records the result — the scores in the recording
+at the top of this page are what that run actually produced. Use `--dry-run` to see the
+commands first.
 
 The reasoning behind all of it — why no `prefers-color-scheme`, why frame zero of the
-recording is the finished state, why the tables are named by slug rather than by index —
-is in [docs/02-cli-design.md](docs/02-cli-design.md).
+recording is the finished state, why tables are named by slug rather than index, why kana
+decides Japanese before the CJK ratio decides Chinese — is in
+[docs/02-cli-design.md](docs/02-cli-design.md).
 
 ## For coding agents
 
@@ -319,15 +278,10 @@ repolish skill .                  # or write SKILL.md into a repository
 
 [skills/repolish/SKILL.md](skills/repolish/SKILL.md) is the file to hand to Claude Code,
 Codex, Gemini, OpenCode or anything reading `AGENTS.md`. Beyond the command surface it
-carries the part that matters: the order — **measure, apply what is mechanical, hand back
-what needs judgement, measure again** — where repolish's own confidence runs out, and what
-a good fix looks like per finding. A `claim-consistency` failure is fixed by making the
-claim true, **never** by deleting the line, which turns the check green and leaves the
-reader with nothing.
-
-That division is the answer to "why not put an LLM in it": the agent has context repolish
-structurally cannot have, and repolish has determinism the agent cannot have. A badge whose
-number moves because a model answered differently this morning is worth nothing.
+carries the order — **measure, apply what is mechanical, hand back what needs judgement,
+measure again** — where repolish's own confidence runs out, and what a good fix looks like
+per finding. A `claim-consistency` failure is fixed by making the claim true, **never** by
+deleting the line, which turns the check green and leaves the reader with nothing.
 
 ## What it checks
 
@@ -354,43 +308,21 @@ its first command is where readers leave.
 
 ## How scoring works
 
-Each check returns 0–10 and carries a risk weight (critical 10, high 7.5, medium 5,
-low 2.5). The total is the weighted average, scaled to 100.
+Each check returns 0–10 and carries a risk weight; the total is the weighted average.
+Checks that end up *not applicable*, *inconclusive* or *skipped* are excluded from the
+denominator rather than counted as passes — and **if fewer than half the weights were
+scored, no total is reported at all**, because "we checked three things and they passed"
+must not read as 100/100.
 
-A check can also end up *not applicable* (a documentation site needs no test suite),
-*inconclusive* (a shallow clone has no tags to judge releases by), or *skipped*. Only
-scored checks count toward the denominator, and **if fewer than half the registered
-weights were actually scored, no total is reported at all** — otherwise "we checked
-three things and they passed" would read as 100/100.
-
-Local and remote scores are not comparable: without `--remote`, three discoverability
-checks drop out of the denominator. Reports label which one you are looking at.
+Weights, thresholds and the aggregation rules are in
+[docs/03-scoring.md](docs/03-scoring.md).
 
 ## Status
 
-Everything below is either shipped or explicitly not built yet. This section will keep
-saying so until it changes:
+Everything described above is shipped. Still to come: LLM-assisted wording suggestions,
+with no model in the scoring path.
 
-<img src=".repolish/tables/status.svg" alt="Status" width="880">
-
-<details>
-<summary>Status as a table</summary>
-
-| | |
-|---|---|
-| ✅ | `check` — 22 checks, `--remote`, JSON output, `--min-score` |
-| ✅ | `badge`, `report`, `init`, GitHub Action, pre-built binaries for 5 targets, published on crates.io |
-| ✅ | `polish --apply` — badge, table of contents, issue / PR templates, CONTRIBUTING; only-insert, never rewrites |
-| ✅ | `card` — an overview card for the top of the README and a report card for the end, self-contained SVG, dark or porcelain, English / Chinese / Japanese |
-| ✅ | `--tables svg` — README tables drawn as SVG in every language, the original folded into `<details>` |
-| ✅ | `demo` — records the detected CLI by running it, as an animated SVG; `--tape` for a VHS GIF instead |
-| ✅ | `skill` — `SKILL.md`, so a coding agent measures before it edits |
-| ✅ | `.repolish.toml`, and styling options for everything `polish` inserts |
-| ⏳ | LLM-assisted wording suggestions, still with no model in the scoring path |
-
-</details>
-
-The check set and the JSON schema are frozen for v1: adding, removing, or reweighting a
+The check set and the JSON schema are frozen for v1. Adding, removing or reweighting a
 check changes what a score means everywhere, so it is a versioned decision rather than
 ordinary work.
 

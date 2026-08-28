@@ -319,6 +319,23 @@ tables      = "svg"        # keep | svg
 
 ---
 
+## install.sh
+
+一行安装脚本。它解析最新发布、下载对应平台的归档、核对旁边那个 `.sha256`、原子地装进 `~/.local/bin`（先写临时名再改名——就地覆盖一个正在运行的二进制会把它截断），然后让二进制自己去装智能体技能，这样脚本永远不必知道哪家智能体把技能放在哪。
+
+| 变量 | 缺省 | 作用 |
+|---|---|---|
+| `REPOLISH_VERSION` | 最新发布 | 装指定 tag，例如 `v0.3.0` |
+| `REPOLISH_BIN_DIR` | `~/.local/bin` | 二进制装到哪 |
+| `REPOLISH_TARGET` | `detect` | 技能装给谁：`detect`、`all`、`none`，或某一个 id |
+| `REPOLISH_NO_SKILL` | 未设 | 设成 `1` 则只装二进制 |
+
+用 POSIX `sh`：它要能在 Alpine、精简 CI 镜像和 macOS 那个上古 bash 上跑——不用数组、不用 `[[ ]]`、不用进程替换。
+
+Linux 版只有 glibc 构建，所以脚本探测到 musl 就直说并停下，而不是装一个第一次运行就报链接错误的二进制。归档名是与 `release.yml` 的契约：`repolish-{tag}-{target}.tar.gz`，tag 保留 `v` 前缀。
+
+---
+
 ## GitHub Action
 
 composite action 定义在**仓库根目录的 `action.yml`**（`uses: owner/repo@ref` 只认根目录），

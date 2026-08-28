@@ -408,6 +408,31 @@ command line is the only thing that can be changed.
 
 ---
 
+## install.sh
+
+The one-line installer. It resolves the latest release, downloads the archive for the
+detected platform, verifies the `.sha256` beside it, installs atomically into `~/.local/bin`
+(write to a temp name and rename — replacing a running binary in place truncates it), and
+then asks the binary itself to install the agent skill, so the script never needs to know
+where any agent keeps its skills.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `REPOLISH_VERSION` | latest release | Install a specific tag, e.g. `v0.3.0` |
+| `REPOLISH_BIN_DIR` | `~/.local/bin` | Where the binary goes |
+| `REPOLISH_TARGET` | `detect` | Which agents get the skill: `detect`, `all`, `none`, or one id |
+| `REPOLISH_NO_SKILL` | unset | Set to `1` for the binary only |
+
+POSIX `sh`, because it has to run on Alpine, on minimal CI images, and on macOS's ancient
+bash: no arrays, no `[[ ]]`, no process substitution.
+
+The Linux builds are glibc-only, so the script detects musl and stops with a pointer to
+`cargo install` rather than installing a binary that dies with a linker error on first
+run. The archive name is a contract with `release.yml`: `repolish-{tag}-{target}.tar.gz`,
+with the tag keeping its `v` prefix.
+
+---
+
 ## GitHub Action
 
 The composite action is defined in **`action.yml` at the repository root** (`uses:
