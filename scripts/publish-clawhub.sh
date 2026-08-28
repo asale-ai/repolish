@@ -51,8 +51,8 @@ fi
 
 TOKEN="${CLAWHUB_TOKEN:-${CLAWHUB_API_KEY:-}}"
 [ -n "$TOKEN" ] || die "no ClawHub token.
-Put CLAWHUB_API_KEY=... in .env (gitignored), or export CLAWHUB_TOKEN.
-Get one with: clawhub login"
+Copy .env.example to .env (gitignored) and fill in CLAWHUB_API_KEY, or export
+CLAWHUB_TOKEN. Get one with: clawhub login"
 export CLAWHUB_TOKEN="$TOKEN"
 
 command -v clawhub > /dev/null || die "clawhub is not installed.

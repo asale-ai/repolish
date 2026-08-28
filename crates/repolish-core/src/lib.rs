@@ -12,7 +12,7 @@ pub use check::{Category, Check, Risk};
 pub use outcome::{Evidence, Fix, Outcome, Severity};
 pub use registry::Registry;
 pub use score::{
-    CategoryScore, CheckResult, Mode, ProfileInfo, Report, Repository, SCHEMA_VERSION,
+    band_index, CategoryScore, CheckResult, Mode, ProfileInfo, Report, Repository, SCHEMA_VERSION,
 };
 
 pub use repolish_ingest::{Profile, RepoContext};

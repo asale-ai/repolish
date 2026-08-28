@@ -179,7 +179,7 @@ fn score_block(out: &mut String, pen: &Pen, report: &Report) {
                 "{INDENT}{}   {}   {}   {}",
                 pen.dim("SCORE"),
                 pen.strong(&pad(&format!("{s} / 100"), 9), color),
-                pen.ink(&pad(theme::band_word(s), 9), color),
+                pen.ink(&pad(i18n::band_word(s, &i18n::EN), 9), color),
                 meter(pen, s, 24),
             );
         }

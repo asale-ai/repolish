@@ -236,14 +236,17 @@ pub const ZH_CN: Strings = Strings {
 };
 
 /// 分数 → 那个词，跟着语言走。
+///
+/// 分档不在这里判：走 `repolish_core::band_index`，与徽章、配色是同一个判断。
+/// 一个卡片上写着 `good` 而条形图是 `fair` 的颜色，读者会以为工具坏了。
 pub fn band_word(score: u8, s: &'static Strings) -> &'static str {
-    match score {
-        90..=255 => s.band_excellent,
-        75..=89 => s.band_good,
-        60..=74 => s.band_fair,
-        40..=59 => s.band_weak,
-        _ => s.band_poor,
-    }
+    [
+        s.band_excellent,
+        s.band_good,
+        s.band_fair,
+        s.band_weak,
+        s.band_poor,
+    ][repolish_core::band_index(score)]
 }
 
 #[cfg(test)]

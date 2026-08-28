@@ -100,6 +100,24 @@ pub struct Report {
     pub coverage_limits: Vec<String>,
 }
 
+/// 分数落在第几档，0 最好、4 最差。
+///
+/// **阈值只写在这一处。** 徽章颜色、终端配色、卡片配色、以及分数旁边那个词，
+/// 全部由它派生。分档标准散成好几份的话，改一次阈值就要改好几处，漏掉一处的
+/// 表现是「徽章是绿的、卡片写着 fair」——同一个仓库两种说法，比说错更伤。
+///
+/// 放在 core 而不是 render，是因为分档是**分数的属性**，不是配色的属性：
+/// render 依赖 core，反过来不行，所以这里是唯一能让两边都够得到的地方。
+pub fn band_index(score: u8) -> usize {
+    match score {
+        90..=255 => 0,
+        75..=89 => 1,
+        60..=74 => 2,
+        40..=59 => 3,
+        _ => 4,
+    }
+}
+
 impl Report {
     pub fn build(
         checks: Vec<CheckResult>,
@@ -156,11 +174,7 @@ impl Report {
     /// 徽章配色阈值，见 docs/02-CLI设计.md
     pub fn color(&self) -> &'static str {
         match self.score {
-            Some(s) if s >= 90 => "brightgreen",
-            Some(s) if s >= 75 => "green",
-            Some(s) if s >= 60 => "yellow",
-            Some(s) if s >= 40 => "orange",
-            Some(_) => "red",
+            Some(s) => ["brightgreen", "green", "yellow", "orange", "red"][band_index(s)],
             None => "lightgrey",
         }
     }

@@ -54,6 +54,11 @@ where media queries are not reliable). There are tests for all three.
 
 ## Releasing
 
+Local credentials live in `.env`, which is gitignored — copy `.env.example` and fill in
+what you need. Only `scripts/publish-clawhub.sh` reads it; crates.io publishing runs in
+CI from a repository secret, so no registry token needs to sit on your machine.
+
+
 ```bash
 ./publish.sh "what changed"          # patch bump
 ./publish.sh --minor "add the card"

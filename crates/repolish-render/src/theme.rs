@@ -8,6 +8,9 @@
 
 use std::fmt;
 
+// 分档不在这里判 —— 它是分数的属性，住在 core，徽章颜色用的是同一个函数
+use repolish_core::band_index;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rgb(pub u8, pub u8, pub u8);
 
@@ -55,35 +58,14 @@ pub const ORANGE: Rgb = Rgb(0xFF, 0x8F, 0x5F);
 pub const AMBER: Rgb = Rgb(0xFF, 0xC5, 0x3D);
 pub const LIME: Rgb = Rgb(0xA9, 0xF0, 0x5F);
 
-/// 分数 → 颜色。阈值与 `Report::color()` 一一对应。
+/// 分数 → 颜色。终端用的那一套，与 [`DARK`] 同源。
 pub fn band(score: u8) -> Rgb {
-    match score {
-        90..=255 => CYAN,
-        75..=89 => LIME,
-        60..=74 => AMBER,
-        40..=59 => ORANGE,
-        _ => RED,
-    }
+    DARK.bands[band_index(score)]
 }
 
-/// 分数 → 一个词。放在分数旁边，省得读者自己去查阈值表。
-pub fn band_word(score: u8) -> &'static str {
-    match score {
-        90..=255 => "excellent",
-        75..=89 => "good",
-        60..=74 => "fair",
-        40..=59 => "weak",
-        _ => "poor",
-    }
-}
-
-/// wordmark 的横向渐变：紫 → 粉 → 青。
+/// wordmark 的横向渐变：紫 → 粉 → 青。终端没有色板可选，走深色那一套。
 pub fn sweep(t: f32) -> Rgb {
-    if t < 0.5 {
-        PURPLE.mix(PINK, t * 2.0)
-    } else {
-        PINK.mix(CYAN, (t - 0.5) * 2.0)
-    }
+    DARK.sweep(t)
 }
 
 // ── SVG 色板 ────────────────────────────────────────────────
@@ -119,15 +101,9 @@ pub struct Palette {
 }
 
 impl Palette {
-    /// 分数 → 颜色。阈值与终端的 [`band`] 一致——同一个仓库在两处必须同一个说法。
+    /// 分数 → 颜色。分档由 [`band_index`] 决定，与终端是同一个判断。
     pub fn band(&self, score: u8) -> Rgb {
-        match score {
-            90..=255 => self.bands[0],
-            75..=89 => self.bands[1],
-            60..=74 => self.bands[2],
-            40..=59 => self.bands[3],
-            _ => self.bands[4],
-        }
+        self.bands[band_index(score)]
     }
 
     /// 序列色环。下标超出就绕回去，条目再多也不会取到一个没定义的颜色。
@@ -458,14 +434,34 @@ mod tests {
     /// 终端配色与徽章颜色必须在同一个阈值上翻面
     #[test]
     fn bands_line_up_with_the_badge_thresholds() {
+        // 颜色、词、徽章现在都从 `repolish_core::band_index` 派生，所以这条
+        // 测试盯的是**那一个函数**在正确的分数上翻面。此前它只拿 band() 和
+        // 自己比，名字里的 "badge" 从来没有被验证过。
+        for (score, expect) in [
+            (100, 0),
+            (90, 0),
+            (89, 1),
+            (75, 1),
+            (74, 2),
+            (60, 2),
+            (59, 3),
+            (40, 3),
+            (39, 4),
+            (0, 4),
+        ] {
+            assert_eq!(band_index(score), expect, "分数 {score} 落错了档");
+        }
         assert_eq!(band(90), CYAN);
-        assert_eq!(band(89), LIME);
-        assert_eq!(band(75), LIME);
-        assert_eq!(band(74), AMBER);
-        assert_eq!(band(60), AMBER);
-        assert_eq!(band(59), ORANGE);
-        assert_eq!(band(40), ORANGE);
         assert_eq!(band(39), RED);
+        // 深浅两套色板与终端在同一个分数上翻面
+        for score in [0u8, 39, 40, 59, 60, 74, 75, 89, 90, 100] {
+            for p in [&DARK, &PORCELAIN] {
+                assert_eq!(p.band(score), p.bands[band_index(score)]);
+            }
+        }
+        // 分数旁边那个词也是同一个判断
+        assert_eq!(crate::i18n::band_word(89, &crate::i18n::EN), "good");
+        assert_eq!(crate::i18n::band_word(90, &crate::i18n::EN), "excellent");
     }
 
     #[test]
