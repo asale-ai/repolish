@@ -296,7 +296,15 @@ run git fetch origin "$BASE_BRANCH"
 # The squash rewrote history: the commit built locally is not the commit on
 # main. Discarding the local branch is the point, not a side effect.
 run git reset --hard "origin/$BASE_BRANCH"
-run git branch -D "$RELEASE_BRANCH"
+# `gh pr merge --delete-branch` may already have taken the local branch with it,
+# and `git branch -D` on a missing branch is a hard error under `set -e`. Losing
+# a release between the merge and the tag over a cleanup step is not acceptable:
+# the tag is the only thing that triggers the build and the crates.io publish.
+if [ "$DRY_RUN" = "0" ]; then
+  git branch -D "$RELEASE_BRANCH" 2>/dev/null || true
+else
+  info "[dry-run] git branch -D $RELEASE_BRANCH"
+fi
 
 # ------------------------------------------------------------ tag
 
