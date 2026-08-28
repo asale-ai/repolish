@@ -59,13 +59,13 @@
   <text class="t" x="36" y="128" font-size="40" fill="#edebfa" text-anchor="start" font-weight="700">repolish</text>
   <text class="t" x="844" y="132" font-size="13" fill="#8b87a3" text-anchor="end">v0.3.0</text>
   <text class="t" x="36" y="152" font-size="13" fill="#8b87a3" text-anchor="start">在命令行上诊断并改进「一个开源仓库在陌生人眼里是什么样」。</text>
-  <text class="t" x="36" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">114</text>
+  <text class="t" x="36" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">111</text>
   <text class="t" x="67" y="178" font-size="12" fill="#8b87a3" text-anchor="start">个文件</text>
   <text class="t" x="122" y="178" font-size="13" fill="#35334a" text-anchor="start">·</text>
   <text class="t" x="136" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">2</text>
   <text class="t" x="150" y="178" font-size="12" fill="#8b87a3" text-anchor="start">门语言</text>
   <text class="t" x="205" y="178" font-size="13" fill="#35334a" text-anchor="start">·</text>
-  <text class="t" x="219" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">68</text>
+  <text class="t" x="219" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">69</text>
   <text class="t" x="242" y="178" font-size="12" fill="#8b87a3" text-anchor="start">次提交</text>
   <text class="t" x="297" y="178" font-size="13" fill="#35334a" text-anchor="start">·</text>
   <text class="t" x="311" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">3</text>
@@ -73,36 +73,36 @@
   <text class="t" x="844" y="178" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">无</text>
   <rect x="36" y="194" width="808" height="1" fill="#35334a"/>
   <text class="t" x="36" y="224" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">语言构成 · 按文件数</text>
-  <text class="t" x="844" y="224" font-size="12" fill="#8b87a3" text-anchor="end">114 个文件 · 7 类</text>
+  <text class="t" x="844" y="224" font-size="12" fill="#8b87a3" text-anchor="end">111 个文件 · 7 类</text>
   <rect x="36" y="241" width="3" height="12" rx="1.5" fill="#7d56f4"/>
   <text class="t" x="48" y="250" font-size="13" fill="#edebfa" text-anchor="start">Rust</text>
   <rect x="204" y="242" width="300" height="10" rx="2.0" fill="#3e3b58"/>
   <rect x="204" y="242" width="192" height="10" rx="2.0" fill="#7d56f4"/>
   <text class="t" x="560" y="250" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">64%</text>
-  <text class="t" x="844" y="250" font-size="13" fill="#8b87a3" text-anchor="end">73</text>
+  <text class="t" x="844" y="250" font-size="13" fill="#8b87a3" text-anchor="end">71</text>
   <rect x="36" y="267" width="3" height="12" rx="1.5" fill="#ff5fd1"/>
   <text class="t" x="48" y="276" font-size="13" fill="#edebfa" text-anchor="start">Markdown</text>
   <rect x="204" y="268" width="300" height="10" rx="2.0" fill="#3e3b58"/>
-  <rect x="204" y="268" width="47" height="10" rx="2.0" fill="#ff5fd1"/>
+  <rect x="204" y="268" width="49" height="10" rx="2.0" fill="#ff5fd1"/>
   <text class="t" x="560" y="276" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">16%</text>
   <text class="t" x="844" y="276" font-size="13" fill="#8b87a3" text-anchor="end">18</text>
   <rect x="36" y="293" width="3" height="12" rx="1.5" fill="#43e5d0"/>
   <text class="t" x="48" y="302" font-size="13" fill="#edebfa" text-anchor="start">TOML</text>
   <rect x="204" y="294" width="300" height="10" rx="2.0" fill="#3e3b58"/>
-  <rect x="204" y="294" width="21" height="10" rx="2.0" fill="#43e5d0"/>
+  <rect x="204" y="294" width="22" height="10" rx="2.0" fill="#43e5d0"/>
   <text class="t" x="560" y="302" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">7%</text>
   <text class="t" x="844" y="302" font-size="13" fill="#8b87a3" text-anchor="end">8</text>
   <rect x="36" y="319" width="3" height="12" rx="1.5" fill="#a9f05f"/>
-  <text class="t" x="48" y="328" font-size="13" fill="#edebfa" text-anchor="start">Shell</text>
+  <text class="t" x="48" y="328" font-size="13" fill="#edebfa" text-anchor="start">SVG</text>
   <rect x="204" y="320" width="300" height="10" rx="2.0" fill="#3e3b58"/>
-  <rect x="204" y="320" width="16" height="10" rx="2.0" fill="#a9f05f"/>
+  <rect x="204" y="320" width="14" height="10" rx="2.0" fill="#a9f05f"/>
   <text class="t" x="560" y="328" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">5%</text>
-  <text class="t" x="844" y="328" font-size="13" fill="#8b87a3" text-anchor="end">6</text>
+  <text class="t" x="844" y="328" font-size="13" fill="#8b87a3" text-anchor="end">5</text>
   <rect x="36" y="345" width="3" height="12" rx="1.5" fill="#ffc53d"/>
-  <text class="t" x="48" y="354" font-size="13" fill="#edebfa" text-anchor="start">SVG</text>
+  <text class="t" x="48" y="354" font-size="13" fill="#edebfa" text-anchor="start">Shell</text>
   <rect x="204" y="346" width="300" height="10" rx="2.0" fill="#3e3b58"/>
-  <rect x="204" y="346" width="13" height="10" rx="2.0" fill="#ffc53d"/>
-  <text class="t" x="560" y="354" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">4%</text>
+  <rect x="204" y="346" width="14" height="10" rx="2.0" fill="#ffc53d"/>
+  <text class="t" x="560" y="354" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">5%</text>
   <text class="t" x="844" y="354" font-size="13" fill="#8b87a3" text-anchor="end">5</text>
   <rect x="36" y="371" width="3" height="12" rx="1.5" fill="#7d56f4"/>
   <text class="t" x="48" y="380" font-size="13" fill="#edebfa" text-anchor="start">其他 2 项</text>
@@ -111,13 +111,13 @@
   <text class="t" x="560" y="380" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">4%</text>
   <text class="t" x="844" y="380" font-size="13" fill="#8b87a3" text-anchor="end">4</text>
   <text class="t" x="36" y="406" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">文件用途</text>
-  <rect x="36" y="418" width="560" height="12" rx="2.0" fill="#7d56f4"/>
-  <rect x="596" y="418" width="128" height="12" rx="2.0" fill="#ff5fd1"/>
-  <rect x="724" y="418" width="64" height="12" rx="2.0" fill="#43e5d0"/>
-  <rect x="787" y="418" width="57" height="12" rx="2.0" fill="#a9f05f"/>
+  <rect x="36" y="418" width="553" height="12" rx="2.0" fill="#7d56f4"/>
+  <rect x="589" y="418" width="131" height="12" rx="2.0" fill="#ff5fd1"/>
+  <rect x="720" y="418" width="66" height="12" rx="2.0" fill="#43e5d0"/>
+  <rect x="786" y="418" width="58" height="12" rx="2.0" fill="#a9f05f"/>
   <rect x="36" y="444" width="9" height="9" rx="2.0" fill="#7d56f4"/>
   <text class="t" x="50" y="452" font-size="12" fill="#8b87a3" text-anchor="start">代码</text>
-  <text class="t" x="85" y="452" font-size="12" fill="#edebfa" text-anchor="start">69%</text>
+  <text class="t" x="85" y="452" font-size="12" fill="#edebfa" text-anchor="start">68%</text>
   <rect x="127" y="444" width="9" height="9" rx="2.0" fill="#ff5fd1"/>
   <text class="t" x="141" y="452" font-size="12" fill="#8b87a3" text-anchor="start">文档</text>
   <text class="t" x="176" y="452" font-size="12" fill="#edebfa" text-anchor="start">16%</text>
@@ -131,8 +131,8 @@
   <text class="t" x="844" y="480" font-size="12" fill="#8b87a3" text-anchor="end">48 峰值</text>
   <rect x="36" y="494" width="808" height="66" rx="6.0" fill="#222130"/>
   <line x1="44" y1="502" x2="836" y2="502" stroke="#35334a" stroke-width="1" stroke-dasharray="3 5"/>
-  <path d="M44.0 552.0 L59.5 552.0 L75.1 552.0 L90.6 552.0 L106.1 552.0 L121.6 552.0 L137.2 552.0 L152.7 552.0 L168.2 552.0 L183.8 552.0 L199.3 552.0 L214.8 552.0 L230.4 552.0 L245.9 552.0 L261.4 552.0 L276.9 552.0 L292.5 552.0 L308.0 552.0 L323.5 552.0 L339.1 552.0 L354.6 552.0 L370.1 552.0 L385.6 552.0 L401.2 552.0 L416.7 552.0 L432.2 552.0 L447.8 552.0 L463.3 552.0 L478.8 552.0 L494.4 552.0 L509.9 552.0 L525.4 552.0 L540.9 552.0 L556.5 552.0 L572.0 552.0 L587.5 552.0 L603.1 552.0 L618.6 552.0 L634.1 552.0 L649.6 552.0 L665.2 552.0 L680.7 552.0 L696.2 552.0 L711.8 552.0 L727.3 552.0 L742.8 552.0 L758.4 552.0 L773.9 552.0 L789.4 552.0 L804.9 502.0 L820.5 533.2 L836.0 549.9 L836.0 552 L44 552 Z" fill="#43e5d0" fill-opacity="0.35"/>
-  <path d="M44.0 552.0 L59.5 552.0 L75.1 552.0 L90.6 552.0 L106.1 552.0 L121.6 552.0 L137.2 552.0 L152.7 552.0 L168.2 552.0 L183.8 552.0 L199.3 552.0 L214.8 552.0 L230.4 552.0 L245.9 552.0 L261.4 552.0 L276.9 552.0 L292.5 552.0 L308.0 552.0 L323.5 552.0 L339.1 552.0 L354.6 552.0 L370.1 552.0 L385.6 552.0 L401.2 552.0 L416.7 552.0 L432.2 552.0 L447.8 552.0 L463.3 552.0 L478.8 552.0 L494.4 552.0 L509.9 552.0 L525.4 552.0 L540.9 552.0 L556.5 552.0 L572.0 552.0 L587.5 552.0 L603.1 552.0 L618.6 552.0 L634.1 552.0 L649.6 552.0 L665.2 552.0 L680.7 552.0 L696.2 552.0 L711.8 552.0 L727.3 552.0 L742.8 552.0 L758.4 552.0 L773.9 552.0 L789.4 552.0 L804.9 502.0 L820.5 533.2 L836.0 549.9" fill="none" stroke="#43e5d0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M44.0 552.0 L59.5 552.0 L75.1 552.0 L90.6 552.0 L106.1 552.0 L121.6 552.0 L137.2 552.0 L152.7 552.0 L168.2 552.0 L183.8 552.0 L199.3 552.0 L214.8 552.0 L230.4 552.0 L245.9 552.0 L261.4 552.0 L276.9 552.0 L292.5 552.0 L308.0 552.0 L323.5 552.0 L339.1 552.0 L354.6 552.0 L370.1 552.0 L385.6 552.0 L401.2 552.0 L416.7 552.0 L432.2 552.0 L447.8 552.0 L463.3 552.0 L478.8 552.0 L494.4 552.0 L509.9 552.0 L525.4 552.0 L540.9 552.0 L556.5 552.0 L572.0 552.0 L587.5 552.0 L603.1 552.0 L618.6 552.0 L634.1 552.0 L649.6 552.0 L665.2 552.0 L680.7 552.0 L696.2 552.0 L711.8 552.0 L727.3 552.0 L742.8 552.0 L758.4 552.0 L773.9 552.0 L789.4 552.0 L804.9 502.0 L820.5 531.2 L836.0 551.0 L836.0 552 L44 552 Z" fill="#43e5d0" fill-opacity="0.35"/>
+  <path d="M44.0 552.0 L59.5 552.0 L75.1 552.0 L90.6 552.0 L106.1 552.0 L121.6 552.0 L137.2 552.0 L152.7 552.0 L168.2 552.0 L183.8 552.0 L199.3 552.0 L214.8 552.0 L230.4 552.0 L245.9 552.0 L261.4 552.0 L276.9 552.0 L292.5 552.0 L308.0 552.0 L323.5 552.0 L339.1 552.0 L354.6 552.0 L370.1 552.0 L385.6 552.0 L401.2 552.0 L416.7 552.0 L432.2 552.0 L447.8 552.0 L463.3 552.0 L478.8 552.0 L494.4 552.0 L509.9 552.0 L525.4 552.0 L540.9 552.0 L556.5 552.0 L572.0 552.0 L587.5 552.0 L603.1 552.0 L618.6 552.0 L634.1 552.0 L649.6 552.0 L665.2 552.0 L680.7 552.0 L696.2 552.0 L711.8 552.0 L727.3 552.0 L742.8 552.0 L758.4 552.0 L773.9 552.0 L789.4 552.0 L804.9 502.0 L820.5 531.2 L836.0 551.0" fill="none" stroke="#43e5d0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
   <text class="t" x="36" y="574" font-size="11" fill="#8b87a3" text-anchor="start">52 周前</text>
   <text class="t" x="844" y="574" font-size="11" fill="#8b87a3" text-anchor="end">今天</text>
   <rect x="36" y="596" width="808" height="1" fill="#35334a"/>

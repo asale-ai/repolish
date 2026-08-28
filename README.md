@@ -165,47 +165,6 @@ repolish check . --only license,ci-present
 `--remote` reads `GITHUB_TOKEN` or `GH_TOKEN` from the environment. Without a token it
 falls back to the anonymous quota of 60 requests per hour.
 
-### Scanning a whole organisation
-
-`check` answers "what is wrong with this repository". `scan` answers a different
-question: **across all my repositories, which one do I fix first, and which single fix
-lifts the most of them.**
-
-```bash
-./scripts/clone-org.sh asale-ai        # git clones them side by side
-repolish scan target/orgs/asale-ai --remote
-```
-
-```text
-  SCORE  REPOSITORY         DISC COMP CRED  FIRST THING TO FIX
-  ────────────────────────────────────────────────────────────────────────
-    65   agent-firewall       92   55   57   P1 readme-quickstart
-    75   token-meter          73   81   71   P2 repo-topics
-    85   anything-to-skill    78   90   85   P2 repo-topics
-    86   llm-verify           73   96   85   P2 issue-pr-template
-    91   asale                78   96   96   P2 readme-title-tagline
-    92   seo-geo-skill        87   86  100   P2 repo-topics
-    98   repolish             95   99  100   P2 repo-topics
-
-  7 repositories · median 86 · 2 below 80 · 2 P1 in total
-
-  ── FIX ONCE, LIFTS SEVERAL ─────────────────────────────────────────────
-
-     P2 repo-topics                   5 of 7 repositories
-     P2 issue-pr-template             4 of 7 repositories
-     P2 ci-present                    2 of 7 repositories
-```
-
-Worst-first, because whoever reads this table is looking for work, not for a prize. The
-last section is the whole reason `scan` exists rather than running `check` N times:
-`issue-pr-template` missing in 4 of 7 repositories is one file written once for four
-repositories' worth of score.
-
-`scan` does not clone — that would make this binary need the network and git, and scoring
-is offline-first. Under `--remote`, one repository failing to fetch fails the whole scan
-(exit code 4) rather than quietly mixing a local score into the table. See
-[docs/02-cli-design.md](docs/02-cli-design.md#scan) for how the shared-gaps section is grouped.
-
 ### Styling what it inserts
 
 Everything `polish` inserts is configurable, from the command line or from `[readme]` in
@@ -422,8 +381,7 @@ saying so until it changes:
 | ✅ | `badge`, `report`, `init`, GitHub Action, pre-built binaries for 5 targets, published on crates.io |
 | ✅ | `polish --apply` — badge, table of contents, issue / PR templates, CONTRIBUTING; only-insert, never rewrites |
 | ✅ | `card` — an overview card for the top of the README and a report card for the end, self-contained SVG, dark or porcelain, English or Chinese |
-| ✅ | `--tables svg` — README tables drawn as SVG, the original folded into `<details>` |
-| ✅ | `scan` — rank every repository in a directory, and surface the gaps they share |
+| ✅ | `--tables svg` — README tables drawn as SVG in every language, the original folded into `<details>` |
 | ✅ | `demo` — records the detected CLI by running it, as an animated SVG; `--tape` for a VHS GIF instead |
 | ✅ | `skill` — `SKILL.md`, so a coding agent measures before it edits |
 | ✅ | `.repolish.toml`, and styling options for everything `polish` inserts |

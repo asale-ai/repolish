@@ -15,9 +15,6 @@ repolish check . --badge         # also write .repolish/badge.json
 repolish check . --card          # also write .repolish/card.svg (the score card)
 repolish check . --overview      # also write .repolish/overview.svg (the overview card)
 
-repolish scan <dir>              # score every repository in a directory and rank them
-repolish scan <dir> --remote --min-score 70
-
 repolish badge .                 # write .repolish/badge.json + print a markdown snippet
 repolish card .                  # write .repolish/overview.svg (the default)
 repolish card . --kind score     # write .repolish/card.svg
@@ -42,26 +39,6 @@ thing to remember about these two commands: `polish` inserts the `<img>` referen
 the README the first time and never touches that file again; `card` handles every redraw
 afterwards. The other way round, either `polish` breaks its never-overwrite invariant, or
 the README keeps showing the image generated the first time forever. CI runs `card`.
-
-### `scan`
-
-`check` answers "what is wrong with this repository". `scan` answers a different question:
-**across dozens of repositories in an organisation, which one do I fix first, and which
-single fix covers the most of them.**
-
-It scans the **direct subdirectories** of the given path, scores each, and prints three
-blocks: a table sorted by score ascending (worst first — whoever reads it is looking for
-work), a one-line summary (median / how many below 80 / total P1 count), and the gaps
-shared across repositories.
-
-That last block is the entire reason it exists rather than running `check` N times:
-`issue-pr-template` missing in 4 of 8 repositories is one file written once, paying off
-four times. It groups by **(check, severity)**, not by check alone — the same check can be
-P1 in a repository scoring zero and P2 in one scoring seven, and collapsing those into one
-row labelled with the worse of the two would claim three P1s where only one exists.
-
-**`scan` does not clone.** That would make this binary require the network and git, and
-scoring is offline-first. Getting repositories onto disk is git's job.
 
 ## Global flags
 

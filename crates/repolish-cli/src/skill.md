@@ -171,16 +171,6 @@ The output is an animated SVG with a real text layer, not a GIF, and it needs no
 tools. Only meaningful when the project actually has a binary; the tape is a plain text
 file the author is expected to edit.
 
-### Across many repositories
-
-```bash
-repolish scan ~/src/myorg --remote
-```
-
-Ranks every repository in a directory worst-first and, at the end, lists the
-fixes that lift several at once. It does not clone; get the repositories onto
-disk first.
-
 ## Exit codes
 
 | Code | Meaning |

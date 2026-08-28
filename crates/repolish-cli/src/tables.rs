@@ -12,6 +12,7 @@
 
 use std::path::PathBuf;
 
+use repolish_core::RepoContext;
 use repolish_md::Readme;
 
 /// 生成的表格图放在哪
@@ -39,6 +40,34 @@ impl Rendered {
     pub fn path(&self, root: &std::path::Path) -> PathBuf {
         root.join(&self.rel)
     }
+}
+
+/// 主 README 的译本。
+///
+/// **必须和主 README 同一个目录。** 否则 `docs/README.zh-CN.md` 会被当成译本，
+/// 而它是文档索引的中文版，是另一份文档，不是这一份的翻译。判据用目录而不是
+/// 「在不在根目录」，是为了让 README 本来就在子目录里的仓库也成立。
+pub fn translations(ctx: &RepoContext, main: &Readme) -> Vec<String> {
+    let norm = |p: &str| p.replace(std::path::MAIN_SEPARATOR, "/");
+    let main_path = norm(&main.path.display().to_string());
+    let dir = |p: &str| {
+        p.rsplit_once('/')
+            .map(|(d, _)| d.to_string())
+            .unwrap_or_default()
+    };
+    // main.path 可能是绝对路径，files 里是仓库相对路径，比目录名即可
+    let main_dir = main_path
+        .strip_prefix(&norm(&ctx.root.display().to_string()))
+        .map(|p| dir(p.trim_start_matches('/')))
+        .unwrap_or_else(|| dir(&main_path));
+
+    ctx.files
+        .iter()
+        .filter(|p| !main_path.ends_with(*p))
+        .filter(|p| dir(p) == main_dir)
+        .filter(|p| repolish_md::translation_code(p).is_some())
+        .map(str::to_string)
+        .collect()
 }
 
 /// 挑出值得画的表并画出来。

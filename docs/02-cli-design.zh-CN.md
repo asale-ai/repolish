@@ -15,9 +15,6 @@ repolish check . --badge         # 顺带写出 .repolish/badge.json
 repolish check . --card          # 顺带写出 .repolish/card.svg（分数卡片）
 repolish check . --overview      # 顺带写出 .repolish/overview.svg（概览卡片）
 
-repolish scan <dir>              # 给一个目录下的所有仓库评分并排名
-repolish scan <dir> --remote --min-score 70
-
 repolish badge .                 # 写 .repolish/badge.json + 打印可复制的 markdown snippet
 repolish card .                  # 写 .repolish/overview.svg（默认就是概览卡片）
 repolish card . --kind score     # 写 .repolish/card.svg
@@ -43,25 +40,6 @@ repolish polish . --apply --visuals   # 再加上概览卡片、末尾分数卡�
 挂着第一次生成的那张图。CI 里跑的是 `card`。
 
 **优先级说明：** `--min-score` 与 `repolish init` 的优先级高于任何生成类功能——CLI-only 产品的留存靠「进了 CI 就不会被删」。
-
-### `scan`
-
-`check` 回答「这个仓库哪里不行」；`scan` 回答的是另一个问题——**一个组织几十个仓库，先动哪一个，以及哪一条修一次能覆盖最多仓库**。
-
-它扫描给定目录的**直接子目录**，逐个评分，输出三段：按分数升序的表（最该动的排最上面）、一行汇总（中位数 / 低于 80 的个数 / P1 总数）、以及跨仓库的共性缺项。
-
-共性缺项那段是它区别于「跑 N 次 `check`」的全部理由：`issue-pr-template` 在 8 个仓库里缺 4 个，那就是写一次、收益乘以四的一刀。这一段按 **(检查项, 严重度)** 分组，不是只按检查项——同一项在 0 分的仓库出 P1、在 7 分的仓库出 P2，混成一行再贴上最严重的标签，就会写出「P1，8 个中有 3 个」而其中只有一个真是 P1。
-
-**`scan` 不 clone。** 那要求这个二进制会联网、带 git，而评分是离线优先的。把仓库弄到本地是 `git` 的事：
-
-```bash
-./scripts/clone-org.sh asale-ai
-repolish scan target/orgs/asale-ai --remote
-```
-
-`--remote` 下**一个仓库拉不到就整次扫描失败**（退出码 4），不退回本地分。本地分与远程分基准不同，把两种分数混在同一张表里排序，是这个工具最不该犯的错。
-
-`--format json` 逐个原样吐出冻结的 `Report`，不另造一套 schema——消费方已经在解析那个形状了。
 
 ## 全局参数
 

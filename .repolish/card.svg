@@ -115,7 +115,7 @@
   <circle cx="294" cy="236" r="5" fill="#43e5d0"/>
   <circle cx="310" cy="236" r="5" fill="#43e5d0"/>
   <circle cx="326" cy="236" r="5" fill="#43e5d0"/>
-  <circle cx="342" cy="236" r="5" fill="#43e5d0"/>
+  <circle cx="342" cy="236" r="5" fill="#8b87a3"/>
   <circle cx="358" cy="236" r="5" fill="#43e5d0"/>
   <circle cx="374" cy="236" r="5" fill="#43e5d0"/>
   <circle cx="390" cy="236" r="5" fill="#43e5d0"/>
@@ -123,7 +123,7 @@
   <circle cx="422" cy="236" r="5" fill="#43e5d0"/>
   <circle cx="438" cy="236" r="5" fill="#43e5d0"/>
   <circle cx="454" cy="236" r="5" fill="#43e5d0"/>
-  <text class="t" x="844" y="240" font-size="12" fill="#8b87a3" text-anchor="end">19 scored · 3 not verified</text>
+  <text class="t" x="844" y="240" font-size="12" fill="#8b87a3" text-anchor="end">18 scored · 4 not verified</text>
   <rect x="36" y="276" width="808" height="1" fill="#35334a"/>
   <text class="t" x="36" y="298" font-size="11" fill="#ff5fd1" text-anchor="start" letter-spacing="1.4">TO FIX</text>
   <rect x="36" y="309" width="26" height="18" rx="5.0" fill="#7d56f4"/>
@@ -131,7 +131,7 @@
   <text class="t" x="74" y="322" font-size="13" fill="#edebfa" text-anchor="start" font-weight="700">readme-length</text>
   <text class="t" x="74" y="340" font-size="12" fill="#8b87a3" text-anchor="start">Move the API details, configuration reference, and advanced usage into `docs/`, and leave the README with…</text>
   <rect x="36" y="370" width="808" height="1" fill="#35334a"/>
-  <text class="t" x="36" y="394" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · 775d3196</text>
+  <text class="t" x="36" y="394" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · 98e24734</text>
   <text class="t" x="844" y="394" font-size="12" fill="#8b87a3" text-anchor="end">repolish v0.3.0</text>
   <text class="t" x="36" y="412" font-size="11" fill="#8b87a3" text-anchor="start">Scoring is deterministic. No model is involved.</text>
 </svg>

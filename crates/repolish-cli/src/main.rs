@@ -18,13 +18,13 @@ mod init;
 mod polish;
 mod record;
 mod scaffold;
-mod scan;
 mod skill;
 mod style;
 mod tables;
 mod tree;
 
 use analyze::{analyze, write_file, Analysis, Common};
+use repolish_md::Readme;
 
 /// 退出码。工具自身失败与「检查不通过」必须区分，否则 CI 无法判断。
 mod exit {
@@ -55,8 +55,6 @@ enum Command {
     Badge(BadgeArgs),
     /// Write REPOLISH.md
     Report(ReportArgs),
-    /// Score every repository in a directory and rank them
-    Scan(ScanArgs),
     /// Write the SVG cards to embed in your README
     Card(CardArgs),
     /// Record this project's CLI and write the animation
@@ -188,19 +186,6 @@ struct ReportArgs {
     /// Print to stdout instead of writing the file
     #[arg(long)]
     stdout: bool,
-}
-
-#[derive(Parser)]
-struct ScanArgs {
-    #[command(flatten)]
-    common: Common,
-
-    #[arg(long, value_enum, default_value_t = Format::Text)]
-    format: Format,
-
-    /// Exit with code 1 if any repository scores below this
-    #[arg(long)]
-    min_score: Option<u8>,
 }
 
 #[derive(Parser)]
@@ -340,7 +325,6 @@ fn main() -> ExitCode {
         Command::Check(args) => run_check(args),
         Command::Badge(args) => run_badge(args),
         Command::Report(args) => run_report(args),
-        Command::Scan(args) => run_scan(args),
         Command::Card(args) => run_card(args),
         Command::Demo(args) => run_demo(args),
         Command::Skill(args) => run_skill(args),
@@ -497,83 +481,6 @@ fn run_report(args: ReportArgs) -> u8 {
     exit::OK
 }
 
-fn run_scan(args: ScanArgs) -> u8 {
-    let root = match dunce::canonicalize(&args.common.path) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("error: cannot access {}: {e}", args.common.path.display());
-            // scan 的第一步永远是「先把仓库弄到本地」。不提这一句，
-            // 第一次用的人只会看到一个操作系统的路径错误。
-            eprintln!(
-                "note: scan reads repositories that are already on disk. \
-                 To fetch a whole organisation first: ./scripts/clone-org.sh <org>"
-            );
-            return exit::NOT_A_REPO;
-        }
-    };
-
-    let entries = scan::run(&root, &args.common, &args.common.only, &args.common.skip);
-    if entries.is_empty() {
-        eprintln!(
-            "error: no repositories found in {}. Each repository has to be a direct subdirectory — clone them side by side, or point scan one level up",
-            root.display()
-        );
-        return exit::NOT_A_REPO;
-    }
-
-    match args.format {
-        Format::Json => {
-            // 每个仓库原样吐出冻结的 Report，不另造一套 schema：
-            // 消费方已经在解析这个形状了
-            let reports: Vec<serde_json::Value> = entries
-                .iter()
-                .map(|e| match &e.report {
-                    Ok(r) => serde_json::json!({ "name": e.name, "report": r }),
-                    Err(msg) => serde_json::json!({ "name": e.name, "error": msg }),
-                })
-                .collect();
-            let doc = serde_json::json!({
-                "repolishVersion": env!("CARGO_PKG_VERSION"),
-                "schemaVersion": repolish_core::SCHEMA_VERSION,
-                "repositories": reports,
-            });
-            match serde_json::to_string_pretty(&doc) {
-                Ok(s) => println!("{s}"),
-                Err(e) => {
-                    eprintln!("error: serialization failed: {e}");
-                    return exit::BAD_USAGE;
-                }
-            }
-        }
-        _ => print!(
-            "{}",
-            repolish_render::scan(
-                &entries,
-                &RenderOptions {
-                    verbose: false,
-                    level: args.common.level(),
-                }
-            )
-        ),
-    }
-
-    // 一个仓库拉不到就算整次扫描失败：一张缺了几行的表会被当成完整的表读
-    if entries.iter().any(|e| e.report.is_err()) {
-        return exit::REMOTE_FAILED;
-    }
-    match args.min_score {
-        Some(min)
-            if entries
-                .iter()
-                .filter_map(|e| e.report.as_ref().ok())
-                .any(|r| r.score.is_none_or(|s| s < min)) =>
-        {
-            exit::BELOW_MIN_SCORE
-        }
-        _ => exit::OK,
-    }
-}
-
 fn run_card(args: CardArgs) -> u8 {
     let Analysis { ctx, report, .. } = match analyze(&args.common) {
         Ok(a) => a,
@@ -644,21 +551,36 @@ fn run_card(args: CardArgs) -> u8 {
             eprintln!("error: no README to take tables from");
             return exit::NOT_A_REPO;
         };
+        // 主 README 加上每一份译本。译本要是漏掉，它们的表格图就再也没有
+        // 重画的途径——polish 从不覆盖，`card` 是唯一会重写的那条路。
+        let mut sheets: Vec<(Readme, repolish_render::Options)> = vec![(readme.clone(), opts)];
+        for path in tables::translations(&ctx, readme) {
+            let Some(raw) = ctx.files.read(&path) else {
+                continue;
+            };
+            let translated = Readme::parse(&path, raw);
+            // 每一份都用它自己的语言画，不是主 README 的语言
+            let lang = repolish_render::Lang::detect(&translated.raw);
+            sheets.push((translated, repolish_render::Options { lang, ..opts }));
+        }
+
         // 只重画 polish 已经包过的那些。给一张没人引用的表生成 SVG，
         // 落下的是一个孤儿文件——它会被提交、被一直带着，而没有任何东西
         // 指向它。要新增一张，先让 polish 去包：
         //     repolish polish . --apply --tables svg
         let mut unwrapped = 0usize;
-        for table in tables::render(readme, &opts, |w| eprintln!("note: {w}")) {
-            if !tables::already_wrapped(readme, table.start_line) {
-                unwrapped += 1;
-                continue;
+        for (sheet, sheet_opts) in &sheets {
+            for table in tables::render(sheet, sheet_opts, |w| eprintln!("note: {w}")) {
+                if !tables::already_wrapped(sheet, table.start_line) {
+                    unwrapped += 1;
+                    continue;
+                }
+                let path = table.path(&ctx.root);
+                if let Err(code) = write_file(&path, &table.svg) {
+                    return code;
+                }
+                written.push(table.rel);
             }
-            let path = table.path(&ctx.root);
-            if let Err(code) = write_file(&path, &table.svg) {
-                return code;
-            }
-            written.push(table.rel);
         }
         if unwrapped > 0 {
             println!(

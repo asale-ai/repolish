@@ -154,43 +154,6 @@ repolish check . --only license,ci-present
 `--remote` 从环境变量读取 `GITHUB_TOKEN` 或 `GH_TOKEN`。没有 token 时走匿名配额，
 每小时 60 次。
 
-### 扫描一整个组织
-
-`check` 回答「这个仓库哪里不行」；`scan` 回答的是另一个问题——**我这一堆仓库，先动哪一个，以及哪一条修一次能覆盖最多仓库**。
-
-```bash
-./scripts/clone-org.sh asale-ai        # 并排 clone 到本地
-repolish scan target/orgs/asale-ai --remote
-```
-
-```text
-  SCORE  REPOSITORY         DISC COMP CRED  FIRST THING TO FIX
-  ────────────────────────────────────────────────────────────────────────
-    65   agent-firewall       92   55   57   P1 readme-quickstart
-    75   token-meter          73   81   71   P2 repo-topics
-    85   anything-to-skill    78   90   85   P2 repo-topics
-    86   llm-verify           73   96   85   P2 issue-pr-template
-    91   asale                78   96   96   P2 readme-title-tagline
-    92   seo-geo-skill        87   86  100   P2 repo-topics
-    98   repolish             95   99  100   P2 repo-topics
-
-  7 repositories · median 86 · 2 below 80 · 2 P1 in total
-
-  ── FIX ONCE, LIFTS SEVERAL ─────────────────────────────────────────────
-
-     P2 repo-topics                   5 of 7 repositories
-     P2 issue-pr-template             4 of 7 repositories
-     P2 ci-present                    2 of 7 repositories
-```
-
-按分数升序，因为看这张表的人是来找活干的，不是来领奖的。最后那段是它区别于「跑 N 次 `check`」的全部理由：`issue-pr-template` 在 7 个仓库里缺 4 个，那就是写一次文件、收益乘以四的一刀。
-
-那一段按 **(检查项, 严重度)** 分组，而不是只按检查项。同一项在 0 分的仓库出 P1、在 7 分的仓库出 P2，混成一行再贴上更严重的那个标签，就会写出三条 P1 而实际只有一条。
-
-**`scan` 不负责 clone。** 那要求这个二进制会联网、带 git，而评分是离线优先的。把仓库弄到本地是 `git` 的事。
-
-`--remote` 下**一个仓库拉不到就整次扫描失败**（退出码 4），不会默不作声地退回本地分。把两种基准混在同一张表里排序，是这个工具最不该犯的错。
-
 ### 插入物的排版
 
 `polish` 插进去的东西长什么样是可配的，命令行或 `.repolish.toml` 的 `[readme]` 段都行：
@@ -369,12 +332,14 @@ repolish skill .                  # 或者把 SKILL.md 写进一个仓库
 | <br /> | <br />                                              |
 | ------ | --------------------------------------------------- |
 | ✅      | `check` —— 22 个检查项、`--remote`、JSON 输出、`--min-score` |
-| ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制、已发布到 crates.io  |
-| ✅      | `polish --apply` —— 徽章、目录、issue / PR 模板、CONTRIBUTING；只增量插入，不重写            |
-| ✅      | `card` —— 自包含的 SVG 报告卡片，可直接贴进 README            |
-| ✅      | `scan` —— 给一个目录下所有仓库排名，并找出它们的共性缺项            |
-| ✅      | `.repolish.toml`，以及 `polish` 插入物的全部排版选项            |
-| ⏳      | LLM 辅助润色措辞，评分路径上依然没有模型                              |
+| ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制、已发布到 crates.io |
+| ✅      | `polish --apply` —— 徽章、目录、issue / PR 模板、CONTRIBUTING；只增量插入，不重写 |
+| ✅      | `card` —— 顶上的概览卡片与末尾的分数卡片，自包含 SVG，深浅两套色板，中英双语 |
+| ✅      | `--tables svg` —— README 表格画成 SVG，原表格折进 `<details>`，译本各一份 |
+| ✅      | `demo` —— 真的跑一遍探测到的 CLI 并录成会动的 SVG；`--tape` 则给想要 GIF 的人 |
+| ✅      | `skill` —— `SKILL.md`，让编码智能体先量再改 |
+| ✅      | `.repolish.toml`，以及 `polish` 插入物的全部排版选项 |
+| ⏳      | LLM 辅助润色措辞，评分路径上依然没有模型 |
 
 </details>
 

@@ -15,7 +15,7 @@ use std::process::Command;
 
 /// 所有子命令。漏掉一个，那个子命令的 help 就没人守。
 const COMMANDS: &[&str] = &[
-    "check", "badge", "report", "scan", "card", "demo", "skill", "init", "polish",
+    "check", "badge", "report", "card", "demo", "skill", "init", "polish",
 ];
 
 fn bin() -> &'static str {
@@ -99,7 +99,6 @@ fn error_messages_are_english_too() {
     let cases: &[&[&str]] = &[
         &["check", "/definitely/not/a/path"],
         &["skill", "--target", "not-an-agent"],
-        &["scan", "/definitely/not/a/path"],
         &["polish", ".", "--profile", "nonsense"],
     ];
     for args in cases {

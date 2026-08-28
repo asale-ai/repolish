@@ -348,7 +348,7 @@ fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mu
 
     // 每一份译本。一份中文 README 里的中文表格，在 crates.io 上照样是一堆
     // 管道符——这个功能对译本成立的理由和对主 README 完全一样。
-    for path in translated_readmes(ctx, readme) {
+    for path in crate::tables::translations(ctx, readme) {
         let Some(raw) = ctx.files.read(&path) else {
             continue;
         };
@@ -363,34 +363,6 @@ fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mu
             plan.translation(ctx.root.join(&path), &raw).inserts = inserts;
         }
     }
-}
-
-/// 主 README 的译本。
-///
-/// **必须和主 README 同一个目录。** 否则 `docs/README.zh-CN.md` 会被当成译本，
-/// 而它是文档索引的中文版，是另一份文档，不是这一份的翻译。判据用目录而不是
-/// 「在不在根目录」，是为了让 README 本来就在子目录里的仓库也成立。
-fn translated_readmes(ctx: &RepoContext, main: &Readme) -> Vec<String> {
-    let norm = |p: &str| p.replace(std::path::MAIN_SEPARATOR, "/");
-    let main_path = norm(&main.path.display().to_string());
-    let dir = |p: &str| {
-        p.rsplit_once('/')
-            .map(|(d, _)| d.to_string())
-            .unwrap_or_default()
-    };
-    // main.path 可能是绝对路径，files 里是仓库相对路径，比目录名即可
-    let main_dir = main_path
-        .strip_prefix(&norm(&ctx.root.display().to_string()))
-        .map(|p| dir(p.trim_start_matches('/')))
-        .unwrap_or_else(|| dir(&main_path));
-
-    ctx.files
-        .iter()
-        .filter(|p| !main_path.ends_with(*p))
-        .filter(|p| dir(p) == main_dir)
-        .filter(|p| repolish_md::translation_code(p).is_some())
-        .map(str::to_string)
-        .collect()
 }
 
 /// 对一份 README 算出「包表格」要插的那些行，同时把 SVG 排进 `plan` 的新文件里。

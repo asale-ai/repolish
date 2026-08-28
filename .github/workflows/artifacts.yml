@@ -49,10 +49,10 @@ jobs:
       # 是我们把自己的语言塞进了别人的门面。
       - name: Tables, the Chinese cards, and the brand assets
         run: |
+          # card 会重画主 README 与每一份译本的表格图。用它而不是 polish：
+          # polish 从不覆盖任何文件，第二次跑就是空操作，图会永远停在
+          # 第一次生成的样子。
           cargo run --release -- card . --kind tables
-          # 译本的表格图各在自己的语言目录下，由 polish 重画：
-          # card --kind tables 只看主 README。
-          cargo run --release -- polish . --apply --tables svg
           cargo run --release -- card . --kind overview --lang zh-CN \
             --output .repolish/overview.zh-CN.svg
           cargo run --release -- card . --kind score --lang zh-CN \
