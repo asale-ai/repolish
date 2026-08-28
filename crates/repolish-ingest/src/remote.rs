@@ -45,6 +45,11 @@ pub struct RemoteFacts {
     pub default_branch: Option<String>,
     /// star 增长曲线，按时间升序。空 = 没取（见 [`star_history`]）。
     pub star_history: Vec<StarPoint>,
+    /// 曲线为空时的原因，给使用者看。`None` = 压根没要曲线。
+    ///
+    /// 单独留一个字段，是因为「没有 star」和「不许看 star」画出来是同一张
+    /// 空白卡片，而对使用者是两回事——后者他还有办法（换一个有权限的令牌）。
+    pub star_note: Option<String>,
 }
 
 #[derive(Debug)]
@@ -221,6 +226,7 @@ fn from_json(v: &serde_json::Value) -> RemoteFacts {
         // 曲线由 fetch_remote 单独取——它要额外十几次请求，
         // 不该藏在「解析一份 JSON」里
         star_history: Vec::new(),
+        star_note: None,
         description: non_empty(v.get("description")),
         homepage: non_empty(v.get("homepage")),
         topics: v
@@ -282,11 +288,23 @@ const MAX_PAGE: u64 = 400;
 /// 数据决定，同一份远端状态跑两次得到同一条线。用「现在」的话，同一个仓库
 /// 每次跑都会画出一条略微不同的尾巴。
 ///
-/// 失败返回空而不是错误：star 曲线是卡片上的一段装饰，它取不到不该让整个
+/// **2026 年 7 月起，GitHub 把 stargazer 名单限制给了仓库的 admin 与
+/// collaborator。** 别人的公开仓库现在一律 404（未登录则 401）。这不是我们
+/// 这边的 bug，也绕不过去——所以取不到时要把原因说出来，而不是让使用者
+/// 对着一张没有曲线的卡片猜。
+///
+/// 对 repolish 来说这条限制不致命：它本来就是给你**自己的**仓库打分的，
+/// 而你自己的仓库你是 admin。
+///
+/// 失败返回原因而不是错误：star 曲线是卡片上的一段装饰，它取不到不该让整个
 /// `--remote` 失败——那会把「配额用完了」变成「评分失败」。
-pub fn star_history(slug: &RepoSlug, token: Option<&str>, stars: u64) -> Vec<StarPoint> {
+pub fn star_history(
+    slug: &RepoSlug,
+    token: Option<&str>,
+    stars: u64,
+) -> (Vec<StarPoint>, Option<String>) {
     if stars == 0 {
-        return Vec::new();
+        return (Vec::new(), None);
     }
     let wanted = sample_pages(stars);
     let last_page = wanted.last().copied().unwrap_or(1);
@@ -298,11 +316,16 @@ pub fn star_history(slug: &RepoSlug, token: Option<&str>, stars: u64) -> Vec<Sta
         .into();
 
     let mut points: Vec<StarPoint> = Vec::new();
+    let mut note: Option<String> = None;
     for page in wanted {
-        let Some(entries) = stargazer_page(&agent, slug, token, page) else {
-            // 中途失败就用已经拿到的点。半条曲线好过没有曲线，
-            // 而点数本身会在卡片上被读出来。
-            break;
+        let entries = match stargazer_page(&agent, slug, token, page) {
+            Ok(e) => e,
+            Err(why) => {
+                // 中途失败就用已经拿到的点。半条曲线好过没有曲线，
+                // 而失败的原因要带出去。
+                note = Some(why);
+                break;
+            }
         };
         let Some(first) = entries.first() else {
             continue;
@@ -326,9 +349,9 @@ pub fn star_history(slug: &RepoSlug, token: Option<&str>, stars: u64) -> Vec<Sta
     points.dedup_by_key(|p| p.at);
     // 一个点画不出曲线
     if points.len() < 2 {
-        return Vec::new();
+        return (Vec::new(), note);
     }
-    points
+    (points, note)
 }
 
 /// 要抽哪几页。
@@ -361,12 +384,15 @@ fn sample_pages(stars: u64) -> Vec<u64> {
 }
 
 /// 一页 stargazer 的 `starred_at`，Unix 秒，升序。
+///
+/// `Err` 里是一句给人看的原因。403/404 单独说，因为那几乎总是同一件事：
+/// GitHub 2026 年 7 月起把这份名单限制给了 admin 与 collaborator。
 fn stargazer_page(
     agent: &ureq::Agent,
     slug: &RepoSlug,
     token: Option<&str>,
     page: u64,
-) -> Option<Vec<i64>> {
+) -> Result<Vec<i64>, String> {
     let url = format!(
         "{API}/repos/{}/{}/stargazers?per_page={PER_PAGE}&page={page}",
         slug.owner, slug.name
@@ -384,18 +410,37 @@ fn stargazer_page(
         req = req.header("Authorization", format!("Bearer {t}"));
     }
 
-    let mut res = req.call().ok()?;
-    if res.status().as_u16() != 200 {
-        return None;
+    let mut res = req.call().map_err(|e| e.to_string())?;
+    match res.status().as_u16() {
+        200 => {}
+        401 | 403 | 404 => {
+            return Err(format!(
+                "GitHub will not list stargazers for {slug}. Since July 2026 that list is \
+                 limited to a repository's admins and collaborators, so a curve is only \
+                 available for repositories you have access to{}",
+                if token.is_none() {
+                    " — and it needs a token at all"
+                } else {
+                    ""
+                }
+            ))
+        }
+        429 => return Err("GitHub rate limit reached while reading stargazers".into()),
+        other => return Err(format!("GitHub answered {other} for the stargazer list")),
     }
-    let json: serde_json::Value = res.body_mut().read_json().ok()?;
+
+    let json: serde_json::Value = res
+        .body_mut()
+        .read_json()
+        .map_err(|e| format!("the stargazer page was not valid JSON: {e}"))?;
     let mut out: Vec<i64> = json
-        .as_array()?
+        .as_array()
+        .ok_or("the stargazer page was not a list")?
         .iter()
         .filter_map(|e| e.get("starred_at")?.as_str().and_then(parse_rfc3339))
         .collect();
     out.sort_unstable();
-    Some(out)
+    Ok(out)
 }
 
 /// RFC 3339 → Unix 秒。

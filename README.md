@@ -253,6 +253,12 @@ star *(k-1)×100+1*. Sampling a dozen pages gives a dozen **exact** points — o
 between them are interpolated. That costs about a dozen extra API calls, which is why it
 is off by default.
 
+**It only works on repositories you administer or collaborate on.** Since July 2026
+GitHub restricts the stargazer list to exactly those people, so pointing `--stars` at
+somebody else's repository returns nothing and says why. That is not much of a limit in
+practice — repolish scores *your* repository — but it is worth knowing before you wonder
+where the curve went.
+
 **Where each one goes is the point.** The overview card belongs at the top, under the
 badges: a stranger's first question is what this is and whether it is still alive. The
 report card belongs at the [end](#polished-with-repolish) — at the top it would mean the

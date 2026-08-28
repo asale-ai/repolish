@@ -152,6 +152,12 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
             })?;
     }
 
+    // 曲线取不到不是错误，但也不能不吭声：使用者对着一张没有曲线的卡片
+    // 是猜不出原因的，而这个原因他有办法处理（换一个有权限的令牌）。
+    if let Some(note) = ctx.remote.as_ref().and_then(|r| r.star_note.clone()) {
+        eprintln!("warning: no star history — {note}");
+    }
+
     let registry = repolish_checks::registry();
 
     // 空表示「没指定」，此时才轮到配置文件

@@ -109,7 +109,9 @@ impl RepoContext {
         if stars {
             // 曲线取不到不算失败：它是卡片上的一段装饰，不该把
             // 「配额用完了」变成「评分失败」
-            facts.star_history = remote::star_history(&slug, token, facts.stars);
+            let (points, note) = remote::star_history(&slug, token, facts.stars);
+            facts.star_history = points;
+            facts.star_note = note;
         }
         self.remote = Some(facts);
         Ok(())

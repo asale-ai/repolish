@@ -247,6 +247,7 @@ fn all_messages_are_english() {
     // 让它们也跑起来：一份「什么都没填」和一份「填了但对不上」。
     let empty_remote = RemoteFacts {
         star_history: Vec::new(),
+        star_note: None,
         description: None,
         homepage: None,
         topics: Vec::new(),

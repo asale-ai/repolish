@@ -90,6 +90,12 @@ Three consequences worth stating:
 - **The x axis is time, not sample index.** Sampling is uniform in pages, but stars do not
   arrive uniformly; plotting by index would draw a quiet year and a viral week the same
   width.
+- **GitHub restricts the list to admins and collaborators.** Since July 2026 the
+  stargazer endpoints are limited to people with access to the repository; anyone else
+  gets 404, and unauthenticated requests get 401. There is no way around it, so a failure
+  reports the reason rather than leaving a blank space on the card. It costs little in
+  practice: repolish scores *your* repository, and on your own repository you are an
+  admin.
 - **Pagination is capped at 400 pages.** Beyond 40,000 stars the early history is not
   reachable, and the curve starts where the data starts rather than pretending otherwise.
 
