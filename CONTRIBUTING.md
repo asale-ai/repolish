@@ -52,6 +52,31 @@ byte-identical file, or CI commits a diff made of nothing but noise), and **one 
 palette per file** (no `prefers-color-scheme`; GitHub serves SVGs through an image proxy
 where media queries are not reliable). There are tests for all three.
 
+## Releasing
+
+```bash
+./publish.sh "what changed"          # patch bump
+./publish.sh --minor "add the card"
+./publish.sh --version 1.0.0 "first stable release"
+./publish.sh --clawhub "…"           # publish the skill to ClawHub as well
+./publish.sh --dry-run "…"           # print every step, change nothing
+```
+
+One command does the whole release: run the tests, bump the workspace version,
+rewrite every pinned `repolish@vX.Y.Z` in the docs, open a pull request, wait
+for the required checks, tag the commit that actually landed, watch
+`release.yml` build the five binaries, then publish the six crates to crates.io
+**in dependency order** — `repolish-md`, `repolish-ingest`, `repolish-core`,
+`repolish-checks`, `repolish-render`, `repolish` — waiting for the index between
+each, because cargo rejects a crate whose path dependencies are not published
+yet.
+
+It is designed to be re-runnable. Crates already at the new version are skipped,
+so a partial failure is fixed by running it again with `--version X.Y.Z
+--skip-tests`. It refuses to start if the tree is dirty, if the branch is behind
+`main`, if the tag already exists, or if there are no crates.io credentials —
+each of those is far cheaper to hit before the tag is pushed than after.
+
 ## The three rules that are not up for debate
 
 **1. Scoring is deterministic.** `repolish-core` must not depend on `repolish-llm`. The

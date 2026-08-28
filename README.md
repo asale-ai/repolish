@@ -27,7 +27,7 @@ it belongs.</sup>
 - [Install](#install)
 - [Quick start](#quick-start)
 - [Usage](#usage)
-- [The cards](#the-cards)
+- [The cards, the tables and the recording](#the-cards-the-tables-and-the-recording)
 - [For coding agents](#for-coding-agents)
 - [What it checks](#what-it-checks)
 - [How scoring works](#how-scoring-works)
@@ -45,13 +45,10 @@ actually has — *what is wrong with my repository right now, and what do I chan
 repolish reads a repository the way a stranger does, scores 22 concrete signals, and for
 every point it deducts it names the file and line and tells you what to write instead.
 
-Two rules keep the number worth trusting:
-
-- **No model in the scoring path.** The same commit always produces the same score. An
-  LLM can suggest wording later, but it never moves a number.
-- **It says when it does not know.** A check that cannot be decided returns
-  *inconclusive* and is excluded from the score rather than guessed at. Every excluded
-  check is listed in the report.
+Two rules keep the number worth trusting. **No model in the scoring path** — the same
+commit always produces the same score; an LLM can suggest wording, but never moves a
+number. And **it says when it does not know** — a check that cannot be decided returns
+*inconclusive* and is excluded rather than guessed at, and every excluded check is named.
 
 ## Install
 
@@ -176,15 +173,11 @@ rather than on every push, for a reason worth reading:
 
 </details>
 
-Three things in that output are the point of the tool:
-
-- **`README.md:8`** — every deduction names a file and, where there is one, a line.
-- **`5 not verified`** — the checks it could not decide are counted separately and listed
-  by name, never folded into the score as if they had passed.
-- **`local`** — the report always says which baseline produced it. See
-  [How scoring works](#how-scoring-works).
-
-Run `repolish check . -v` for the banner, the colours, and the full finding list.
+Three things there are the point of the tool: **`README.md:8`** — every deduction names a
+file and, where there is one, a line; **`5 not verified`** — checks it could not decide are
+counted separately and never folded into the score as if they had passed; and **`local`** —
+the report always says which baseline produced it, because a local score and a `--remote`
+one are not comparable. Run `repolish check . -v` for the full finding list.
 
 ## Usage
 
@@ -235,22 +228,15 @@ last section is the whole reason `scan` exists rather than running `check` N tim
 `issue-pr-template` missing in 4 of 7 repositories is one file written once for four
 repositories' worth of score.
 
-That section groups by **(check, severity)**, not by check alone. The same check can be
-P1 in a repository scoring zero on it and P2 in one scoring seven; collapsing those into
-one row and labelling it with the worse of the two would claim three P1s where only one
-exists.
-
-`scan` does not clone. That would mean this binary needs the network and git, and
-scoring is offline-first. Getting the repositories onto disk is git's job.
-
-Under `--remote`, one repository failing to fetch fails the whole scan (exit code 4)
-rather than quietly falling back to a local score for it. Sorting two different baselines
-in one table would be the worst mistake this tool could make.
+`scan` does not clone — that would make this binary need the network and git, and scoring
+is offline-first. Under `--remote`, one repository failing to fetch fails the whole scan
+(exit code 4) rather than quietly mixing a local score into the table. See
+[docs/02-CLI设计.md](docs/02-CLI设计.md#scan) for how the shared-gaps section is grouped.
 
 ### Styling what it inserts
 
-The presentation of everything `polish` inserts is configurable, from the command line or
-from `[readme]` in `.repolish.toml`:
+Everything `polish` inserts is configurable, from the command line or from `[readme]` in
+`.repolish.toml`:
 
 ```bash
 repolish polish . --badge-style for-the-badge --toc-style fold --align center
@@ -258,32 +244,19 @@ repolish polish . --logo assets/hero.svg --logo-width full --tree-depth 2
 repolish polish . --visuals         # --overview --footer-card --tables svg
 ```
 
-`--badge-style` takes shields.io's own values, `--toc-style` is `bullet` / `number` /
-`roman` / `fold` (the last folds the contents into a `<details>` block, which long
-READMEs benefit from), and `--tree-depth` appends a project structure tree.
-
-`--logo-width` takes a pixel count or the word **`full`**, which emits `width="100%"`. A
-banner wants `full`: pinned to a fixed pixel width it huddles in the top-left corner of a
-wide window and overflows a narrow one. The banner at the top of this page is
-`--logo assets/hero.svg --logo-width full --align center`.
-
-`--visuals` is the shorthand for the three insertions described in [The
-cards](#the-cards): the overview card under the badges, the report card at the end, and
-every table drawn as an SVG with the original folded beneath it. Each is also available on
-its own as `--overview`, `--footer-card` and `--tables svg`.
+`--logo-width` takes a pixel count or **`full`**, which emits `width="100%"` — a banner
+pinned to a fixed width huddles in the corner of a wide window and overflows a narrow one.
+Left unset, `--badge-style` follows whatever badges the README already uses: one badge in a
+different style from the rest of the row looks worse than a row that is uniformly not our
+default. Full list of options in [docs/02-CLI设计.md](docs/02-CLI设计.md).
 
 **None of this moves a score.** The check list and weights are frozen at v1; a repository
 cannot make itself look better by picking a different badge style, because then scores
-would stop being comparable between repositories — which is the whole point.
+would stop being comparable — which is the whole point.
 
-Left unset, `--badge-style` follows whatever badges the README already uses. One badge in
-a different style from the rest of the row looks worse than a row that is uniformly not
-our default.
-
-Three of these — the logo, the tree, and the cards — are **not driven by a check**. No
-check asks for a banner or a diagram. They stay off unless you ask, and `polish` says so
-in its own dry-run output ("requested by configuration") rather than dressing them up as
-fixes.
+The logo, the tree and the cards are **not driven by a check**. Nothing asks for a banner.
+They stay off unless you ask, and `polish` says "requested by configuration" in its dry run
+rather than dressing them up as fixes.
 
 ### Fixing what can be fixed
 
@@ -292,24 +265,19 @@ repolish polish .                   # print the changes it would make
 repolish polish . --apply           # write them
 ```
 
-`polish` only makes changes that follow mechanically from the findings: the repolish
-badge (alongside the `.repolish/badge.json` it points at), a table of contents built from
-your own headings, GitHub issue and pull request templates, and a `CONTRIBUTING.md`
-whose build and test commands come from your **detected package manifest** — `cargo
-test` for a Cargo project, `npm test` only if `package.json` actually has that script.
+`polish` only makes changes that follow mechanically from the findings: the repolish badge
+(alongside the `.repolish/badge.json` it points at), a table of contents built from your
+own headings, GitHub issue and pull request templates, and a `CONTRIBUTING.md` whose build
+and test commands come from your **detected package manifest**.
 
-Where it cannot know, it does not write. No package manifest means no `CONTRIBUTING.md`,
-because the alternative is `<your build command here>` — a file that turns the check
-green while the problem stays exactly where it was. It does not generate a code of
-conduct at all: the only project-specific part of the Contributor Covenant is the
-reporting address, and a code of conduct with a placeholder there promises a channel
-that does not exist.
+**Where it cannot know, it does not write.** No manifest means no `CONTRIBUTING.md`,
+because the alternative is `<your build command here>` — a file that turns the check green
+while the problem stays exactly where it was.
 
-It **only inserts**. The diff is new lines and nothing else: your tabs, list markers,
-reference-style link definitions and line endings are preserved byte for byte. That is
-not caution for its own sake — round-tripping a README through a Markdown formatter is
-lossy on 12 of 12 real-world READMEs, and a tool that teaches people to tidy their
-repository has no business reflowing their prose.
+**It only inserts.** The diff is new lines and nothing else: your tabs, list markers,
+reference-style link definitions and line endings survive byte for byte. Round-tripping a
+README through a Markdown formatter is lossy on 12 of 12 real-world READMEs, and a tool
+that teaches people to tidy their repository has no business reflowing their prose.
 
 `--apply` refuses to run outside a git repository unless you pass `--force`, because
 `git checkout` is the undo button.
@@ -356,140 +324,53 @@ them apart.
 
 </details>
 
-## The cards
+## The cards, the tables and the recording
 
-Two SVGs, and **which one goes where is the whole point**:
+Everything repolish draws is a **self-contained, deterministic SVG**: no external fonts,
+no scripts, nothing hosted by us, and the same commit renders a byte-identical file. All
+of it is a plain file in **your** repository.
 
 ```bash
-repolish card .                     # .repolish/overview.svg — what this project is
-repolish card . --kind score        # .repolish/card.svg     — what repolish scored it
-repolish card . --kind all          # both, plus every table below
+repolish card .                 # .repolish/overview.svg — what this project is
+repolish card . --kind score    # .repolish/card.svg     — what repolish scored it
+repolish card . --kind tables   # redraw the README's tables
+repolish demo .                 # run the CLI and record it as an animated SVG
+repolish polish . --apply --visuals   # insert all of the above into the README
 ```
 
-The **overview card** goes at the top, under the badges. It answers the question a
-stranger actually arrives with — what is this, what is it written in, is it still alive —
-from languages by file, the split between code and docs and config, a year of commit
-activity, the licence, and the latest tag.
+**Where each one goes is the point.** The overview card belongs at the top, under the
+badges: a stranger's first question is what this is, what it is written in, and whether
+it is still alive. The report card belongs at the [end](#polished-with-repolish) — at the
+top it would mean the first thing a visitor sees is our tool grading your project instead
+of your project. Earlier versions of this README had it the other way round, and it was
+wrong.
 
-The **report card** goes at the [end of the page](#polished-with-repolish), under its own
-heading. That placement is not decoration. A score card at the top means the first thing
-a visitor sees is our tool grading your project instead of your project; at the end, the
-reader has already decided whether they want it, and "this README was polished with
-repolish" becomes a useful fact rather than an advertisement. Earlier versions of this
-README had it the other way round, and it was wrong.
+**Tables become pictures, and the original is kept.** GitHub renders Markdown tables;
+crates.io, npm and most aggregators print the pipes. `--tables svg` draws each table once
+and folds the original into `<details>` beneath it — an image has no text layer, so screen
+readers, `grep` and the next person to edit that table all read the folded copy. The
+wrapping is pure insertion: the table's own bytes are untouched.
 
-Both are the badge taken one step further: same distribution model — a plain file in
-**your** repository, served from your own raw URL, nothing hosted by us — except a badge
-has room for one number.
+**The recording runs the commands.** `repolish demo` executes them and renders the result
+as an animated SVG driven by CSS keyframes — text, so it diffs; no `ttyd`, no `ffmpeg`, no
+GIF blobs in the history. The scores in the recording at the top of this page are what that
+run actually produced. Use `--dry-run` to see the commands first, and `--tape` if you would
+rather have a VHS tape for a registry that does not render SVG.
 
-### What "self-contained" means here
-
-No external fonts, no scripts, no remote images, no network at render time. The wordmark
-is drawn from a bitmap table as rectangles, because whether a reader has JetBrains Mono
-installed is not something we get to decide. Rendering is deterministic, so the same
-commit produces a byte-identical file and CI never commits a diff made of nothing but
-noise.
-
-Two things are adjustable, and neither of them moves a score:
+Two adjustments, neither of which moves a score:
 
 ```bash
 repolish card . --theme porcelain   # light palette, for a light-leaning README
 repolish card . --lang zh-CN        # by default the card follows your README's language
 ```
 
-`--theme dark` is the default. `porcelain` exists for readability rather than taste: a
-dark card dropped into a light README is a hole in the page. There is deliberately no
-`prefers-color-scheme` switching — GitHub serves SVGs through an image proxy, and media
-queries are not reliable on that path, so the file itself is either dark or light.
+`--lang` defaults to **auto** and reads your README, not your shell's locale — a card
+saying `LANGUAGES · BY FILE` on top of a Chinese README is our language pushed into
+someone else's front door.
 
-`--lang` defaults to **auto**, which reads your README and follows it. A card that says
-`LANGUAGES · BY FILE` on top of a Chinese README is our language pushed into someone
-else's front door. It follows the README, not your shell's locale — otherwise one CI run
-with `LANG=C` would silently flip it.
-
-### Tables as pictures
-
-GitHub renders Markdown tables. crates.io, npm, and most README aggregators do not — they
-print the pipes. `--tables svg` draws each table once, as a picture that looks the same
-everywhere:
-
-```bash
-repolish polish . --apply --tables svg
-repolish card . --kind tables       # redraw them after editing the README
-```
-
-**The original table is kept, folded into `<details>` directly below the image.** That is
-not politeness, it is a requirement: an image has no text layer, so screen readers,
-`grep`, translation tools and the next person who wants to edit that table all read the
-folded copy. Every table in this README is wrapped that way — open one and see.
-
-The wrapping is still pure insertion. The table's own bytes are untouched; lines are
-added above and below it and nothing else.
-
-Tables shorter than two rows are left alone (a picture buys nothing), and tables longer
-than sixteen are too, with a note saying so — an image that tall is unreadable on a
-phone, and a real table scrolls.
-
-### Recording a CLI
-
-If the project has a binary, the most useful thing its README can carry is a few seconds
-of it actually running:
-
-```bash
-repolish demo .                     # really runs it, writes .repolish/demo.svg
-repolish demo . --cmd "tool build" --cmd "tool run"
-repolish demo . --dry-run           # list the commands it would run, run nothing
-repolish demo . --tape              # also write a VHS tape, if you want a GIF instead
-```
-
-**It really runs those commands**, and the output is real — the two scores in the
-recording at the top of this page are what that run actually produced. Which also means:
-only point it at a repository whose commands you are willing to execute, and use
-`--dry-run` first if you are unsure.
-
-The output is an **animated SVG**, driven by CSS keyframes. Why not just shell out to
-[VHS](https://github.com/charmbracelet/vhs): VHS is good, but it needs `ttyd` and
-`ffmpeg` and produces a GIF, and a GIF fails all three constraints this repository holds
-its own output to —
-
-- **It is binary.** A few hundred KB replaced wholesale on every re-record bloats the
-  history, which is why this repository's old GIF workflow was manual-only. A text SVG
-  diffs, and an unchanged recording produces no diff at all. (That fixes the format, not
-  the churn: a recording still embeds whatever the commands printed, including a commit
-  hash. This repository re-records by hand — [demo/README.md](demo/README.md) has the
-  full reasoning, including the fix that made things worse.)
-- **It has no text layer.** The command in a GIF cannot be copied, and `grep` cannot find
-  it. In the SVG it is real text.
-- **It needs a video toolchain installed first.** A tool whose pitch is "make your
-  repository presentable" has no business opening with two external dependencies.
-
-Two limits worth stating plainly:
-
-- **It is not a terminal emulator.** It understands SGR colours, `\n` and `\r`, and
-  nothing else. Programs that redraw the screen — progress bars, spinners, full-screen
-  TUIs — will not record correctly.
-- **There is no pseudo-terminal.** Output goes through a pipe, so colour is forced with
-  `CLICOLOR_FORCE` and `FORCE_COLOR`; a program that still insists on monochrome will be
-  recorded in monochrome.
-
-The default recording is just `--help`, because that is the only command that is true of
-every CLI. Which commands are worth showing is the author's judgement, not ours, so
-everything beyond that is `--cmd`.
-
-### Keeping them current
-
-```yaml
-- uses: asale-ai/repolish@v0.3.0
-  with:
-    card: true
-    overview: true
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-Note that `card` regenerates and `polish` does not. `polish` never overwrites anything —
-it inserts the reference the first time and stops there. Redrawing afterwards is `card`'s
-job, which is what the CI job in this repository runs on every push.
+The reasoning behind all of it — why no `prefers-color-scheme`, why frame zero of the
+recording is the finished state, why the tables are named by slug rather than by index —
+is in [docs/02-CLI设计.md](docs/02-CLI设计.md).
 
 ## For coding agents
 
@@ -498,47 +379,22 @@ That replaces the author's voice, layout and examples with something that reads 
 other README, and it is exactly the failure this tool exists to prevent.
 
 ```bash
-repolish skill --list               # which agents are installed here
-repolish skill --target detect      # install into the ones that are
-repolish skill --target claude,codex
-repolish skill .                    # or write SKILL.md into a repository
+repolish skill --list             # which agents are installed here
+repolish skill --target detect    # install into the ones that are
+repolish skill .                  # or write SKILL.md into a repository
 ```
 
-`--target` installs into the agent's own directory (`~/.claude/skills/repolish/`
-and friends), so it applies to every project you open. Without `--target` it
-writes `SKILL.md` into a repository, where it travels with the code. Gemini also
-gets the `gemini-extension.json` and `GEMINI.md` its manifest refers to —
-shipping the manifest alone would leave a dangling reference on every start.
+[skills/repolish/SKILL.md](skills/repolish/SKILL.md) is the file to hand to Claude Code,
+Codex, Gemini, OpenCode or anything reading `AGENTS.md`. Beyond the command surface it
+carries the part that matters: the order — **measure, apply what is mechanical, hand back
+what needs judgement, measure again** — where repolish's own confidence runs out, and what
+a good fix looks like per finding. A `claim-consistency` failure is fixed by making the
+claim true, **never** by deleting the line, which turns the check green and leaves the
+reader with nothing.
 
-[skills/repolish/SKILL.md](skills/repolish/SKILL.md) is a file you can hand to Claude Code, Codex, or anything else that
-reads skill definitions. It carries the command surface, the JSON shape and the exit
-codes, but the useful half is the part about judgement:
-
-- the order — **measure, apply what is mechanical, hand back what needs judgement,
-  measure again**;
-- where repolish's own confidence runs out. It decides three ways — facts,
-  cross-references, and graded keyword heuristics — and the third is the weak one. The
-  score measures whether the machinery a reader needs is present and whether the promises
-  are true. It does not measure whether the writing is any good;
-- what a good fix looks like per finding, and the failure mode for each. `license` is a
-  legal decision the author makes, not a file you drop in. A `claim-consistency` failure
-  is fixed by making the claim true or correcting it — **never** by deleting the line,
-  which turns the check green and leaves the reader with nothing.
-
-It also says plainly that the agent must not rewrite the README, must not invent a number
-the tool did not produce, and must report `not scored` as `not scored`.
-
-That division is deliberate, and it is the answer to "why not put an LLM in it": the agent
-has context repolish structurally cannot have — the codebase, your intent, the
-conversation — and repolish has determinism the agent cannot have. A badge whose number
-moves because a model answered differently this morning is worth nothing.
-
-For agents, `--format json` is the interface. The schema is frozen at version 1, and every
-finding carries its file, its line, and its severity:
-
-```bash
-repolish check . --format json
-```
+That division is the answer to "why not put an LLM in it": the agent has context repolish
+structurally cannot have, and repolish has determinism the agent cannot have. A badge whose
+number moves because a model answered differently this morning is worth nothing.
 
 ## What it checks
 
@@ -620,32 +476,9 @@ cargo fmt --all -- --check
 `fetch-fixtures.sh` clones the 12 real repositories used for manual acceptance. Each entry
 is annotated with the defect that repository originally exposed.
 
-Design documents live in [docs/](docs/README.md) and are written in Chinese.
-
-### Releasing
-
-```bash
-./publish.sh "what changed"          # patch bump
-./publish.sh --minor "add the card"
-./publish.sh --version 1.0.0 "first stable release"
-./publish.sh --clawhub "…"           # publish the skill to ClawHub as well
-./publish.sh --dry-run "…"           # print every step, change nothing
-```
-
-One command does the whole release: run the tests, bump the workspace version,
-rewrite every pinned `repolish@vX.Y.Z` in the docs, open a pull request, wait
-for the required checks, tag the commit that actually landed, watch
-`release.yml` build the five binaries, then publish the six crates to crates.io
-**in dependency order** — `repolish-md`, `repolish-ingest`, `repolish-core`,
-`repolish-checks`, `repolish-render`, `repolish` — waiting for the index between
-each, because cargo rejects a crate whose path dependencies are not published
-yet.
-
-It is designed to be re-runnable. Crates already at the new version are skipped,
-so a partial failure is fixed by running it again with `--version X.Y.Z
---skip-tests`. It refuses to start if the tree is dirty, if the branch is behind
-`main`, if the tag already exists, or if there are no crates.io credentials —
-each of those is far cheaper to hit before the tag is pushed than after.
+Design documents live in [docs/](docs/README.md) and are written in Chinese. The release
+runbook — what `./publish.sh` does and why it refuses to start in some states — is in
+[CONTRIBUTING.md](CONTRIBUTING.md#releasing).
 
 ## Contributing
 
