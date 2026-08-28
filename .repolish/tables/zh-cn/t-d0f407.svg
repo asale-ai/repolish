@@ -7,7 +7,7 @@
     </linearGradient>
   </defs>
   <style>
-    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace; }
+    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Noto Sans Mono CJK JP", "Microsoft YaHei", "Hiragino Sans", "Yu Gothic", monospace; }
   </style>
   <rect x="0" y="0" width="880" height="431" rx="18.0" fill="#1a1a24"/>
   <rect x="0.5" y="0.5" width="879" height="430" rx="17.5" fill="none" stroke="#35334a"/>
@@ -24,7 +24,7 @@
   <text class="t" x="78" y="172" font-size="13" fill="#edebfa" text-anchor="start">polish --apply —— 徽章、目录、issue / PR 模板、CONTRIBUTING；只增量插入，不重写</text>
   <rect x="20" y="183" width="840" height="35" rx="5.0" fill="#222130"/>
   <text class="t" x="58" y="207" font-size="15" fill="#43e5d0" text-anchor="end" font-weight="700">✓</text>
-  <text class="t" x="78" y="207" font-size="13" fill="#edebfa" text-anchor="start">card —— 顶上的概览卡片与末尾的分数卡片，自包含 SVG，深浅两套色板，中英双语</text>
+  <text class="t" x="78" y="207" font-size="13" fill="#edebfa" text-anchor="start">card —— 顶上的概览卡片与末尾的分数卡片，自包含 SVG，深浅两套色板，中英日三语</text>
   <text class="t" x="58" y="242" font-size="15" fill="#43e5d0" text-anchor="end" font-weight="700">✓</text>
   <text class="t" x="78" y="242" font-size="13" fill="#edebfa" text-anchor="start">--tables svg —— README 表格画成 SVG，原表格折进 ，译本各一份</text>
   <rect x="20" y="253" width="840" height="35" rx="5.0" fill="#222130"/>

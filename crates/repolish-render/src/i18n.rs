@@ -14,6 +14,7 @@ pub enum Lang {
     #[default]
     En,
     ZhCn,
+    Ja,
 }
 
 impl Lang {
@@ -21,6 +22,7 @@ impl Lang {
         match self {
             Lang::En => "en",
             Lang::ZhCn => "zh-CN",
+            Lang::Ja => "ja",
         }
     }
 
@@ -33,6 +35,7 @@ impl Lang {
         match s.to_lowercase().replace('_', "-").as_str() {
             "en" | "en-us" | "en-gb" => Some(Lang::En),
             "zh" | "zh-cn" | "zh-hans" | "zh-sg" => Some(Lang::ZhCn),
+            "ja" | "ja-jp" | "jp" => Some(Lang::Ja),
             _ => None,
         }
     }
@@ -40,24 +43,43 @@ impl Lang {
     /// 卡片要跟着 README 的语言走。CJK 字符过半即判中文——
     /// 一份中文 README 里夹着英文命令名是常态，按「有没有中文」判会
     /// 把几乎所有 README 都判成中文。
+    /// 卡片要跟着 README 的语言走。
+    ///
+    /// **日文与中文共用汉字，所以汉字比例分不开这两者。** 分开它们的是假名：
+    /// 平假名和片假名只出现在日文里，一份日文 README 不可能一个都没有。所以
+    /// 先看假名，再看汉字比例——顺序不能反，反过来会把所有日文判成中文。
+    ///
+    /// 汉字那条线是三分之一而不是过半：一个汉字承载的信息量远大于一个拉丁
+    /// 字母，等量对比会永远判成英文；而「有没有汉字」又太松，一份英文 README
+    /// 里放一个「中文」链接就会被判成中文。
     pub fn detect(readme: &str) -> Lang {
         let mut cjk = 0usize;
+        let mut kana = 0usize;
         let mut letters = 0usize;
         for c in readme.chars() {
-            if is_cjk(c) {
+            if is_kana(c) {
+                kana += 1;
+                letters += 1;
+            } else if is_cjk(c) {
                 cjk += 1;
                 letters += 1;
             } else if c.is_alphabetic() {
                 letters += 1;
             }
         }
-        // 一个汉字承载的信息量远大于一个拉丁字母，等量对比会永远判成英文。
-        // 三分之一是实测下来能把中英混排的 README 判对的那条线。
-        if letters > 0 && cjk * 3 > letters {
-            Lang::ZhCn
-        } else {
-            Lang::En
+        if letters == 0 {
+            return Lang::En;
         }
+        // 假名的门槛比汉字低得多：日文里假名本来就密集，出现几个孤零零的
+        // 片假名（英文 README 里引用一个日文名字）不该翻盘，但只要成段的
+        // 日文出现，这个比例立刻就过了。
+        if kana * 20 > letters {
+            return Lang::Ja;
+        }
+        if (cjk + kana) * 3 > letters {
+            return Lang::ZhCn;
+        }
+        Lang::En
     }
 
     /// 这个语言认哪些 README 文件名后缀（`README.zh-CN.md` 里的 `zh-cn`）。
@@ -69,6 +91,7 @@ impl Lang {
         match self {
             Lang::En => matches!(code.as_str(), "en" | "en-us" | "en-gb"),
             Lang::ZhCn => matches!(code.as_str(), "zh" | "zh-cn" | "zh-hans" | "cn" | "zh-sg"),
+            Lang::Ja => matches!(code.as_str(), "ja" | "ja-jp" | "jp"),
         }
     }
 
@@ -76,12 +99,18 @@ impl Lang {
         match self {
             Lang::En => &EN,
             Lang::ZhCn => &ZH_CN,
+            Lang::Ja => &JA,
         }
     }
 }
 
 fn is_cjk(c: char) -> bool {
     matches!(c as u32, 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF)
+}
+
+/// 平假名与片假名。汉字是中日共有的，假名不是——它是区分两者的那条线。
+fn is_kana(c: char) -> bool {
+    matches!(c as u32, 0x3040..=0x309F | 0x30A0..=0x30FF | 0x31F0..=0x31FF)
 }
 
 /// 卡片上出现的每一个字。
@@ -262,6 +291,61 @@ pub const ZH_CN: Strings = Strings {
     deterministic: "评分过程确定，不涉及任何模型。",
 };
 
+pub const JA: Strings = Strings {
+    overview_title: "リポジトリ概要",
+    profile: "種別",
+    languages: "言語構成",
+    by_file: "ファイル数",
+    composition: "ファイル種別",
+    activity: "コミット頻度",
+    weeks: "52週",
+    files: "ファイル",
+    kinds: "種類",
+    languages_unit: "言語",
+    // 日本語は数を先に置く：「他 3 件」ではなく「他3件」が自然
+    more_prefix: "他",
+    more_suffix: "件",
+    weeks_ago_prefix: "",
+    weeks_ago_suffix: "週前",
+    commits: "コミット",
+    tags: "タグ",
+    stars: "スター",
+    topics: "トピック",
+    license: "ライセンス",
+    last_commit: "最終コミット",
+    days_ago: "日前",
+    today: "本日",
+    none: "なし",
+    shallow_note: "浅いクローン — 履歴は不完全です",
+    no_history: "コミット履歴を読み取れません",
+    peak: "ピーク",
+    kind_code: "コード",
+    kind_docs: "ドキュメント",
+    kind_config: "設定",
+    kind_other: "その他",
+
+    cat_discoverability: "見つけやすさ",
+    cat_comprehensibility: "分かりやすさ",
+    cat_credibility: "信頼性",
+
+    score: "スコア",
+    not_scored: "スコアなし",
+    checks: "検査項目",
+    to_fix: "要修正",
+    scored: "項目を評価",
+    not_verified: "項目が未検証",
+    not_applicable: "項目が対象外",
+    more_findings: "件は非表示 — repolish check を実行",
+    band_excellent: "優秀",
+    band_good: "良好",
+    band_fair: "普通",
+    band_weak: "やや弱い",
+    band_poor: "不十分",
+
+    generated_by: "生成",
+    deterministic: "スコアリングは決定的です。モデルは介在しません。",
+};
+
 /// 三大类的名字，跟着语言走。
 ///
 /// 与 `Category::label()` 分开：那一个服务终端报告和 JSON schema，必须一直是
@@ -316,41 +400,63 @@ mod tests {
     }
 
     /// 文案表的意义就在于「少一条编译不过」。但常量表本身漏一条，编译器
-    /// 是发现不了的——两个语言各自填满，值却一模一样，说明其中一份没翻。
+    /// 是发现不了的——字段填满了，值却是从别的语言抄来的。
     #[test]
     fn nothing_is_left_untranslated() {
-        let (en, zh) = (&EN, &ZH_CN);
-        // 只列那些两种语言下必然不同的字段。像 "52w" 这类符号型的不在此列。
-        let pairs: &[(&str, &str, &str)] = &[
-            ("overview_title", en.overview_title, zh.overview_title),
-            ("profile", en.profile, zh.profile),
-            ("languages", en.languages, zh.languages),
-            ("composition", en.composition, zh.composition),
-            ("activity", en.activity, zh.activity),
-            ("files", en.files, zh.files),
-            ("commits", en.commits, zh.commits),
-            ("license", en.license, zh.license),
-            ("score", en.score, zh.score),
-            ("checks", en.checks, zh.checks),
-            ("to_fix", en.to_fix, zh.to_fix),
-            ("band_excellent", en.band_excellent, zh.band_excellent),
-            ("band_poor", en.band_poor, zh.band_poor),
-            ("generated_by", en.generated_by, zh.generated_by),
-            (
-                "cat_discoverability",
-                en.cat_discoverability,
-                zh.cat_discoverability,
-            ),
-            (
-                "cat_comprehensibility",
-                en.cat_comprehensibility,
-                zh.cat_comprehensibility,
-            ),
-            ("cat_credibility", en.cat_credibility, zh.cat_credibility),
+        // 只列那些每种语言下必然不同的字段。像 "52週" 里的数字、
+        // `more_prefix` 这类符号型的不在此列。
+        /// 从一张表里取一个字段。三张表并排比对，靠它遍历字段。
+        type Field = (&'static str, fn(&Strings) -> &'static str);
+        let fields: &[Field] = &[
+            ("overview_title", |s| s.overview_title),
+            ("profile", |s| s.profile),
+            ("languages", |s| s.languages),
+            ("composition", |s| s.composition),
+            ("activity", |s| s.activity),
+            ("files", |s| s.files),
+            ("commits", |s| s.commits),
+            ("license", |s| s.license),
+            ("score", |s| s.score),
+            ("checks", |s| s.checks),
+            ("to_fix", |s| s.to_fix),
+            ("band_excellent", |s| s.band_excellent),
+            ("band_poor", |s| s.band_poor),
+            ("generated_by", |s| s.generated_by),
+            ("cat_discoverability", |s| s.cat_discoverability),
+            ("cat_comprehensibility", |s| s.cat_comprehensibility),
+            ("cat_credibility", |s| s.cat_credibility),
         ];
-        for (field, e, z) in pairs {
-            assert_ne!(e, z, "`{field}` 中英文一样，八成是漏翻了");
-            assert!(!z.is_empty() && !e.is_empty(), "`{field}` 是空的");
+        let tables = [("EN", &EN), ("ZH_CN", &ZH_CN), ("JA", &JA)];
+        for (name, get) in fields {
+            for (i, (an, a)) in tables.iter().enumerate() {
+                assert!(!get(a).is_empty(), "{an} 的 `{name}` 是空的");
+                for (bn, b) in tables.iter().skip(i + 1) {
+                    assert_ne!(
+                        get(a),
+                        get(b),
+                        "`{name}` 在 {an} 和 {bn} 里一模一样，八成是漏翻了"
+                    );
+                }
+            }
+        }
+    }
+
+    /// 每种语言都要能从 `Lang` 走到自己的表，漏一个就会静默回退到英文
+    #[test]
+    fn every_language_reaches_its_own_table() {
+        assert_eq!(Lang::En.strings().score, EN.score);
+        assert_eq!(Lang::ZhCn.strings().score, ZH_CN.score);
+        assert_eq!(Lang::Ja.strings().score, JA.score);
+        for lang in [Lang::En, Lang::ZhCn, Lang::Ja] {
+            assert_eq!(
+                Lang::parse(lang.as_str()),
+                Some(lang),
+                "{lang:?} 解析不回自己"
+            );
+            assert!(
+                lang.matches_code(lang.as_str()),
+                "{lang:?} 认不出自己的语言码"
+            );
         }
     }
 
@@ -381,6 +487,35 @@ mod tests {
         assert!(!Lang::ZhCn.matches_code("ja"));
         assert!(Lang::En.matches_code("en"));
         assert!(!Lang::En.matches_code("zh-cn"));
+    }
+
+    /// 日文与中文共用汉字。分开它们的是假名——这几条是这个判据的全部意义。
+    #[test]
+    fn japanese_is_told_apart_from_chinese_by_the_kana() {
+        let ja = "# ツール\n\nリポジトリを診断して、どこを直せばいいかを教えるコマンドラインツールです。\n\n                  ```bash\ncargo install repolish\nrepolish check .\n```\n";
+        assert_eq!(Lang::detect(ja), Lang::Ja);
+
+        // 汉字だけの日本語（見出しなど）は中国語と区別できない——それは受け入れる。
+        // 実際の README には必ず仮名が出てくる。
+        let zh = "# 工具\n\n这是一个用来给仓库打分的命令行工具，指出该先改哪里。\n";
+        assert_eq!(Lang::detect(zh), Lang::ZhCn);
+
+        // 英文 README 里引用一个片假名的名字，不该翻盘
+        let en = "# Tool\n\nScore and improve what an open-source repository looks like to a \
+                  first-time visitor. Originally inspired by a talk at カンファレンス.\n\n\
+                  Install it with cargo, then run it against any repository you maintain.\n";
+        assert_eq!(Lang::detect(en), Lang::En);
+    }
+
+    #[test]
+    fn japanese_readme_filenames_are_recognised() {
+        assert!(Lang::Ja.matches_code("ja"));
+        assert!(Lang::Ja.matches_code("ja-JP"));
+        assert!(Lang::Ja.matches_code("jp"));
+        assert!(!Lang::Ja.matches_code("zh-cn"));
+        assert!(!Lang::ZhCn.matches_code("ja"));
+        assert_eq!(Lang::parse("ja"), Some(Lang::Ja));
+        assert_eq!(Lang::parse("ja-JP"), Some(Lang::Ja));
     }
 
     #[test]

@@ -7,7 +7,7 @@
     </linearGradient>
   </defs>
   <style>
-    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace; }
+    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Noto Sans Mono CJK JP", "Microsoft YaHei", "Hiragino Sans", "Yu Gothic", monospace; }
   </style>
   <rect x="0" y="0" width="880" height="326" rx="18.0" fill="#1a1a24"/>
   <rect x="0.5" y="0.5" width="879" height="325" rx="17.5" fill="none" stroke="#35334a"/>

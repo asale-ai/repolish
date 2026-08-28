@@ -49,7 +49,7 @@ the README keeps showing the image generated the first time forever. CI runs `ca
 | `--profile <auto\|library\|app\|cli\|docs\|collection\|meta>` | Default `auto`, overrides detection |
 | `--only <ids>` / `--skip <ids>` | Filter by check id (filtered checks become `Skipped`) |
 | `--theme <dark\|porcelain>` | Palette for the SVG output |
-| `--lang <auto\|en\|zh-CN>` | Language of the text inside the SVG output |
+| `--lang <auto\|en\|zh-CN\|ja>` | Language of the text inside the SVG output |
 | `--no-color` | For CI |
 | `-v` | Expand every check and the passing list |
 
@@ -284,10 +284,17 @@ goes through the table in `repolish-render/src/i18n.rs`, and `--lang` defaults t
 **judged from the README, not the system locale**: one CI run with `LANG=C` flipping a
 Chinese README's card to English would be absurd.
 
-The test is whether CJK characters exceed a third of the letters. Not "contains any
-Chinese": a Chinese README with English command names in it is the norm, and that test
-would call almost every README Chinese. Not "more than half" either: a Chinese character
-carries far more than a Latin letter, so an equal comparison always answers English.
+Detection runs in two steps, and the order matters. **Kana first**: hiragana and katakana
+appear only in Japanese, and no real Japanese README is without them, so their presence
+settles Japanese versus Chinese — a question kanji alone cannot answer, since the two
+scripts share them. Only then does the CJK share decide Chinese versus English.
+
+That share is a third of the letters. Not "contains any CJK": a Chinese README with
+English command names in it is the norm, and that test would call almost every README
+Chinese. Not "more than half" either: a CJK character carries far more than a Latin
+letter, so an equal comparison always answers English. The kana threshold is much lower
+(5%), because a stray katakana name quoted in an English README should not flip it while
+any real paragraph of Japanese clears it immediately.
 
 The table is a **struct** rather than a lookup function: a missing field is a compile
 error, so a missing translation cannot reach a release.
@@ -358,7 +365,7 @@ logo        = "assets/hero.svg"
 logo-width  = "full"       # a pixel count, or "full" → width="100%"
 tree-depth  = 2            # omitted = no project tree
 theme       = "dark"       # dark | porcelain
-lang        = "auto"       # auto | en | zh-CN
+lang        = "auto"       # auto | en | zh-CN | ja
 overview    = true         # insert the overview card under the badges
 footer-card = true         # insert the score card at the end, under its own heading
 tables      = "svg"        # keep | svg

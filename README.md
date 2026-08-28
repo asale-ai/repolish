@@ -293,12 +293,13 @@ Two adjustments, neither of which moves a score:
 
 ```bash
 repolish card . --theme porcelain   # light palette, for a light-leaning README
-repolish card . --lang zh-CN        # by default the card follows your README's language
+repolish card . --lang zh-CN        # or ja; by default it follows your README's language
 ```
 
-`--lang` defaults to **auto** and reads your README, not your shell's locale — a card
-saying `LANGUAGES · BY FILE` on top of a Chinese README is our language pushed into
-someone else's front door.
+`--lang` takes `en`, `zh-CN` or `ja`, and defaults to **auto**, which reads your README
+rather than your shell's locale — a card saying `LANGUAGES · BY FILE` on top of a Chinese
+README is our language pushed into someone else's front door. Detection looks for kana
+first, since Japanese and Chinese share their kanji and nothing else tells them apart.
 
 The reasoning behind all of it — why no `prefers-color-scheme`, why frame zero of the
 recording is the finished state, why the tables are named by slug rather than by index —
@@ -380,7 +381,7 @@ saying so until it changes:
 | ✅ | `check` — 22 checks, `--remote`, JSON output, `--min-score` |
 | ✅ | `badge`, `report`, `init`, GitHub Action, pre-built binaries for 5 targets, published on crates.io |
 | ✅ | `polish --apply` — badge, table of contents, issue / PR templates, CONTRIBUTING; only-insert, never rewrites |
-| ✅ | `card` — an overview card for the top of the README and a report card for the end, self-contained SVG, dark or porcelain, English or Chinese |
+| ✅ | `card` — an overview card for the top of the README and a report card for the end, self-contained SVG, dark or porcelain, English / Chinese / Japanese |
 | ✅ | `--tables svg` — README tables drawn as SVG in every language, the original folded into `<details>` |
 | ✅ | `demo` — records the detected CLI by running it, as an animated SVG; `--tape` for a VHS GIF instead |
 | ✅ | `skill` — `SKILL.md`, so a coding agent measures before it edits |

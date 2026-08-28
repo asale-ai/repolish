@@ -264,10 +264,10 @@ repolish polish . --apply --visuals   # 把以上全部插进 README
 
 ```bash
 repolish card . --theme porcelain   # 浅色板，给以浅色为主的 README
-repolish card . --lang zh-CN        # 默认跟着你的 README 的语言走
+repolish card . --lang zh-CN        # 也可以是 ja；缺省跟着你的 README 的语言走
 ```
 
-`--lang` 缺省是 **auto**，读的是你的 README，不是系统 locale——一张写着 `LANGUAGES · BY FILE` 的卡片贴在中文 README 顶上，是我们把自己的语言塞进了别人的门面。
+`--lang` 收 `en`、`zh-CN`、`ja`，缺省是 **auto**——读的是你的 README，不是系统 locale：一张写着 `LANGUAGES · BY FILE` 的卡片贴在中文 README 顶上，是我们把自己的语言塞进了别人的门面。判语言时先看假名，因为中日共用汉字，除了假名没有别的东西能把两者分开。
 
 背后的取舍——为什么不做 `prefers-color-scheme`、为什么录屏第 0 帧是终态、为什么表格文件按 slug 而不是序号命名——写在 [docs/02-cli-design.zh-CN.md](docs/02-cli-design.zh-CN.md)。
 
@@ -334,7 +334,7 @@ repolish skill .                  # 或者把 SKILL.md 写进一个仓库
 | ✅      | `check` —— 22 个检查项、`--remote`、JSON 输出、`--min-score` |
 | ✅      | `badge`、`report`、`init`、GitHub Action、5 个平台的预编译二进制、已发布到 crates.io |
 | ✅      | `polish --apply` —— 徽章、目录、issue / PR 模板、CONTRIBUTING；只增量插入，不重写 |
-| ✅      | `card` —— 顶上的概览卡片与末尾的分数卡片，自包含 SVG，深浅两套色板，中英双语 |
+| ✅      | `card` —— 顶上的概览卡片与末尾的分数卡片，自包含 SVG，深浅两套色板，中英日三语 |
 | ✅      | `--tables svg` —— README 表格画成 SVG，原表格折进 `<details>`，译本各一份 |
 | ✅      | `demo` —— 真的跑一遍探测到的 CLI 并录成会动的 SVG；`--tape` 则给想要 GIF 的人 |
 | ✅      | `skill` —— `SKILL.md`，让编码智能体先量再改 |

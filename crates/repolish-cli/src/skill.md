@@ -132,7 +132,7 @@ repolish card .                     # .repolish/overview.svg — what this proje
 repolish card . --kind score        # .repolish/card.svg — what repolish scored it
 repolish card . --kind both
 repolish card . --theme porcelain   # light palette, for a light-leaning README
-repolish card . --lang zh-CN        # by default the card follows the README's language
+repolish card . --lang zh-CN        # en / zh-CN / ja; by default it follows the README
 ```
 
 The **overview card** goes at the top of the README: languages, file

@@ -34,7 +34,8 @@ impl Default for Options {
 /// 等宽字栈。CJK 字体排在后面兜底——概览卡片会写进中文 README，
 /// 一个渲染不出来的方框比英文标签更糟。
 pub const FONT: &str = "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, Consolas, \
-                        \"Liberation Mono\", \"Noto Sans Mono CJK SC\", \"Microsoft YaHei\", \
+                        \"Liberation Mono\", \"Noto Sans Mono CJK SC\", \"Noto Sans Mono CJK JP\", \
+                        \"Microsoft YaHei\", \"Hiragino Sans\", \"Yu Gothic\", \
                         monospace";
 
 /// 等宽字的字符步进比例。

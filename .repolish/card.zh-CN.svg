@@ -7,7 +7,7 @@
     </linearGradient>
   </defs>
   <style>
-    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace; }
+    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Noto Sans Mono CJK JP", "Microsoft YaHei", "Hiragino Sans", "Yu Gothic", monospace; }
   </style>
   <rect x="0" y="0" width="880" height="434" rx="18.0" fill="#1a1a24"/>
   <rect x="0.5" y="0.5" width="879" height="433" rx="17.5" fill="none" stroke="#35334a"/>
@@ -131,7 +131,7 @@
   <text class="t" x="74" y="322" font-size="13" fill="#edebfa" text-anchor="start" font-weight="700">readme-length</text>
   <text class="t" x="74" y="340" font-size="12" fill="#8b87a3" text-anchor="start">Move the API details, configuration reference, and advanced usage into `docs/`, and leave the README with…</text>
   <rect x="36" y="370" width="808" height="1" fill="#35334a"/>
-  <text class="t" x="36" y="394" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · 98e24734</text>
+  <text class="t" x="36" y="394" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · 4176f067</text>
   <text class="t" x="844" y="394" font-size="12" fill="#8b87a3" text-anchor="end">repolish v0.3.0</text>
   <text class="t" x="36" y="412" font-size="11" fill="#8b87a3" text-anchor="start">评分过程确定，不涉及任何模型。</text>
 </svg>

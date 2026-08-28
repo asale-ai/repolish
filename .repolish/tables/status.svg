@@ -7,7 +7,7 @@
     </linearGradient>
   </defs>
   <style>
-    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace; }
+    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Noto Sans Mono CJK JP", "Microsoft YaHei", "Hiragino Sans", "Yu Gothic", monospace; }
   </style>
   <rect x="0" y="0" width="880" height="449" rx="18.0" fill="#1a1a24"/>
   <rect x="0.5" y="0.5" width="879" height="448" rx="17.5" fill="none" stroke="#35334a"/>
@@ -24,7 +24,7 @@
   <rect x="20" y="183" width="840" height="53" rx="5.0" fill="#222130"/>
   <text class="t" x="58" y="207" font-size="15" fill="#43e5d0" text-anchor="end" font-weight="700">✓</text>
   <text class="t" x="78" y="207" font-size="13" fill="#edebfa" text-anchor="start">card — an overview card for the top of the README and a report card for the end, self-contained</text>
-  <text class="t" x="78" y="225" font-size="13" fill="#edebfa" text-anchor="start">SVG, dark or porcelain, English or Chinese</text>
+  <text class="t" x="78" y="225" font-size="13" fill="#edebfa" text-anchor="start">SVG, dark or porcelain, English / Chinese / Japanese</text>
   <text class="t" x="58" y="260" font-size="15" fill="#43e5d0" text-anchor="end" font-weight="700">✓</text>
   <text class="t" x="78" y="260" font-size="13" fill="#edebfa" text-anchor="start">--tables svg — README tables drawn as SVG in every language, the original folded into</text>
   <rect x="20" y="271" width="840" height="35" rx="5.0" fill="#222130"/>

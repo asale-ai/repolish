@@ -227,7 +227,9 @@ README 里每一张表格画成的图。`polish --tables svg` 第一次生成并
 
 **SVG 不一样。** 卡片会被贴进**别人的 README**，被那个项目的读者看到。一张中文 README 顶上写着 `LANGUAGES · BY FILE` 的卡片，是我们把自己的语言塞进了别人的门面。所以卡片上的每一个字走 `repolish-render/src/i18n.rs` 的文案表，`--lang` 默认 `auto`——**读 README 判断，不读系统 locale**：CI 里一次 `LANG=C` 就把中文 README 顶上的卡片换成英文，是很荒唐的。
 
-判据是 CJK 字符占比过三分之一。不用「有没有中文」判：一份中文 README 里夹着英文命令名是常态，那样判会把几乎所有 README 都判成中文；也不用「过半」判：一个汉字承载的信息量远大于一个拉丁字母，等量对比会永远判成英文。
+判据分两步，顺序不能反。**先看假名**：平假名与片假名只出现在日文里，而一份真的日文 README 不可能一个假名都没有，所以它是区分日文与中文的那条线——汉字回答不了这个问题，因为中日共用汉字。假名不够，才轮到 CJK 占比去分中文与英文。
+
+那条占比线是三分之一。不用「有没有 CJK」判：一份中文 README 里夹着英文命令名是常态，那样判会把几乎所有 README 都判成中文；也不用「过半」判：一个汉字承载的信息量远大于一个拉丁字母，等量对比会永远判成英文。假名的门槛低得多（5%），因为英文 README 里引用一个片假名的名字不该翻盘，而成段的日文一出现就立刻过线。
 
 文案表是一个**结构体**而不是查表函数：少一个字段编译就过不去，翻译漏一条不可能溜进发布版。
 
@@ -286,7 +288,7 @@ logo        = "assets/hero.svg"
 logo-width  = "full"       # 像素数，或 "full" → width="100%"
 tree-depth  = 2            # 缺省 = 不生成目录树
 theme       = "dark"       # dark | porcelain，SVG 产物的色板
-lang        = "auto"       # auto | en | zh-CN，SVG 里那些字的语言
+lang        = "auto"       # auto | en | zh-CN | ja，SVG 里那些字的语言
 overview    = true         # 徽章下面插一张概览卡片
 footer-card = true         # 末尾插分数卡片与「用 repolish 打磨」一节
 tables      = "svg"        # keep | svg

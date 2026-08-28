@@ -722,7 +722,11 @@ mod tests {
     /// 卡片是固定宽度的图片：任何一段文字画到框外面，就是一张画坏了的图
     #[test]
     fn no_text_is_drawn_outside_the_card() {
-        for lang in [crate::i18n::Lang::En, crate::i18n::Lang::ZhCn] {
+        for lang in [
+            crate::i18n::Lang::En,
+            crate::i18n::Lang::ZhCn,
+            crate::i18n::Lang::Ja,
+        ] {
             let svg = overview(
                 &facts(),
                 &Options {

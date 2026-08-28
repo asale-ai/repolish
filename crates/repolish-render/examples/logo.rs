@@ -23,9 +23,9 @@ fn hero(lang: Lang) -> String {
         .map(|c| category_label(*c, s))
         .collect();
     let joined = match lang {
-        // 英文小写更像一句副标题；中文没有大小写，原样即可
+        // 英文小写更像一句副标题；中日文没有大小写，原样即可
         Lang::En => tagline.join(" · ").to_lowercase(),
-        Lang::ZhCn => tagline.join(" · "),
+        Lang::ZhCn | Lang::Ja => tagline.join(" · "),
     };
     repolish_render::svg::hero(&joined, lang)
 }

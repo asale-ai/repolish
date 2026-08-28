@@ -106,13 +106,14 @@ impl Theme {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CardLang {
-    /// Follow the README, judged by how much of it is CJK
+    /// Follow the README: kana means Japanese, otherwise a high share of CJK means Chinese
     #[default]
     Auto,
     En,
     #[value(name = "zh-CN")]
     #[serde(rename = "zh-CN")]
     ZhCn,
+    Ja,
 }
 
 impl CardLang {
@@ -121,6 +122,7 @@ impl CardLang {
             CardLang::Auto => repolish_render::Lang::detect(readme),
             CardLang::En => repolish_render::Lang::En,
             CardLang::ZhCn => repolish_render::Lang::ZhCn,
+            CardLang::Ja => repolish_render::Lang::Ja,
         }
     }
 }
