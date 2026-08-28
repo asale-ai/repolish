@@ -204,6 +204,14 @@ Publishing would then resolve to the previous release."
   # `cargo build --locked` in CI fails on the very PR this script opens.
   cargo metadata --format-version 1 > /dev/null 2>&1 || true
 
+  # SKILL.md states the current version in its install section, and it is
+  # generated from a source file compiled into the binary. Bumping without
+  # regenerating leaves the published skill telling agents to install the
+  # previous release — caught by publish-clawhub.sh, but far too late.
+  cargo run --quiet --release -p repolish -- skill . \
+    --output skills/repolish/SKILL.md --force > /dev/null \
+    || warn "could not regenerate skills/repolish/SKILL.md"
+
   # The action pins a version in the workflow template it generates, and the
   # README documents an install command with the version in it. Both go stale
   # silently, so they are rewritten here rather than remembered.

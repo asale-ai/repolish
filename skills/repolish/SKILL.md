@@ -45,7 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh |
 That installs the binary into `~/.local/bin` and drops this skill into whichever
 agents it finds on the machine. `cargo install repolish` works too, as does a
 release binary from `https://github.com/asale-ai/repolish/releases` (five
-targets, each with a `.sha256`). The current version is 0.2.0.
+targets, each with a `.sha256`). The current version is 0.3.0.
 
 **Check the binary is reachable before you rely on it.** This skill calls
 `repolish` by name; if `~/.local/bin` is not on PATH, every command below fails
