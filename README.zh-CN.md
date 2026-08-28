@@ -76,7 +76,7 @@ Linux 版只有 glibc 构建。在 musl（Alpine）上安装脚本会直说并�
 `aarch64-apple-darwin`、`x86_64-pc-windows-msvc`。
 
 ```bash
-VERSION=0.2.0
+VERSION=0.3.0
 TARGET=x86_64-unknown-linux-gnu
 curl -fsSL "https://github.com/asale-ai/repolish/releases/download/v${VERSION}/repolish-v${VERSION}-${TARGET}.tar.gz" | tar -xz
 sudo install "repolish-v${VERSION}-${TARGET}/repolish" /usr/local/bin/
@@ -105,7 +105,7 @@ cargo install --git https://github.com/asale-ai/repolish repolish
 - uses: actions/checkout@v4
   with:
     fetch-depth: 0
-- uses: asale-ai/repolish@v0.2.0
+- uses: asale-ai/repolish@v0.3.0
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -265,7 +265,7 @@ Cargo 项目写 `cargo test`，npm 项目只有 `package.json` 里真有 `test` 
 在 GitHub 上，action 直接收阈值：
 
 ```yaml
-- uses: asale-ai/repolish@v0.2.0
+- uses: asale-ai/repolish@v0.3.0
   with:
     min-score: 70
   env:
@@ -369,7 +369,7 @@ repolish demo . --tape              # 顺带写一份 VHS tape，给想要 GIF �
 ### 让它们保持最新
 
 ```yaml
-- uses: asale-ai/repolish@v0.2.0
+- uses: asale-ai/repolish@v0.3.0
   with:
     card: true
     overview: true
