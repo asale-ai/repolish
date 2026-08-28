@@ -58,7 +58,7 @@
   <rect x="36" y="84" width="808" height="1" fill="#35334a"/>
   <text class="t" x="36" y="170" font-size="64" fill="#43e5d0" text-anchor="start" font-weight="700">99</text>
   <text class="t" x="36" y="196" font-size="13" fill="#8b87a3" text-anchor="start">/ 100  ·  优秀</text>
-  <text class="t" x="236" y="140" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">DISCOVERABILITY</text>
+  <text class="t" x="236" y="140" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">可发现性</text>
   <rect x="472" y="131" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <rect x="500" y="131" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <rect x="528" y="131" width="22" height="9" rx="2.0" fill="#43e5d0"/>
@@ -72,7 +72,7 @@
   <rect x="752" y="131" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <rect x="780" y="131" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <text class="t" x="844" y="140" font-size="13" fill="#43e5d0" text-anchor="end" font-weight="700">100</text>
-  <text class="t" x="236" y="168" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">COMPREHENSIBILITY</text>
+  <text class="t" x="236" y="168" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">可理解性</text>
   <rect x="472" y="159" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <rect x="500" y="159" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <rect x="528" y="159" width="22" height="9" rx="2.0" fill="#43e5d0"/>
@@ -86,7 +86,7 @@
   <rect x="752" y="159" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <rect x="780" y="159" width="22" height="9" rx="2.0" fill="#3e3b58"/>
   <text class="t" x="844" y="168" font-size="13" fill="#43e5d0" text-anchor="end" font-weight="700">98</text>
-  <text class="t" x="236" y="196" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">CREDIBILITY</text>
+  <text class="t" x="236" y="196" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">可信度</text>
   <rect x="472" y="187" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <rect x="500" y="187" width="22" height="9" rx="2.0" fill="#43e5d0"/>
   <rect x="528" y="187" width="22" height="9" rx="2.0" fill="#43e5d0"/>

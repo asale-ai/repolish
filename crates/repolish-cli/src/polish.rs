@@ -181,10 +181,11 @@ fn overview_card(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: 
         return;
     }
 
-    let facts = repolish_render::Facts::from_ctx(ctx);
+    let opts = card_options(style);
+    let facts = repolish_render::Facts::from_ctx(ctx, opts.lang);
     plan.add_file(
         ctx.root.join(repolish_render::OVERVIEW_PATH),
-        repolish_render::overview(&facts, &card_options(style)),
+        repolish_render::overview(&facts, &opts),
         "readme style: project overview card requested by configuration",
     );
 

@@ -405,7 +405,7 @@ fn run_check(args: CheckArgs) -> u8 {
         };
         let opts = args.common.card_options(&ctx, &cfg);
         if args.overview {
-            let facts = repolish_render::Facts::from_ctx(&ctx);
+            let facts = repolish_render::Facts::from_ctx(&ctx, opts.lang);
             let path = ctx.root.join(repolish_render::OVERVIEW_PATH);
             if let Err(code) = write_file(&path, &repolish_render::overview(&facts, &opts)) {
                 return code;
@@ -609,7 +609,7 @@ fn run_card(args: CardArgs) -> u8 {
 
     let mut written: Vec<String> = Vec::new();
     if wants(CardKind::Overview) {
-        let facts = repolish_render::Facts::from_ctx(&ctx);
+        let facts = repolish_render::Facts::from_ctx(&ctx, opts.lang);
         let svg = repolish_render::overview(&facts, &opts);
         if args.stdout {
             print!("{svg}");

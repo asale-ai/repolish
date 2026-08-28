@@ -209,8 +209,9 @@ fn score_block(out: &mut String, report: &Report, p: &Palette, s: &'static Strin
     let bar_x = RIGHT - 42 - BAR_W;
     for (i, cat) in Category::ALL.iter().enumerate() {
         let row = y + 26 + i as i32 * 28;
+        // 中文没有大小写，`to_uppercase` 对它是空操作，对英文才有效
         out.push_str(&draw::label(
-            &cat.label().to_uppercase(),
+            &crate::i18n::category_label(*cat, s).to_uppercase(),
             col,
             row,
             p.muted,

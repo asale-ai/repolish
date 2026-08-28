@@ -19,7 +19,7 @@ use repolish_core::RepoContext;
 use repolish_ingest::lang::{self, Kind, LangStat};
 
 use crate::draw::{self, Anchor, Options};
-use crate::i18n::Strings;
+use crate::i18n::{Lang, Strings};
 use crate::theme::{Palette, Rgb};
 
 /// 概览卡片在用户仓库中的位置
@@ -59,7 +59,13 @@ pub struct Facts {
 }
 
 impl Facts {
-    pub fn from_ctx(ctx: &RepoContext) -> Facts {
+    /// `lang` 是卡片要用的语言。它影响的不只是标签——**简介那一行也得跟着走**。
+    ///
+    /// 一份中英双语的仓库里，`ctx.readme` 是主 README（通常英文），而 GitHub
+    /// 的 description 也是英文。照直取的话，中文卡片上标签全是中文、简介却是
+    /// 一句英文，看着像翻译漏了一半。所以先在译本里找同语言的那一份。
+    pub fn from_ctx(ctx: &RepoContext, lang: Lang) -> Facts {
+        let translated = translated_tagline(ctx, lang);
         let langs = lang::stats(&ctx.files);
         let git = ctx.git.as_ref();
 
@@ -78,10 +84,10 @@ impl Facts {
         Facts {
             name: ctx.display_name(),
             owner: ctx.slug.as_ref().map(|s| s.owner.clone()),
-            description: ctx
-                .remote
-                .as_ref()
-                .and_then(|r| r.description.clone())
+            // 同语言译本的标语优先。它是作者用这个语言亲手写的一句话，
+            // 比 GitHub 上那条（只有一种语言的）仓库简介更贴。
+            description: translated
+                .or_else(|| ctx.remote.as_ref().and_then(|r| r.description.clone()))
                 .or_else(|| ctx.readme.as_ref().and_then(|r| r.tagline.clone())),
             profile: ctx.profile.as_str(),
             total_files: langs.iter().map(|l| l.files).sum(),
@@ -107,6 +113,52 @@ impl Facts {
             branch: git.and_then(|g| g.branch.clone()),
         }
     }
+}
+
+/// 在译本里找出用 `lang` 写的那一份 README，取它的标语。
+///
+/// 命名约定与 `readme-i18n` 检查项一致：`README.zh-CN.md`、`README_zh.md`、
+/// `docs/README-zh-hans.md` 都算。主 README 本身不算译本——它已经是
+/// 兜底的下一档了。
+fn translated_tagline(ctx: &RepoContext, lang: Lang) -> Option<String> {
+    let main = ctx
+        .readme
+        .as_ref()
+        .map(|r| r.path.display().to_string().replace('\\', "/"))
+        .unwrap_or_default();
+
+    for path in ctx.files.iter() {
+        if path == main || !path.to_lowercase().contains("readme") {
+            continue;
+        }
+        let Some(code) = readme_lang_code(path) else {
+            continue;
+        };
+        if !lang.matches_code(&code) {
+            continue;
+        }
+        let Some(raw) = ctx.files.read(path) else {
+            continue;
+        };
+        if let Some(tagline) = repolish_md::Readme::parse(path, raw).tagline {
+            return Some(tagline);
+        }
+    }
+    None
+}
+
+/// `README.zh-CN.md` → `zh-cn`。认不出来返回 `None`。
+fn readme_lang_code(path: &str) -> Option<String> {
+    let file = path.rsplit('/').next().unwrap_or(path).to_lowercase();
+    let stem = file
+        .strip_suffix(".md")
+        .or_else(|| file.strip_suffix(".rst"))?;
+    let rest = stem.strip_prefix("readme")?;
+    let code = rest.trim_start_matches(['.', '_', '-']);
+    if code.is_empty() {
+        return None;
+    }
+    Some(code.to_string())
 }
 
 /// 最新的语义化版本 tag。

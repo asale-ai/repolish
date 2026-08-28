@@ -37,7 +37,7 @@
 - `readme-i18n` — 2 translations, linked from the main README
 - `license` — identified as Apache-2.0 OR MIT
 - `claim-consistency` — the one command claim in the README resolves to something in the repository
-- `ci-present` — 3 CI configs, this one running tests
+- `ci-present` — 4 CI configs, this one running tests
 - `tests-present` — 43 test locations
 - `activity` — last commit 0 days ago (2297c1d7)
 - `contributing` — 124 lines, including local development commands

@@ -10,5 +10,6 @@ repository = "https://github.com/asale-ai/repolish"
 [dependencies]
 repolish-core.workspace = true
 repolish-ingest.workspace = true
+repolish-md.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -60,6 +60,18 @@ impl Lang {
         }
     }
 
+    /// 这个语言认哪些 README 文件名后缀（`README.zh-CN.md` 里的 `zh-cn`）。
+    ///
+    /// 与 `readme-i18n` 检查项用的是同一批约定；那边负责发现译本，
+    /// 这边负责在译本里挑对应的一份。
+    pub fn matches_code(self, code: &str) -> bool {
+        let code = code.to_lowercase();
+        match self {
+            Lang::En => matches!(code.as_str(), "en" | "en-us" | "en-gb"),
+            Lang::ZhCn => matches!(code.as_str(), "zh" | "zh-cn" | "zh-hans" | "cn" | "zh-sg"),
+        }
+    }
+
     pub fn strings(self) -> &'static Strings {
         match self {
             Lang::En => &EN,
@@ -115,6 +127,13 @@ pub struct Strings {
     pub kind_config: &'static str,
     pub kind_other: &'static str,
 
+    // ── 三大类 ──
+    // `Category::label()` 在 core 里，返回的是英文——那是给终端报告和 JSON
+    // 用的，本来就该是英文。卡片贴进别人的 README，得跟着那份 README 的语言。
+    pub cat_discoverability: &'static str,
+    pub cat_comprehensibility: &'static str,
+    pub cat_credibility: &'static str,
+
     // ── 分数卡片 ──
     pub score: &'static str,
     pub not_scored: &'static str,
@@ -167,6 +186,10 @@ pub const EN: Strings = Strings {
     kind_config: "config",
     kind_other: "other",
 
+    cat_discoverability: "Discoverability",
+    cat_comprehensibility: "Comprehensibility",
+    cat_credibility: "Credibility",
+
     score: "SCORE",
     not_scored: "not scored",
     checks: "CHECKS",
@@ -217,6 +240,10 @@ pub const ZH_CN: Strings = Strings {
     kind_config: "配置",
     kind_other: "其他",
 
+    cat_discoverability: "可发现性",
+    cat_comprehensibility: "可理解性",
+    cat_credibility: "可信度",
+
     score: "得分",
     not_scored: "未评分",
     checks: "检查项",
@@ -234,6 +261,19 @@ pub const ZH_CN: Strings = Strings {
     generated_by: "生成于",
     deterministic: "评分过程确定，不涉及任何模型。",
 };
+
+/// 三大类的名字，跟着语言走。
+///
+/// 与 `Category::label()` 分开：那一个服务终端报告和 JSON schema，必须一直是
+/// 英文（JSON 的字段值是对外契约）；这一个只服务卡片。
+pub fn category_label(cat: repolish_core::Category, s: &'static Strings) -> &'static str {
+    use repolish_core::Category::*;
+    match cat {
+        Discoverability => s.cat_discoverability,
+        Comprehensibility => s.cat_comprehensibility,
+        Credibility => s.cat_credibility,
+    }
+}
 
 /// 分数 → 那个词，跟着语言走。
 ///
@@ -273,6 +313,74 @@ mod tests {
         let md = "# Tool\n\nScore and improve what an open-source repository looks like to a \
                   first-time visitor, from the command line.\n\n[中文](README.zh-CN.md)\n";
         assert_eq!(Lang::detect(md), Lang::En);
+    }
+
+    /// 文案表的意义就在于「少一条编译不过」。但常量表本身漏一条，编译器
+    /// 是发现不了的——两个语言各自填满，值却一模一样，说明其中一份没翻。
+    #[test]
+    fn nothing_is_left_untranslated() {
+        let (en, zh) = (&EN, &ZH_CN);
+        // 只列那些两种语言下必然不同的字段。像 "52w" 这类符号型的不在此列。
+        let pairs: &[(&str, &str, &str)] = &[
+            ("overview_title", en.overview_title, zh.overview_title),
+            ("profile", en.profile, zh.profile),
+            ("languages", en.languages, zh.languages),
+            ("composition", en.composition, zh.composition),
+            ("activity", en.activity, zh.activity),
+            ("files", en.files, zh.files),
+            ("commits", en.commits, zh.commits),
+            ("license", en.license, zh.license),
+            ("score", en.score, zh.score),
+            ("checks", en.checks, zh.checks),
+            ("to_fix", en.to_fix, zh.to_fix),
+            ("band_excellent", en.band_excellent, zh.band_excellent),
+            ("band_poor", en.band_poor, zh.band_poor),
+            ("generated_by", en.generated_by, zh.generated_by),
+            (
+                "cat_discoverability",
+                en.cat_discoverability,
+                zh.cat_discoverability,
+            ),
+            (
+                "cat_comprehensibility",
+                en.cat_comprehensibility,
+                zh.cat_comprehensibility,
+            ),
+            ("cat_credibility", en.cat_credibility, zh.cat_credibility),
+        ];
+        for (field, e, z) in pairs {
+            assert_ne!(e, z, "`{field}` 中英文一样，八成是漏翻了");
+            assert!(!z.is_empty() && !e.is_empty(), "`{field}` 是空的");
+        }
+    }
+
+    /// 三大类的名字曾经直接取 `Category::label()`——那是英文的，
+    /// 结果中文卡片上写着 DISCOVERABILITY。
+    #[test]
+    fn category_names_follow_the_card_language() {
+        use repolish_core::Category;
+        for cat in Category::ALL {
+            let en = category_label(cat, &EN);
+            let zh = category_label(cat, &ZH_CN);
+            assert_eq!(en, cat.label(), "英文卡片该和 Category::label() 一致");
+            assert_ne!(en, zh, "{cat:?} 的中文名没翻");
+            assert!(
+                zh.chars().any(|c| ('一'..='鿿').contains(&c)),
+                "{cat:?}: {zh}"
+            );
+        }
+    }
+
+    /// 挑译本靠的是文件名里的语言码，与 readme-i18n 检查项同一批约定
+    #[test]
+    fn language_codes_map_to_the_right_readme() {
+        assert!(Lang::ZhCn.matches_code("zh-CN"));
+        assert!(Lang::ZhCn.matches_code("zh"));
+        assert!(Lang::ZhCn.matches_code("zh-hans"));
+        assert!(!Lang::ZhCn.matches_code("zh-tw"), "繁体不该当成简体");
+        assert!(!Lang::ZhCn.matches_code("ja"));
+        assert!(Lang::En.matches_code("en"));
+        assert!(!Lang::En.matches_code("zh-cn"));
     }
 
     #[test]

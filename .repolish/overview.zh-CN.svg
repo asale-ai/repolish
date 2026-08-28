@@ -58,8 +58,8 @@
   <text class="t" x="844" y="62" font-size="14" fill="#edebfa" text-anchor="end" font-weight="700">cli</text>
   <text class="t" x="36" y="128" font-size="40" fill="#edebfa" text-anchor="start" font-weight="700">repolish</text>
   <text class="t" x="844" y="132" font-size="13" fill="#8b87a3" text-anchor="end">v0.3.0</text>
-  <text class="t" x="36" y="152" font-size="13" fill="#8b87a3" text-anchor="start">Score and improve what an open-source repository looks like to a first-time visitor — from the command…</text>
-  <text class="t" x="36" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">113</text>
+  <text class="t" x="36" y="152" font-size="13" fill="#8b87a3" text-anchor="start">在命令行上诊断并改进「一个开源仓库在陌生人眼里是什么样」。</text>
+  <text class="t" x="36" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">114</text>
   <text class="t" x="67" y="178" font-size="12" fill="#8b87a3" text-anchor="start">个文件</text>
   <text class="t" x="122" y="178" font-size="13" fill="#35334a" text-anchor="start">·</text>
   <text class="t" x="136" y="178" font-size="14" fill="#edebfa" text-anchor="start" font-weight="700">2</text>
@@ -73,17 +73,17 @@
   <text class="t" x="844" y="178" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">无</text>
   <rect x="36" y="194" width="808" height="1" fill="#35334a"/>
   <text class="t" x="36" y="224" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">语言构成 · 按文件数</text>
-  <text class="t" x="844" y="224" font-size="12" fill="#8b87a3" text-anchor="end">113 个文件 · 7 类</text>
+  <text class="t" x="844" y="224" font-size="12" fill="#8b87a3" text-anchor="end">114 个文件 · 7 类</text>
   <rect x="36" y="241" width="3" height="12" rx="1.5" fill="#7d56f4"/>
   <text class="t" x="48" y="250" font-size="13" fill="#edebfa" text-anchor="start">Rust</text>
   <rect x="204" y="242" width="300" height="10" rx="2.0" fill="#3e3b58"/>
-  <rect x="204" y="242" width="194" height="10" rx="2.0" fill="#7d56f4"/>
-  <text class="t" x="560" y="250" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">65%</text>
+  <rect x="204" y="242" width="192" height="10" rx="2.0" fill="#7d56f4"/>
+  <text class="t" x="560" y="250" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">64%</text>
   <text class="t" x="844" y="250" font-size="13" fill="#8b87a3" text-anchor="end">73</text>
   <rect x="36" y="267" width="3" height="12" rx="1.5" fill="#ff5fd1"/>
   <text class="t" x="48" y="276" font-size="13" fill="#edebfa" text-anchor="start">Markdown</text>
   <rect x="204" y="268" width="300" height="10" rx="2.0" fill="#3e3b58"/>
-  <rect x="204" y="268" width="48" height="10" rx="2.0" fill="#ff5fd1"/>
+  <rect x="204" y="268" width="47" height="10" rx="2.0" fill="#ff5fd1"/>
   <text class="t" x="560" y="276" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">16%</text>
   <text class="t" x="844" y="276" font-size="13" fill="#8b87a3" text-anchor="end">18</text>
   <rect x="36" y="293" width="3" height="12" rx="1.5" fill="#43e5d0"/>
@@ -101,9 +101,9 @@
   <rect x="36" y="345" width="3" height="12" rx="1.5" fill="#ffc53d"/>
   <text class="t" x="48" y="354" font-size="13" fill="#edebfa" text-anchor="start">SVG</text>
   <rect x="204" y="346" width="300" height="10" rx="2.0" fill="#3e3b58"/>
-  <rect x="204" y="346" width="11" height="10" rx="2.0" fill="#ffc53d"/>
+  <rect x="204" y="346" width="13" height="10" rx="2.0" fill="#ffc53d"/>
   <text class="t" x="560" y="354" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">4%</text>
-  <text class="t" x="844" y="354" font-size="13" fill="#8b87a3" text-anchor="end">4</text>
+  <text class="t" x="844" y="354" font-size="13" fill="#8b87a3" text-anchor="end">5</text>
   <rect x="36" y="371" width="3" height="12" rx="1.5" fill="#7d56f4"/>
   <text class="t" x="48" y="380" font-size="13" fill="#edebfa" text-anchor="start">其他 2 项</text>
   <rect x="204" y="372" width="300" height="10" rx="2.0" fill="#3e3b58"/>
@@ -111,13 +111,13 @@
   <text class="t" x="560" y="380" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">4%</text>
   <text class="t" x="844" y="380" font-size="13" fill="#8b87a3" text-anchor="end">4</text>
   <text class="t" x="36" y="406" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">文件用途</text>
-  <rect x="36" y="418" width="565" height="12" rx="2.0" fill="#7d56f4"/>
-  <rect x="601" y="418" width="129" height="12" rx="2.0" fill="#ff5fd1"/>
-  <rect x="730" y="418" width="64" height="12" rx="2.0" fill="#43e5d0"/>
-  <rect x="794" y="418" width="50" height="12" rx="2.0" fill="#a9f05f"/>
+  <rect x="36" y="418" width="560" height="12" rx="2.0" fill="#7d56f4"/>
+  <rect x="596" y="418" width="128" height="12" rx="2.0" fill="#ff5fd1"/>
+  <rect x="724" y="418" width="64" height="12" rx="2.0" fill="#43e5d0"/>
+  <rect x="787" y="418" width="57" height="12" rx="2.0" fill="#a9f05f"/>
   <rect x="36" y="444" width="9" height="9" rx="2.0" fill="#7d56f4"/>
   <text class="t" x="50" y="452" font-size="12" fill="#8b87a3" text-anchor="start">代码</text>
-  <text class="t" x="85" y="452" font-size="12" fill="#edebfa" text-anchor="start">70%</text>
+  <text class="t" x="85" y="452" font-size="12" fill="#edebfa" text-anchor="start">69%</text>
   <rect x="127" y="444" width="9" height="9" rx="2.0" fill="#ff5fd1"/>
   <text class="t" x="141" y="452" font-size="12" fill="#8b87a3" text-anchor="start">文档</text>
   <text class="t" x="176" y="452" font-size="12" fill="#edebfa" text-anchor="start">16%</text>
@@ -126,7 +126,7 @@
   <text class="t" x="267" y="452" font-size="12" fill="#edebfa" text-anchor="start">8%</text>
   <rect x="301" y="444" width="9" height="9" rx="2.0" fill="#a9f05f"/>
   <text class="t" x="315" y="452" font-size="12" fill="#8b87a3" text-anchor="start">其他</text>
-  <text class="t" x="350" y="452" font-size="12" fill="#edebfa" text-anchor="start">6%</text>
+  <text class="t" x="350" y="452" font-size="12" fill="#edebfa" text-anchor="start">7%</text>
   <text class="t" x="36" y="480" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">提交活跃度 · 52 周</text>
   <text class="t" x="844" y="480" font-size="12" fill="#8b87a3" text-anchor="end">48 峰值</text>
   <rect x="36" y="494" width="808" height="66" rx="6.0" fill="#222130"/>

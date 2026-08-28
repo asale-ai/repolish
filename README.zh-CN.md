@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero.svg" alt="" width="100%">
+  <img src="assets/hero.zh-CN.svg" alt="" width="100%">
 </p>
 
 # repolish
@@ -196,7 +196,7 @@ repolish polish . --visuals         # 等于 --overview --footer-card --tables s
 
 `--badge-style` 取 shields.io 自己的值，`--toc-style` 有 `bullet` / `number` / `roman` / `fold`（最后一个把目录折进 `<details>`，长 README 很受用），`--tree-depth` 会在末尾追加一棵项目结构树。
 
-`--logo-width` 收像素数，也收 **`full`**——后者输出 `width="100%"`。横幅要的就是 `full`：钉死在一个像素宽度上，它在宽屏里缩在左上角，在窄屏里又撑破版心。本文顶上那张横幅就是 `--logo assets/hero.svg --logo-width full --align center`。
+`--logo-width` 收像素数，也收 **`full`**——后者输出 `width="100%"`。横幅要的就是 `full`：钉死在一个像素宽度上，它在宽屏里缩在左上角，在窄屏里又撑破版心。本文顶上那张横幅就是 `--logo assets/hero.zh-CN.svg --logo-width full --align center`。
 
 `--visuals` 是[几张卡片](#几张卡片)那一节里三件事的简写：徽章下面的概览卡片、末尾的分数卡片、以及把每张表格画成 SVG 并把原表格折在图下面。三者也可以单独开：`--overview`、`--footer-card`、`--tables svg`。
 

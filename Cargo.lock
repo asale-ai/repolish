@@ -1895,6 +1895,7 @@ version = "0.3.0"
 dependencies = [
  "repolish-core",
  "repolish-ingest",
+ "repolish-md",
  "serde",
  "serde_json",
 ]

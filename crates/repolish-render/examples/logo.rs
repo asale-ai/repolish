@@ -11,6 +11,25 @@
 use std::fs;
 use std::path::Path;
 
+use repolish_render::i18n::{category_label, Lang};
+
+/// 副标题就是三大类的名字，取自与卡片同一张文案表——
+/// 横幅上写着一套词、卡片上写着另一套，是同一个品牌两种说法。
+fn hero(lang: Lang) -> String {
+    use repolish_core::Category;
+    let s = lang.strings();
+    let tagline: Vec<&str> = Category::ALL
+        .iter()
+        .map(|c| category_label(*c, s))
+        .collect();
+    let joined = match lang {
+        // 英文小写更像一句副标题；中文没有大小写，原样即可
+        Lang::En => tagline.join(" · ").to_lowercase(),
+        Lang::ZhCn => tagline.join(" · "),
+    };
+    repolish_render::svg::hero(&joined)
+}
+
 fn main() -> std::io::Result<()> {
     // 从 crates/repolish-render/ 回到仓库根
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -28,10 +47,13 @@ fn main() -> std::io::Result<()> {
         // README 顶上那张通栏横幅。与 wordmark 的区别只有 viewBox 的比例，
         // 但那一个差别是关键：以 width="100%" 引用时，一张 450×56 的图会被
         // 拉成横穿页面的巨型字，而这张按比例缩放后仍然是一个居中的标志。
-        (
-            "hero.svg",
-            repolish_render::svg::hero("discoverability · comprehensibility · credibility"),
-        ),
+        //
+        // **每种语言一张。** 横幅上那句副标题是**我们的**文字，不是仓库的内容，
+        // 所以它和卡片上的标签一样要跟着 README 的语言走。中英两份 README 共用
+        // 同一张图的话，中文那份顶上会挂着一行英文——而那正是 `--lang` 要解决的
+        // 那件事，发生在我们自己的门面上。
+        ("hero.svg", hero(Lang::En)),
+        ("hero.zh-CN.svg", hero(Lang::ZhCn)),
     ];
 
     for (name, svg) in files {
