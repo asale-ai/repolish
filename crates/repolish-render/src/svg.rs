@@ -127,7 +127,7 @@ pub fn wordmark(mark_size: i32) -> String {
 /// 横穿页面的巨型字，而这张图按比例缩放后仍然是一个居中的标志。
 ///
 /// 背景同样透明：亮暗两种主题共用一个文件。
-pub fn hero(tagline: &str) -> String {
+pub fn hero(tagline: &str, lang: crate::i18n::Lang) -> String {
     let p = &crate::theme::DARK;
     let (w, h) = (1200, 260);
     let mark_size = 76;
@@ -161,7 +161,8 @@ pub fn hero(tagline: &str) -> String {
 
     format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w}\" height=\"{h}\" \
-         viewBox=\"0 0 {w} {h}\" role=\"img\" aria-label=\"repolish\">\n{}{}{}</svg>\n",
+         viewBox=\"0 0 {w} {h}\" lang=\"{}\" role=\"img\" aria-label=\"repolish\">\n{}{}{}</svg>\n",
+        lang.tag(),
         draw::brand_defs(p),
         format_args!(
             "  <style>\n    .t {{ font-family: {}; }}\n  </style>\n",
@@ -570,7 +571,7 @@ mod tests {
     /// 否则 README 顶上会出现一条横穿页面的巨型字
     #[test]
     fn the_hero_banner_is_wide_and_centred() {
-        let svg = hero("score and improve your repository");
+        let svg = hero("score and improve your repository", crate::i18n::Lang::En);
         assert!(svg.contains(r#"viewBox="0 0 1200 260""#));
         assert!(svg.contains(r#"text-anchor="middle""#));
         // 亮暗两种主题共用一个文件，所以不能画底
@@ -579,7 +580,7 @@ mod tests {
 
     #[test]
     fn the_hero_survives_an_empty_tagline() {
-        let svg = hero("");
+        let svg = hero("", crate::i18n::Lang::En);
         assert!(svg.trim_end().ends_with("</svg>"));
         assert!(!svg.contains("<text"));
     }

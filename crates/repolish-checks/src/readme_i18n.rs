@@ -106,12 +106,9 @@ impl Check for ReadmeI18n {
 
 /// `README.zh-CN.md` / `README_ja.md` / `docs/README-ko.md` → 语言代码
 fn translation_lang(path: &str) -> Option<&'static str> {
-    let file = path.rsplit('/').next().unwrap_or(path).to_lowercase();
-    let stem = file
-        .strip_suffix(".md")
-        .or_else(|| file.strip_suffix(".rst"))?;
-    let rest = stem.strip_prefix("readme")?;
-    let code = rest.trim_start_matches(['.', '_', '-']);
+    // 取语言码的规则在 repolish-md（README 命名约定的家）；这里只管
+    // 「取出来的这个码算不算数」——白名单是为了挡住 README.old.md、README.dev.md。
+    let code = repolish_md::translation_code(path)?;
     LANGS.iter().find(|l| **l == code).copied()
 }
 

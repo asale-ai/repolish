@@ -45,11 +45,25 @@ impl Rendered {
 ///
 /// `warn` 收到被跳过的表的说明。调用方决定要不要打印——`card` 该说，
 /// 而 `polish` 的干跑输出里再多一句会把真正的改动淹掉。
+/// 一份 README 的表格图放在哪。
+///
+/// 主 README 用 `.repolish/tables/`，译本各用一个语言子目录。**必须分开**：
+/// slug 是从小节标题来的，而非 ASCII 一律丢掉——中文的「退出码」和
+/// 「检查什么」都会 slug 成 `table`，挤在同一个目录里就互相覆盖了。
+pub fn dir_for(readme: &Readme) -> String {
+    let path = readme.path.display().to_string().replace('\\', "/");
+    match repolish_md::translation_code(&path) {
+        Some(code) => format!("{TABLES_DIR}/{code}"),
+        None => TABLES_DIR.to_string(),
+    }
+}
+
 pub fn render(
     readme: &Readme,
     opts: &repolish_render::Options,
     mut warn: impl FnMut(String),
 ) -> Vec<Rendered> {
+    let dir = dir_for(readme);
     let mut out = Vec::new();
     let mut used: Vec<String> = Vec::new();
     for found in repolish_md::tables::find(&readme.raw).iter() {
@@ -90,7 +104,7 @@ pub fn render(
         table.title = title.clone();
 
         out.push(Rendered {
-            rel: format!("{TABLES_DIR}/{name}"),
+            rel: format!("{dir}/{name}"),
             svg: repolish_render::table(&table, opts),
             title,
             start_line: found.start_line,
@@ -132,11 +146,24 @@ pub fn slugify(s: &str) -> String {
     }
     let out: String = out.trim_matches('-').chars().take(40).collect();
     let out = out.trim_end_matches('-');
-    if out.is_empty() {
-        "table".to_string()
-    } else {
-        out.to_string()
+    if !out.is_empty() {
+        return out.to_string();
     }
+    // 非 ASCII 标题（中文小节名）会被丢空。退回一个由**标题内容**决定的短哈希，
+    // 而不是「第几张表」——序号是位置的函数，在前面插一张新表就会全体错位，
+    // 而 README 里已经写好的引用只认名字。
+    format!("t-{:06x}", short_hash(s))
+}
+
+/// FNV-1a，取 24 位。这里只需要「同样的标题永远得到同样的名字」，
+/// 不需要抗碰撞——真撞上了，下面的去重会补一个 `-2`。
+fn short_hash(s: &str) -> u32 {
+    let mut h: u32 = 0x811c9dc5;
+    for b in s.as_bytes() {
+        h ^= *b as u32;
+        h = h.wrapping_mul(0x01000193);
+    }
+    h & 0xff_ffff
 }
 
 /// 这张表上面是不是已经有一张我们插过的图了。
@@ -144,6 +171,7 @@ pub fn slugify(s: &str) -> String {
 /// 只认真正会渲染出图的 `src="…"`，不认单纯提到这个目录的散文或代码块——
 /// 一份介绍这个功能的 README 会在正文里写出这个路径，那不是一张图。
 pub fn already_wrapped(readme: &Readme, start_line: usize) -> bool {
+    let dir = dir_for(readme);
     let before: Vec<&str> = readme
         .raw
         .lines()
@@ -153,7 +181,7 @@ pub fn already_wrapped(readme: &Readme, start_line: usize) -> bool {
         .iter()
         .rev()
         .take(6)
-        .any(|l| l.contains(&format!("src=\"{TABLES_DIR}/")))
+        .any(|l| l.contains(&format!("src=\"{dir}/")))
 }
 
 #[cfg(test)]
@@ -165,6 +193,37 @@ mod tests {
     }
 
     const MD: &str = "# T\n\n## Exit codes\n\n| Code | Meaning |\n|---|---|\n| 0 | ok |\n| 1 | no |\n\n## Tiny\n\n| a | b |\n|---|---|\n| 1 | 2 |\n";
+
+    /// 中文小节标题 slug 之后全都变成 `table`，主目录里会互相覆盖。
+    /// 译本必须有自己的目录。
+    #[test]
+    fn each_translation_gets_its_own_directory() {
+        assert_eq!(dir_for(&Readme::parse("README.md", "")), ".repolish/tables");
+        assert_eq!(
+            dir_for(&Readme::parse("README.zh-CN.md", "")),
+            ".repolish/tables/zh-cn"
+        );
+        assert_eq!(
+            dir_for(&Readme::parse("docs/README-ja.md", "")),
+            ".repolish/tables/ja"
+        );
+    }
+
+    #[test]
+    fn a_translation_renders_into_its_own_directory() {
+        let md = "## 退出码\n\n| 码 | 含义 |\n|---|---|\n| 0 | 成功 |\n| 1 | 失败 |\n";
+        let r = render(
+            &Readme::parse("README.zh-CN.md", md),
+            &Default::default(),
+            |_| {},
+        );
+        assert_eq!(r.len(), 1);
+        assert!(
+            r[0].rel.starts_with(".repolish/tables/zh-cn/"),
+            "译本没进自己的目录: {}",
+            r[0].rel
+        );
+    }
 
     #[test]
     fn only_tables_worth_drawing_are_rendered() {
@@ -230,9 +289,14 @@ mod tests {
     fn slugs_are_ascii_safe_and_never_empty() {
         assert_eq!(slugify("Exit codes"), "exit-codes");
         assert_eq!(slugify("What it checks!"), "what-it-checks");
-        // 非 ASCII 全丢掉：带中文的相对路径在某些 CI 与 Windows 检出下会乱码
-        assert_eq!(slugify("评分维度"), "table");
-        assert_eq!(slugify(""), "table");
+        // 非 ASCII 全丢掉（带中文的相对路径在某些 CI 与 Windows 检出下会乱码），
+        // 但名字仍由**标题内容**决定，不由位置决定
+        let a = slugify("评分维度");
+        let b = slugify("退出码");
+        assert!(a.starts_with("t-") && b.starts_with("t-"), "{a} {b}");
+        assert_ne!(a, b, "不同标题得到了同一个名字");
+        assert_eq!(a, slugify("评分维度"), "同一个标题两次结果不同");
+        assert!(slugify("").starts_with("t-"));
         let long = slugify(&"ab ".repeat(40));
         assert!(long.len() <= 40 && !long.ends_with('-'), "{long}");
     }

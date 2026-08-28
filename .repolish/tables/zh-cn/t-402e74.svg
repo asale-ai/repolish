@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="326" viewBox="0 0 880 326" lang="zh-CN" role="img" aria-label="退出码 — table">
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7d56f4"/>
+      <stop offset="0.55" stop-color="#ff5fd1"/>
+      <stop offset="1" stop-color="#43e5d0"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace; }
+  </style>
+  <rect x="0" y="0" width="880" height="326" rx="18.0" fill="#1a1a24"/>
+  <rect x="0.5" y="0.5" width="879" height="325" rx="17.5" fill="none" stroke="#35334a"/>
+  <text class="t" x="28" y="38" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">退出码</text>
+  <text class="t" x="58" y="68" font-size="11" fill="#8b87a3" text-anchor="end" letter-spacing="1.4">码</text>
+  <text class="t" x="78" y="68" font-size="11" fill="#8b87a3" text-anchor="start" letter-spacing="1.4">含义</text>
+  <rect x="28" y="78" width="824" height="1" fill="#35334a"/>
+  <text class="t" x="58" y="102" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">0</text>
+  <text class="t" x="78" y="102" font-size="13" fill="#edebfa" text-anchor="start">成功</text>
+  <rect x="20" y="113" width="840" height="35" rx="5.0" fill="#222130"/>
+  <text class="t" x="58" y="137" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">1</text>
+  <text class="t" x="78" y="137" font-size="13" fill="#edebfa" text-anchor="start">分数低于 --min-score</text>
+  <text class="t" x="58" y="172" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">2</text>
+  <text class="t" x="78" y="172" font-size="13" fill="#edebfa" text-anchor="start">参数错误</text>
+  <rect x="20" y="183" width="840" height="35" rx="5.0" fill="#222130"/>
+  <text class="t" x="58" y="207" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">3</text>
+  <text class="t" x="78" y="207" font-size="13" fill="#edebfa" text-anchor="start">目标不是有效的仓库</text>
+  <text class="t" x="58" y="242" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">4</text>
+  <text class="t" x="78" y="242" font-size="13" fill="#edebfa" text-anchor="start">--remote 失败（API 错误、限流、私有仓库）</text>
+  <rect x="20" y="253" width="840" height="35" rx="5.0" fill="#222130"/>
+  <text class="t" x="58" y="277" font-size="13" fill="#edebfa" text-anchor="end" font-weight="700">5</text>
+  <text class="t" x="78" y="277" font-size="13" fill="#edebfa" text-anchor="start">能跑的检查项不到一半，不输出总分</text>
+  <rect x="28" y="288" width="824" height="1" fill="#35334a"/>
+</svg>

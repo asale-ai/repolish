@@ -131,7 +131,7 @@ fn translated_tagline(ctx: &RepoContext, lang: Lang) -> Option<String> {
         if path == main || !path.to_lowercase().contains("readme") {
             continue;
         }
-        let Some(code) = readme_lang_code(path) else {
+        let Some(code) = repolish_md::translation_code(path) else {
             continue;
         };
         if !lang.matches_code(&code) {
@@ -145,20 +145,6 @@ fn translated_tagline(ctx: &RepoContext, lang: Lang) -> Option<String> {
         }
     }
     None
-}
-
-/// `README.zh-CN.md` → `zh-cn`。认不出来返回 `None`。
-fn readme_lang_code(path: &str) -> Option<String> {
-    let file = path.rsplit('/').next().unwrap_or(path).to_lowercase();
-    let stem = file
-        .strip_suffix(".md")
-        .or_else(|| file.strip_suffix(".rst"))?;
-    let rest = stem.strip_prefix("readme")?;
-    let code = rest.trim_start_matches(['.', '_', '-']);
-    if code.is_empty() {
-        return None;
-    }
-    Some(code.to_string())
 }
 
 /// 最新的语义化版本 tag。

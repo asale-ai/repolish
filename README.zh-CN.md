@@ -59,12 +59,19 @@ curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh |
 
 它做四件事：下载对应平台的发布二进制、核对 `.sha256`、装进 `~/.local/bin`、把[智能体技能](#给编码智能体用)放进这台机器上装了的那几家智能体里。不想把脚本管道进 shell 的话，先读一遍——POSIX `sh`，两百行左右，就是这四件事。
 
+<img src=".repolish/tables/zh-cn/t-e72559.svg" alt="一行装好" width="880">
+
+<details>
+<summary>一行装好（表格原文）</summary>
+
 | 变量 | 缺省 | 作用 |
 |---|---|---|
 | `REPOLISH_VERSION` | 最新发布 | 装指定 tag，例如 `v0.2.0` |
 | `REPOLISH_BIN_DIR` | `~/.local/bin` | 二进制装到哪 |
 | `REPOLISH_TARGET` | `detect` | 技能装给谁：`detect`、`all`、`none`，或某一个 id |
 | `REPOLISH_NO_SKILL` | 未设 | 设成 `1` 则只装二进制 |
+
+</details>
 
 Linux 版只有 glibc 构建。在 musl（Alpine）上安装脚本会直说并停下，而不是装一个根本跑不起来的二进制——那种情况请用 `cargo install repolish`。
 
@@ -256,6 +263,11 @@ repolish check . --remote --min-score 70
 
 工具自身失败与「检查不通过」用的是不同的码，否则 CI 里分辨不出来。
 
+<img src=".repolish/tables/zh-cn/t-402e74.svg" alt="退出码" width="880">
+
+<details>
+<summary>退出码（表格原文）</summary>
+
 | 码 | 含义                            |
 | - | ----------------------------- |
 | 0 | 成功                            |
@@ -264,6 +276,8 @@ repolish check . --remote --min-score 70
 | 3 | 目标不是有效的仓库                     |
 | 4 | `--remote` 失败（API 错误、限流、私有仓库） |
 | 5 | 能跑的检查项不到一半，不输出总分              |
+
+</details>
 
 ## 卡片、表格与录屏
 
@@ -313,11 +327,18 @@ repolish skill .                  # 或者把 SKILL.md 写进一个仓库
 22 个检查项，分三类。完整定义、权重与阈值见
 [docs/03-scoring.zh-CN.md](docs/03-scoring.zh-CN.md)。
 
+<img src=".repolish/tables/zh-cn/t-0a861c.svg" alt="检查什么" width="880">
+
+<details>
+<summary>检查什么（表格原文）</summary>
+
 | 类别       | 检查项                                                  |
 | -------- | ---------------------------------------------------- |
 | **可发现性** | README 标题与一句话说明、仓库 description、topics、homepage、徽章    |
 | **可理解性** | 快速开始、用法示例、安装命令一致性、链接有效性、长度、文档、目录、多语言                 |
 | **可信度**  | 许可证、**声明一致性**、CI、测试、活跃度、贡献指南、issue 与 PR 模板、发布规范、行为准则 |
+
+</details>
 
 **声明一致性**是别的工具都没做的一项：它核对 README 里承诺的命令是否真的存在。
 `npm run build` 必须在 `package.json` 里，`make test` 必须是真的目标，
@@ -340,6 +361,11 @@ repolish skill .                  # 或者把 SKILL.md 写进一个仓库
 
 下面每一项要么已经发了，要么明确还没做。在情况变化之前这一节会一直如实写着：
 
+<img src=".repolish/tables/zh-cn/t-d0f407.svg" alt="当前状态" width="880">
+
+<details>
+<summary>当前状态（表格原文）</summary>
+
 | <br /> | <br />                                              |
 | ------ | --------------------------------------------------- |
 | ✅      | `check` —— 22 个检查项、`--remote`、JSON 输出、`--min-score` |
@@ -349,6 +375,8 @@ repolish skill .                  # 或者把 SKILL.md 写进一个仓库
 | ✅      | `scan` —— 给一个目录下所有仓库排名，并找出它们的共性缺项            |
 | ✅      | `.repolish.toml`，以及 `polish` 插入物的全部排版选项            |
 | ⏳      | LLM 辅助润色措辞，评分路径上依然没有模型                              |
+
+</details>
 
 检查项清单与 JSON schema 在 v1 冻结：增删检查项或改权重会改变分数在所有仓库上的
 含义，因此那是一个带版本号的决定，而不是日常改动。

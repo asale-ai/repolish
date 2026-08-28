@@ -27,7 +27,7 @@ fn hero(lang: Lang) -> String {
         Lang::En => tagline.join(" · ").to_lowercase(),
         Lang::ZhCn => tagline.join(" · "),
     };
-    repolish_render::svg::hero(&joined)
+    repolish_render::svg::hero(&joined, lang)
 }
 
 fn main() -> std::io::Result<()> {

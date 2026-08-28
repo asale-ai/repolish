@@ -439,6 +439,24 @@ fn html_links(html: &str, start_line: usize) -> Vec<LinkRef> {
 }
 
 /// 字符串里有没有中日韩文字。`polish` 用它决定插进去的章节标题该用哪种语言。
+/// `README.zh-CN.md` → `zh-cn`。主 README（`README.md`）返回 `None`。
+///
+/// 只做「取出语言码」这一步，不判断它是不是一个真的语言——那要一张白名单，
+/// 而白名单该由用它的人拿着：`readme-i18n` 要的是「这是不是译本」，
+/// 卡片要的是「这是不是**这个**语言的译本」，两者需要的严格程度不同。
+pub fn translation_code(path: &str) -> Option<String> {
+    let file = path.rsplit('/').next().unwrap_or(path).to_lowercase();
+    let stem = file
+        .strip_suffix(".md")
+        .or_else(|| file.strip_suffix(".rst"))?;
+    let rest = stem.strip_prefix("readme")?;
+    let code = rest.trim_start_matches(['.', '_', '-']);
+    if code.is_empty() {
+        return None;
+    }
+    Some(code.to_string())
+}
+
 pub fn has_cjk(s: &str) -> bool {
     s.chars().any(is_cjk)
 }

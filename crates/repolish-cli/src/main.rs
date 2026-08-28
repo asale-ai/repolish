@@ -1118,6 +1118,16 @@ fn run_polish(args: PolishArgs) -> u8 {
             println!();
         }
     }
+    for edit in &plan.translations {
+        println!("  {}", rel(&edit.path));
+        for insert in &edit.inserts {
+            for line in insert.lines.iter().filter(|l| !l.is_empty()) {
+                println!("    + {line}");
+            }
+            println!("      {}", insert.reason);
+        }
+        println!();
+    }
     for f in &plan.side_files {
         println!(
             "  {}  ({} lines, new file)",
@@ -1160,6 +1170,13 @@ fn run_polish(args: PolishArgs) -> u8 {
             if let Err(code) = write_file(&readme.path, &out) {
                 return code;
             }
+        }
+    }
+    // 译本和主 README 一样，只增量插入——切开原文拼回去，其余字节不碰
+    for edit in &plan.translations {
+        let out = repolish_md::edit::apply(&edit.raw, &edit.inserts);
+        if let Err(code) = write_file(&edit.path, &out) {
+            return code;
         }
     }
     for f in &plan.side_files {

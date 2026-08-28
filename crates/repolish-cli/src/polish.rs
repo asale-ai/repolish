@@ -26,11 +26,24 @@ pub struct NewFile {
     pub reason: String,
 }
 
+/// 对**另一份** README（译本）的插入。
+///
+/// 主 README 的插入在 `Plan::inserts` 里。分开是因为绝大多数刀只动主 README——
+/// 徽章、目录、卡片在译本里再来一份是重复，不是补齐。只有表格例外：
+/// 一份中文 README 里的中文表格，在 crates.io 上照样是一堆管道符。
+pub struct TranslationEdit {
+    pub path: PathBuf,
+    pub raw: String,
+    pub inserts: Vec<Insert>,
+}
+
 /// 一次运行要落的全部改动。
 #[derive(Default)]
 pub struct Plan {
-    /// 对 README 的插入
+    /// 对主 README 的插入
     pub inserts: Vec<Insert>,
+    /// 对译本的插入
+    pub translations: Vec<TranslationEdit>,
     /// 需要一并写出的新文件。徽章行指向 `.repolish/badge.json`，
     /// 那个文件不存在的话插进去的是一个 404——比不插更糟。
     pub side_files: Vec<NewFile>,
@@ -38,7 +51,20 @@ pub struct Plan {
 
 impl Plan {
     pub fn is_empty(&self) -> bool {
-        self.inserts.is_empty() && self.side_files.is_empty()
+        self.inserts.is_empty() && self.side_files.is_empty() && self.translations.is_empty()
+    }
+
+    /// 拿到某份译本的编辑记录，没有就新建一条
+    fn translation(&mut self, path: PathBuf, raw: &str) -> &mut TranslationEdit {
+        if let Some(i) = self.translations.iter().position(|t| t.path == path) {
+            return &mut self.translations[i];
+        }
+        self.translations.push(TranslationEdit {
+            path,
+            raw: raw.to_string(),
+            inserts: Vec::new(),
+        });
+        self.translations.last_mut().expect("刚推进去")
     }
 
     /// 加一个新文件。**已存在就跳过**——polish 从不覆盖任何东西，
@@ -316,11 +342,77 @@ fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mu
     if style.tables != TableStyle::Svg {
         return;
     }
+    // 主 README
+    let inserts = table_inserts(ctx, readme, style, plan);
+    plan.inserts.extend(inserts);
+
+    // 每一份译本。一份中文 README 里的中文表格，在 crates.io 上照样是一堆
+    // 管道符——这个功能对译本成立的理由和对主 README 完全一样。
+    for path in translated_readmes(ctx, readme) {
+        let Some(raw) = ctx.files.read(&path) else {
+            continue;
+        };
+        let translated = Readme::parse(&path, raw.clone());
+        // 卡片语言跟着**这份**译本走，不是跟着主 README 走
+        let lang = repolish_render::Lang::detect(&translated.raw);
+        let mut sub = style.clone();
+        sub.lang = lang;
+
+        let inserts = table_inserts(ctx, &translated, &sub, plan);
+        if !inserts.is_empty() {
+            plan.translation(ctx.root.join(&path), &raw).inserts = inserts;
+        }
+    }
+}
+
+/// 主 README 的译本。
+///
+/// **必须和主 README 同一个目录。** 否则 `docs/README.zh-CN.md` 会被当成译本，
+/// 而它是文档索引的中文版，是另一份文档，不是这一份的翻译。判据用目录而不是
+/// 「在不在根目录」，是为了让 README 本来就在子目录里的仓库也成立。
+fn translated_readmes(ctx: &RepoContext, main: &Readme) -> Vec<String> {
+    let norm = |p: &str| p.replace(std::path::MAIN_SEPARATOR, "/");
+    let main_path = norm(&main.path.display().to_string());
+    let dir = |p: &str| {
+        p.rsplit_once('/')
+            .map(|(d, _)| d.to_string())
+            .unwrap_or_default()
+    };
+    // main.path 可能是绝对路径，files 里是仓库相对路径，比目录名即可
+    let main_dir = main_path
+        .strip_prefix(&norm(&ctx.root.display().to_string()))
+        .map(|p| dir(p.trim_start_matches('/')))
+        .unwrap_or_else(|| dir(&main_path));
+
+    ctx.files
+        .iter()
+        .filter(|p| !main_path.ends_with(*p))
+        .filter(|p| dir(p) == main_dir)
+        .filter(|p| repolish_md::translation_code(p).is_some())
+        .map(str::to_string)
+        .collect()
+}
+
+/// 对一份 README 算出「包表格」要插的那些行，同时把 SVG 排进 `plan` 的新文件里。
+///
+/// **这一刀是包，不是改。** 原表格的每一个字节都留在原处，只在它前后各插一段。
+/// README 在 GitHub 上渲染表格，在 crates.io、npm 和各种聚合站上却常常把管道符
+/// 原样吐出来——一张图在哪儿都是同一张图。
+///
+/// 原文必须留着，这条不是可选项：图片没有文本层，读屏软件、`grep`、翻译工具、
+/// 以及下一个想改这张表的人，读的都是折起来的那份。
+fn table_inserts(
+    ctx: &RepoContext,
+    readme: &Readme,
+    style: &ReadmeStyle,
+    plan: &mut Plan,
+) -> Vec<Insert> {
     let cjk = readme_is_cjk(readme);
     let rendered = crate::tables::render(readme, &card_options(style), |w| {
         eprintln!("note: {w}");
     });
 
+    let mut inserts = Vec::new();
     for table in rendered {
         // 已经被包过一次了。再包一层会得到嵌套的 <details>，
         // 而里层那张图早就画好了。
@@ -332,7 +424,8 @@ fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mu
             table.path(&ctx.root),
             table.svg.clone(),
             format!(
-                "readme style: table at line {} rendered as SVG (requested by configuration)",
+                "readme style: table at {}:{} rendered as SVG (requested by configuration)",
+                readme.path.display(),
                 table.start_line
             ),
         );
@@ -345,7 +438,7 @@ fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mu
         };
         let alt = table.title.clone().unwrap_or_else(|| "table".to_string());
 
-        plan.inserts.push(Insert::new(
+        inserts.push(Insert::new(
             table.start_line - 1,
             format!(
                 "readme style: SVG table for the table at line {}",
@@ -363,7 +456,7 @@ fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mu
                 String::new(),
             ],
         ));
-        plan.inserts.push(Insert::new(
+        inserts.push(Insert::new(
             table.end_line,
             format!(
                 "readme style: closing the folded table at line {}",
@@ -372,6 +465,7 @@ fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mu
             vec![String::new(), "</details>".to_string()],
         ));
     }
+    inserts
 }
 
 /// HTML 属性值里的引号与尖括号。标题是作者写的，可能含任何东西。
