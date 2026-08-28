@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="910" height="763" viewBox="0 0 910 763" lang="en" role="img" aria-label="terminal recording: repolish check ., repolish polish . --apply, repolish check .">
+  <style>
+    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace; white-space: pre; }
+    svg {
+      --d: 21.315s;
+      --w0: 134.4px;
+      --w1: 210.0px;
+      --w2: 134.4px;
+      --wlast: 134.4px;
+    }
+    .s0 { animation: s0 var(--d) step-end infinite; }
+    @keyframes s0 { 0%,8.445% { opacity: 0 } 8.445%,36.641% { opacity: 1 } 36.641%,100% { opacity: 0 } }
+    .c0 { animation: c0 var(--d) steps(16, end) infinite; }
+    @keyframes c0 { 0%,8.445% { transform: translateX(0) } 11.823%,100% { transform: translateX(var(--w0)) } }
+    .o0 { animation: o0 var(--d) step-end infinite; }
+    @keyframes o0 { 0%,14.872% { opacity: 0 } 14.872%,100% { opacity: 1 } }
+    .s1 { animation: s1 var(--d) step-end infinite; }
+    @keyframes s1 { 0%,36.641% { opacity: 0 } 36.641%,66.174% { opacity: 1 } 66.174%,100% { opacity: 0 } }
+    .c1 { animation: c1 var(--d) steps(25, end) infinite; }
+    @keyframes c1 { 0%,36.641% { transform: translateX(0) } 41.919%,100% { transform: translateX(var(--w1)) } }
+    .o1 { animation: o1 var(--d) step-end infinite; }
+    @keyframes o1 { 0%,44.968% { opacity: 0 } 44.968%,100% { opacity: 1 } }
+    .s2 { animation: s2 var(--d) step-end infinite; }
+    @keyframes s2 { 0%,8.445% { opacity: 1 } 8.445%,66.174% { opacity: 0 } 66.174%,100% { opacity: 1 } }
+    .c2 { animation: c2 var(--d) infinite; }
+    @keyframes c2 {
+      0% { transform: translateX(var(--w2)); animation-timing-function: step-end }
+      66.174% { transform: translateX(0); animation-timing-function: steps(16, end) }
+      69.552%,100% { transform: translateX(var(--w2)) }
+    }
+    .o2 { animation: o2 var(--d) step-end infinite; }
+    @keyframes o2 { 0%,8.445% { opacity: 1 } 8.445%,72.601% { opacity: 0 } 72.601%,100% { opacity: 1 } }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important }
+      .step { opacity: 0 }
+      .last { opacity: 1 }
+      .cover { transform: translateX(var(--wlast)) }
+    }
+  </style>
+  <rect x="0" y="0" width="910" height="763" rx="10.0" fill="#1a1a24"/>
+  <rect x="0.5" y="0.5" width="909" height="762" rx="9.5" fill="none" stroke="#35334a"/>
+  <rect x="0" y="0" width="910" height="34" rx="10.0" fill="#222130"/>
+  <rect x="0" y="17" width="910" height="17" rx="0.0" fill="#222130"/>
+  <circle cx="20" cy="17" r="5" fill="#ff4f6e"/>
+  <circle cx="38" cy="17" r="5" fill="#ffc53d"/>
+  <circle cx="56" cy="17" r="5" fill="#43e5d0"/>
+  <text class="t" x="455" y="22" font-size="12" fill="#8b87a3" text-anchor="middle">repolish</text>
+  <g class="step s0">
+    <text class="t" x="18" y="66.0" font-size="14" xml:space="preserve"><tspan fill="#ff5fd1">$</tspan><tspan fill="#edebfa"> repolish check .</tspan></text>
+    <g class="cover c0"><rect x="34.8" y="52.0" width="890.4" height="21.0" fill="#1a1a24"/><rect x="34.8" y="54.0" width="8.4" height="17.0" fill="#ff5fd1" opacity="0.85"/></g>
+    <g class="o0">
+      <text class="t" x="18" y="115.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#875fd7">█▀▀▀▄</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">█▀▀▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">█▀</tspan><tspan fill="#d75fd7">▀▀▄</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">▄▀▀▀▄</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">     </tspan><tspan fill="#af87d7">▀▀█</tspan><tspan fill="#afafd7">▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#87afd7">▄▀▀▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5fd7d7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#5fd7d7">█</tspan></text>
+      <text class="t" x="18" y="136.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#875fd7">█▄▄▄▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">█▄▄▄</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#af5fd7">█▄</tspan><tspan fill="#d75fd7">▄▄▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">       </tspan><tspan fill="#af87d7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#87afd7">▀▄▄▄</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#5fd7d7">█▄▄▄█</tspan></text>
+      <text class="t" x="18" y="157.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#875fd7">█</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#875fd7">▀▄</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#af5fd7">█</tspan><tspan fill="#edebfa">     </tspan><tspan fill="#af5fd7">█</tspan><tspan fill="#edebfa">     </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">       </tspan><tspan fill="#af87d7">█</tspan><tspan fill="#edebfa">       </tspan><tspan fill="#87afd7">█</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5fd7d7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#5fd7d7">█</tspan></text>
+      <text class="t" x="18" y="178.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#875fd7">▀</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#875fd7">▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">▀▀▀▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">▀</tspan><tspan fill="#edebfa">      </tspan><tspan fill="#d75fd7">▀▀▀</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#d75fd7">▀</tspan><tspan fill="#d787d7">▀▀▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af87d7">▀▀▀</tspan><tspan fill="#afafd7">▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#87afd7">▀▀▀▀</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#5fd7d7">▀</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#5fd7d7">▀</tspan></text>
+      <text class="t" x="18" y="199.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">discoverability · comprehensibility · credibility</tspan></text>
+      <text class="t" x="18" y="241.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#d7d7d7" font-weight="700">acme/taskvault</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#878787">· cli (detected) · local · f058c835</tspan></text>
+      <text class="t" x="18" y="283.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">SCORE</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#ff5f87" font-weight="700">23 / 100 </tspan><tspan fill="#edebfa">   </tspan><tspan fill="#ff5f87">poor     </tspan><tspan fill="#edebfa">   </tspan><tspan fill="#ff5f87">▄▄▄▄▄</tspan><tspan fill="#5f5f5f">▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁</tspan></text>
+      <text class="t" x="18" y="325.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">DISCOVERABILITY    </tspan><tspan fill="#ff875f">▄▄▄▄▄▄</tspan><tspan fill="#5f5f5f">▁▁▁▁▁▁</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#ff875f" font-weight="700"> 56</tspan></text>
+      <text class="t" x="18" y="346.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">COMPREHENSIBILITY  </tspan><tspan fill="#ff5f87">▄▄▄</tspan><tspan fill="#5f5f5f">▁▁▁▁▁▁▁▁▁</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#ff5f87" font-weight="700"> 28</tspan></text>
+      <text class="t" x="18" y="367.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">CREDIBILITY        </tspan><tspan fill="#ff5f87">▄</tspan><tspan fill="#5f5f5f">▁▁▁▁▁▁▁▁▁▁▁</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#ff5f87" font-weight="700"> 13</tspan></text>
+      <text class="t" x="18" y="409.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">local score — description / topics / homepage were not checked, so it is</tspan></text>
+      <text class="t" x="18" y="430.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">not comparable with a --remote score</tspan></text>
+      <text class="t" x="18" y="472.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">CHECKS</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#878787">○○○</tspan><tspan fill="#ff5f87">●●</tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#878787">○○</tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#ff5f87">●</tspan><tspan fill="#5fd7d7">●</tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#ff5f87">●●●●</tspan><tspan fill="#5fd7d7">●</tspan><tspan fill="#ff5f87">●●●●</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#878787">17 scored · 5 not verified</tspan></text>
+      <text class="t" x="18" y="514.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#5f5f5f">──</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#ff5fd7" font-weight="700">TO FIX</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5f5f5f">──────────────────────────────────────────────────────────────</tspan></text>
+      <text class="t" x="18" y="556.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#000000" font-weight="700"> P1 </tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d7d7d7" font-weight="700">ci-present</tspan></text>
+      <text class="t" x="18" y="577.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       Add a CI workflow. A green build badge is the first thing a</tspan></text>
+      <text class="t" x="18" y="598.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       stranger uses to judge whether the code actually works</tspan></text>
+      <text class="t" x="18" y="619.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       </tspan><tspan fill="#878787">└</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5fd7d7">.</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#878787">no CI configuration found</tspan></text>
+      <text class="t" x="18" y="661.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#000000" font-weight="700"> P1 </tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d7d7d7" font-weight="700">claim-consistency</tspan></text>
+      <text class="t" x="18" y="682.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       1 of the 1 verifiable command claims in the README no longer work.</tspan></text>
+      <text class="t" x="18" y="703.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       Typing the first command from a README and getting an error is the</tspan></text>
+      <text class="t" x="18" y="724.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       fastest way to lose a user</tspan></text>
+      <text class="t" x="18" y="745.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       </tspan><tspan fill="#878787">└</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5fd7d7">README.md:8</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#878787">`scripts/setup.sh` — does not exist in the</tspan></text>
+    </g>
+  </g>
+  <g class="step s1">
+    <text class="t" x="18" y="66.0" font-size="14" xml:space="preserve"><tspan fill="#ff5fd1">$</tspan><tspan fill="#edebfa"> repolish polish . --apply</tspan></text>
+    <g class="cover c1"><rect x="34.8" y="52.0" width="890.4" height="21.0" fill="#1a1a24"/><rect x="34.8" y="54.0" width="8.4" height="17.0" fill="#ff5fd1" opacity="0.85"/></g>
+    <g class="o1">
+      <text class="t" x="18" y="115.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  README.md</tspan></text>
+      <text class="t" x="18" y="136.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">    + [![repolish](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/acme/taskvault…</tspan></text>
+      <text class="t" x="18" y="157.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">      readme-badges: no repolish badge yet</tspan></text>
+      <text class="t" x="18" y="199.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  .repolish/badge.json  (8 lines, new file)</tspan></text>
+      <text class="t" x="18" y="220.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">      readme-badges: the badge line points at this file — a local score; re-run with --remote, or let C…</tspan></text>
+      <text class="t" x="18" y="262.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  .github/ISSUE_TEMPLATE/bug_report.yml  (35 lines, new file)</tspan></text>
+      <text class="t" x="18" y="283.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">      issue-pr-template: no issue template under `.github/`</tspan></text>
+      <text class="t" x="18" y="325.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  .github/ISSUE_TEMPLATE/feature_request.yml  (23 lines, new file)</tspan></text>
+      <text class="t" x="18" y="346.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">      issue-pr-template: no issue template under `.github/`</tspan></text>
+      <text class="t" x="18" y="388.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  .github/pull_request_template.md  (13 lines, new file)</tspan></text>
+      <text class="t" x="18" y="409.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">      issue-pr-template: no PR template under `.github/`</tspan></text>
+      <text class="t" x="18" y="451.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  CONTRIBUTING.md  (29 lines, new file)</tspan></text>
+      <text class="t" x="18" y="472.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">      contributing: none in the repository root, .github/, or docs/ — build commands taken from the det…</tspan></text>
+      <text class="t" x="18" y="514.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  Written. Review with `git add -A &amp;&amp; git diff --staged` (plain `git diff` does not show new files).</tspan></text>
+      <text class="t" x="18" y="535.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  Undo with `git checkout -- . &amp;&amp; git clean -fd`</tspan></text>
+    </g>
+  </g>
+  <g class="step s2 last">
+    <text class="t" x="18" y="66.0" font-size="14" xml:space="preserve"><tspan fill="#ff5fd1">$</tspan><tspan fill="#edebfa"> repolish check .</tspan></text>
+    <g class="cover c2"><rect x="34.8" y="52.0" width="890.4" height="21.0" fill="#1a1a24"/><rect x="34.8" y="54.0" width="8.4" height="17.0" fill="#ff5fd1" opacity="0.85"/></g>
+    <g class="o2">
+      <text class="t" x="18" y="115.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#875fd7">█▀▀▀▄</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">█▀▀▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">█▀</tspan><tspan fill="#d75fd7">▀▀▄</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">▄▀▀▀▄</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">     </tspan><tspan fill="#af87d7">▀▀█</tspan><tspan fill="#afafd7">▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#87afd7">▄▀▀▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5fd7d7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#5fd7d7">█</tspan></text>
+      <text class="t" x="18" y="136.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#875fd7">█▄▄▄▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">█▄▄▄</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#af5fd7">█▄</tspan><tspan fill="#d75fd7">▄▄▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">       </tspan><tspan fill="#af87d7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#87afd7">▀▄▄▄</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#5fd7d7">█▄▄▄█</tspan></text>
+      <text class="t" x="18" y="157.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#875fd7">█</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#875fd7">▀▄</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#af5fd7">█</tspan><tspan fill="#edebfa">     </tspan><tspan fill="#af5fd7">█</tspan><tspan fill="#edebfa">     </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d75fd7">█</tspan><tspan fill="#edebfa">       </tspan><tspan fill="#af87d7">█</tspan><tspan fill="#edebfa">       </tspan><tspan fill="#87afd7">█</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5fd7d7">█</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#5fd7d7">█</tspan></text>
+      <text class="t" x="18" y="178.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#875fd7">▀</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#875fd7">▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">▀▀▀▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af5fd7">▀</tspan><tspan fill="#edebfa">      </tspan><tspan fill="#d75fd7">▀▀▀</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#d75fd7">▀</tspan><tspan fill="#d787d7">▀▀▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#af87d7">▀▀▀</tspan><tspan fill="#afafd7">▀▀</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#87afd7">▀▀▀▀</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#5fd7d7">▀</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#5fd7d7">▀</tspan></text>
+      <text class="t" x="18" y="199.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">discoverability · comprehensibility · credibility</tspan></text>
+      <text class="t" x="18" y="241.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#d7d7d7" font-weight="700">acme/taskvault</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#878787">· cli (detected) · local · f058c835</tspan></text>
+      <text class="t" x="18" y="283.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">SCORE</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#ff5f87" font-weight="700">34 / 100 </tspan><tspan fill="#edebfa">   </tspan><tspan fill="#ff5f87">poor     </tspan><tspan fill="#edebfa">   </tspan><tspan fill="#ff5f87">▄▄▄▄▄▄▄▄</tspan><tspan fill="#5f5f5f">▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁</tspan></text>
+      <text class="t" x="18" y="325.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">DISCOVERABILITY    </tspan><tspan fill="#ffaf5f">▄▄▄▄▄▄▄▄</tspan><tspan fill="#5f5f5f">▁▁▁▁</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#ffaf5f" font-weight="700"> 68</tspan></text>
+      <text class="t" x="18" y="346.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">COMPREHENSIBILITY  </tspan><tspan fill="#ff5f87">▄▄▄</tspan><tspan fill="#5f5f5f">▁▁▁▁▁▁▁▁▁</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#ff5f87" font-weight="700"> 28</tspan></text>
+      <text class="t" x="18" y="367.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">CREDIBILITY        </tspan><tspan fill="#ff5f87">▄▄▄</tspan><tspan fill="#5f5f5f">▁▁▁▁▁▁▁▁▁</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#ff5f87" font-weight="700"> 30</tspan></text>
+      <text class="t" x="18" y="409.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">local score — description / topics / homepage were not checked, so it is</tspan></text>
+      <text class="t" x="18" y="430.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">not comparable with a --remote score</tspan></text>
+      <text class="t" x="18" y="472.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#878787">CHECKS</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#878787">○○○</tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#ff5f87">●</tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#878787">○○</tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#ff5f87">●</tspan><tspan fill="#5fd7d7">●</tspan><tspan fill="#ffaf5f">●</tspan><tspan fill="#ff5f87">●●●●</tspan><tspan fill="#5fd7d7">●●●</tspan><tspan fill="#ff5f87">●●</tspan><tspan fill="#edebfa">   </tspan><tspan fill="#878787">17 scored · 5 not verified</tspan></text>
+      <text class="t" x="18" y="514.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#5f5f5f">──</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#ff5fd7" font-weight="700">TO FIX</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5f5f5f">──────────────────────────────────────────────────────────────</tspan></text>
+      <text class="t" x="18" y="556.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#000000" font-weight="700"> P1 </tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d7d7d7" font-weight="700">ci-present</tspan></text>
+      <text class="t" x="18" y="577.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       Add a CI workflow. A green build badge is the first thing a</tspan></text>
+      <text class="t" x="18" y="598.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       stranger uses to judge whether the code actually works</tspan></text>
+      <text class="t" x="18" y="619.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       </tspan><tspan fill="#878787">└</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5fd7d7">.</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#878787">no CI configuration found</tspan></text>
+      <text class="t" x="18" y="661.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">  </tspan><tspan fill="#000000" font-weight="700"> P1 </tspan><tspan fill="#edebfa"> </tspan><tspan fill="#d7d7d7" font-weight="700">claim-consistency</tspan></text>
+      <text class="t" x="18" y="682.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       1 of the 1 verifiable command claims in the README no longer work.</tspan></text>
+      <text class="t" x="18" y="703.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       Typing the first command from a README and getting an error is the</tspan></text>
+      <text class="t" x="18" y="724.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       fastest way to lose a user</tspan></text>
+      <text class="t" x="18" y="745.0" font-size="14" xml:space="preserve"><tspan fill="#edebfa">       </tspan><tspan fill="#878787">└</tspan><tspan fill="#edebfa"> </tspan><tspan fill="#5fd7d7">README.md:10</tspan><tspan fill="#edebfa">  </tspan><tspan fill="#878787">`scripts/setup.sh` — does not exist in the</tspan></text>
+    </g>
+  </g>
+</svg>

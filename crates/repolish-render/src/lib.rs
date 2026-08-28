@@ -6,19 +6,29 @@
 //! 终端里长什么样，README 里就长什么样。
 
 pub mod badge;
+pub mod cast;
+pub mod draw;
 pub mod glyph;
+pub mod i18n;
 pub mod markdown;
+pub mod overview;
 pub mod scan;
 pub mod svg;
+pub mod table;
 pub mod theme;
 
 pub use badge::{
     badge_json, snippet, styled_snippet, styled_snippet_html, BADGE_PATH, REPOLISH_URL,
 };
+pub use cast::{cast, Line, Screen, Span, Step, Timing};
+pub use draw::Options;
+pub use i18n::Lang;
 pub use markdown::markdown;
+pub use overview::{overview, Facts, OVERVIEW_PATH};
 pub use scan::{scan, Entry};
-pub use svg::card;
-pub use theme::ColorLevel;
+pub use svg::{card, CARD_PATH};
+pub use table::table;
+pub use theme::{ColorLevel, Palette, DARK, PORCELAIN};
 
 use std::fmt::Write as _;
 

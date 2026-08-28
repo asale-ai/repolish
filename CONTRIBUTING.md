@@ -38,8 +38,19 @@ cargo run -p repolish-render --example logo
 ```
 
 The colours and the letterforms live in `repolish-render`'s `theme` and `glyph` modules,
-which the terminal renderer uses as well. Change them there and the terminal, the card
-and the logo all move together.
+which the terminal renderer uses as well. Change them there and the terminal, the cards
+and the logo all move together. `assets/hero.svg` is the full-width banner at the top of
+the README: same geometry as the wordmark, but a wide viewBox, because that file is
+referenced at `width="100%"` and a 450×56 viewBox stretched to full width becomes one
+enormous line of type.
+
+Every SVG the tool writes shares one set of primitives in `repolish-render/src/draw.rs`,
+and every one of them must satisfy the same three constraints: **self-contained** (no
+external fonts, scripts or images — one `http` in the output, and it is the SVG
+namespace), **deterministic** (no timestamps, no randomness; the same commit renders a
+byte-identical file, or CI commits a diff made of nothing but noise), and **one fixed
+palette per file** (no `prefers-color-scheme`; GitHub serves SVGs through an image proxy
+where media queries are not reliable). There are tests for all three.
 
 ## The three rules that are not up for debate
 
@@ -53,13 +64,23 @@ it returns `Inconclusive` with a reason and drops out of the denominator. It doe
 guess. Concretely: `ruff check path/to/code/file.py` in a usage example is about the
 *reader's* files, not this repository's, so it is not a broken claim.
 
-**3. Everything the tool emits is in English.** Check messages, terminal output, CLI
-help, and the comments in the workflow `repolish init` generates. `REPOLISH.md` gets
-committed into other people's repositories, and a report in two languages is one nobody
-keeps. Code comments and the design docs under `docs/` are in Chinese; that is
-deliberate and separate. Recognising *Chinese* READMEs is input, not output, so the
-heading aliases in `section.rs` and the stop-word lists stay as they are.
+**3. Everything the tool emits is in English — except what gets embedded in someone
+else's README.** Check messages, terminal output, CLI help, `REPOLISH.md`, and the
+comments in the workflow `repolish init` generates are all English: their reader is an
+author running an English CLI, and a report in two languages is one nobody keeps.
 `tests/checks.rs::all_messages_are_english` fails the build if a message slips through.
+
+The **SVG cards are the deliberate exception**, and the line is worth stating precisely:
+a card is not read by the person who ran the command, it is read by the visitors of the
+repository it is pasted into. A card saying `LANGUAGES · BY FILE` on top of a Chinese
+README is our language pushed into someone else's front door. Every string on a card
+therefore goes through `repolish-render/src/i18n.rs`, which is a *struct* rather than a
+lookup table so a missing translation is a compile error rather than a silent fallback.
+The language follows the README (`--lang auto`), never the shell's locale.
+
+Code comments and the design docs under `docs/` are in Chinese; that is deliberate and
+separate. Recognising *Chinese* READMEs is input, not output, so the heading aliases in
+`section.rs` and the stop-word lists stay as they are.
 
 ## Adding or changing a check
 

@@ -37,6 +37,13 @@ pub const INK: Rgb = Rgb(0x1A, 0x1A, 0x24);
 pub const INK_SOFT: Rgb = Rgb(0x22, 0x21, 0x30);
 pub const TEXT: Rgb = Rgb(0xED, 0xEB, 0xFA);
 pub const MUTED: Rgb = Rgb(0x7B, 0x77, 0x93);
+/// SVG 上的弱色文字。比终端的 [`MUTED`] 亮一档。
+///
+/// 两者不能是同一个值：终端的底色不由我们决定，`MUTED` 挑的是一个在深浅
+/// 两种终端里都还过得去的中间值；SVG **自己画底**，所以能按真实对比度来
+/// 定——`MUTED` 落在 `INK` 上只有 4.0:1，够不着 WCAG AA。卡片上的次要信息
+/// （项目简介、页脚、单位）几乎全是这个颜色，读不清就等于没写。
+pub const MUTED_ON_INK: Rgb = Rgb(0x8B, 0x87, 0xA3);
 pub const LINE: Rgb = Rgb(0x35, 0x33, 0x4A);
 /// 条形图未填部分。比分隔线亮一档——分段条的意义就是让缺的那一格看得见，
 /// 轨道太暗的话 99 和 100 又变回长得一样了。
@@ -76,6 +83,206 @@ pub fn sweep(t: f32) -> Rgb {
         PURPLE.mix(PINK, t * 2.0)
     } else {
         PINK.mix(CYAN, (t - 0.5) * 2.0)
+    }
+}
+
+// ── SVG 色板 ────────────────────────────────────────────────
+
+/// 一张卡片的全部用色。
+///
+/// 终端只有一套配色（终端底色不由我们决定，只能挑一组在深浅底上都立得住的
+/// 前景色），SVG 不一样：SVG 自己画底，所以可以有深浅两套。给的是**两套完整
+/// 色板**而不是「深色版加几个覆盖」——半套色板迟早会漏掉一个常量，
+/// 在浅底上留下一块看不见的深色文字。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Palette {
+    pub name: &'static str,
+    /// 卡片底色
+    pub bg: Rgb,
+    /// 内嵌面板 / 图表底
+    pub panel: Rgb,
+    pub text: Rgb,
+    pub muted: Rgb,
+    pub line: Rgb,
+    /// 条形图未填部分
+    pub track: Rgb,
+    /// 多序列图表的取色环，按下标循环
+    pub series: [Rgb; 5],
+    pub warn: Rgb,
+    pub bad: Rgb,
+    /// 分数分档的五档色，从 excellent 到 poor
+    pub bands: [Rgb; 5],
+    /// 品牌标记的三段渐变
+    pub brand: [Rgb; 3],
+    /// 标记内部的镂空色，必须与 `bg` 对得上
+    pub mark_hollow: Rgb,
+}
+
+impl Palette {
+    /// 分数 → 颜色。阈值与终端的 [`band`] 一致——同一个仓库在两处必须同一个说法。
+    pub fn band(&self, score: u8) -> Rgb {
+        match score {
+            90..=255 => self.bands[0],
+            75..=89 => self.bands[1],
+            60..=74 => self.bands[2],
+            40..=59 => self.bands[3],
+            _ => self.bands[4],
+        }
+    }
+
+    /// 序列色环。下标超出就绕回去，条目再多也不会取到一个没定义的颜色。
+    pub fn series(&self, i: usize) -> Rgb {
+        self.series[i % self.series.len()]
+    }
+
+    /// 品牌渐变上 `t`（0.0..=1.0）处的颜色
+    pub fn sweep(&self, t: f32) -> Rgb {
+        if t < 0.5 {
+            self.brand[0].mix(self.brand[1], t * 2.0)
+        } else {
+            self.brand[1].mix(self.brand[2], (t - 0.5) * 2.0)
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<&'static Palette> {
+        match s.to_lowercase().as_str() {
+            "dark" | "neon" => Some(&DARK),
+            "porcelain" | "light" | "cream" => Some(&PORCELAIN),
+            _ => None,
+        }
+    }
+}
+
+/// 默认色板：与终端同源的霓虹深色。
+pub const DARK: Palette = Palette {
+    name: "dark",
+    bg: INK,
+    panel: INK_SOFT,
+    text: TEXT,
+    muted: MUTED_ON_INK,
+    line: LINE,
+    track: TRACK,
+    series: [PURPLE, PINK, CYAN, LIME, AMBER],
+    warn: AMBER,
+    bad: RED,
+    bands: [CYAN, LIME, AMBER, ORANGE, RED],
+    brand: [PURPLE, PINK, CYAN],
+    mark_hollow: INK,
+};
+
+/// 浅色色板：暖白纸底，深墨字。
+///
+/// 存在的理由不是「有人喜欢浅色」，是**可读性**：一张深底卡片贴进一份
+/// 以浅色为主的 README，在页面上就是一块挖空。让作者能选一张跟着自己
+/// 版面走的卡片，比让所有人迁就我们的品牌色重要。
+pub const PORCELAIN: Palette = Palette {
+    name: "porcelain",
+    bg: Rgb(0xF6, 0xF1, 0xE6),
+    panel: Rgb(0xEC, 0xE5, 0xD6),
+    text: Rgb(0x2B, 0x21, 0x18),
+    muted: Rgb(0x71, 0x66, 0x56),
+    line: Rgb(0xD8, 0xCE, 0xBB),
+    track: Rgb(0xDF, 0xD6, 0xC4),
+    // 浅底上霓虹色会糊成一片，改用同一族的深浅阶——
+    // 序列之间靠明度区分，打印成黑白也还分得开
+    series: [
+        Rgb(0x2B, 0x21, 0x18),
+        Rgb(0x5A, 0x47, 0x33),
+        Rgb(0x8A, 0x74, 0x57),
+        Rgb(0xB0, 0x9C, 0x80),
+        Rgb(0xCB, 0xBD, 0xA6),
+    ],
+    warn: Rgb(0xB5, 0x7A, 0x0B),
+    bad: Rgb(0xB4, 0x33, 0x2B),
+    bands: [
+        Rgb(0x1E, 0x6F, 0x63),
+        Rgb(0x4B, 0x7A, 0x27),
+        Rgb(0xB5, 0x7A, 0x0B),
+        Rgb(0xC0, 0x5C, 0x1E),
+        Rgb(0xB4, 0x33, 0x2B),
+    ],
+    brand: [PURPLE, PINK, Rgb(0x1E, 0x9E, 0x8C)],
+    mark_hollow: Rgb(0xF6, 0xF1, 0xE6),
+};
+
+#[cfg(test)]
+mod palette_tests {
+    use super::*;
+
+    /// 两套色板必须在同一个阈值上翻面，否则同一个仓库会有两种说法
+    #[test]
+    fn both_palettes_band_on_the_same_thresholds() {
+        for p in [&DARK, &PORCELAIN] {
+            assert_eq!(p.band(90), p.bands[0]);
+            assert_eq!(p.band(89), p.bands[1]);
+            assert_eq!(p.band(74), p.bands[2]);
+            assert_eq!(p.band(39), p.bands[4]);
+        }
+        // 深色板与终端共用同一组常量
+        assert_eq!(DARK.band(95), band(95));
+        assert_eq!(DARK.band(20), band(20));
+    }
+
+    /// WCAG 相对亮度。必须做 sRGB 反伽马——按原始通道值直接算，
+    /// 深色底的对比度会被系统性低估，一个其实合格的色板会被判不合格。
+    #[cfg(test)]
+    fn luminance(c: Rgb) -> f32 {
+        fn channel(v: u8) -> f32 {
+            let s = v as f32 / 255.0;
+            if s <= 0.03928 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
+        }
+        0.2126 * channel(c.0) + 0.7152 * channel(c.1) + 0.0722 * channel(c.2)
+    }
+
+    #[cfg(test)]
+    fn contrast(a: Rgb, b: Rgb) -> f32 {
+        let (x, y) = (luminance(a) + 0.05, luminance(b) + 0.05);
+        if x > y {
+            x / y
+        } else {
+            y / x
+        }
+    }
+
+    /// 文字与底色的对比度不够，卡片就是一张糊的图。
+    /// 正文按 WCAG AAA（7:1）要求，弱色文字按 AA（4.5:1）——
+    /// 弱色本来就是「次要信息」，但次要不等于读不清。
+    #[test]
+    fn text_contrasts_with_the_background_in_both_palettes() {
+        for p in [&DARK, &PORCELAIN] {
+            let body = contrast(p.text, p.bg);
+            assert!(body >= 7.0, "{} 的正文对比度只有 {body:.1}", p.name);
+            let muted = contrast(p.muted, p.bg);
+            assert!(muted >= 4.5, "{} 的弱色对比度只有 {muted:.1}", p.name);
+        }
+    }
+
+    /// 分档色是要被读出数值的，不能只靠色相区分
+    #[test]
+    fn every_band_colour_is_legible_on_its_own_background() {
+        for p in [&DARK, &PORCELAIN] {
+            for (i, c) in p.bands.iter().enumerate() {
+                let ratio = contrast(*c, p.bg);
+                assert!(ratio >= 3.0, "{} 第 {i} 档对比度只有 {ratio:.1}", p.name);
+            }
+        }
+    }
+
+    /// 镂空色画在标记上，与卡片底色不一致就会露出一圈边
+    #[test]
+    fn the_mark_hollow_matches_the_card_background() {
+        assert_eq!(DARK.mark_hollow, DARK.bg);
+        assert_eq!(PORCELAIN.mark_hollow, PORCELAIN.bg);
+    }
+
+    #[test]
+    fn series_colours_wrap_instead_of_running_out() {
+        assert_eq!(DARK.series(0), DARK.series(5));
+        assert_eq!(DARK.series(7), DARK.series(2));
     }
 }
 

@@ -25,6 +25,13 @@ fn main() -> std::io::Result<()> {
         ("logo.svg", repolish_render::svg::logo(128)),
         ("favicon.svg", repolish_render::svg::logo(32)),
         ("wordmark.svg", repolish_render::svg::wordmark(56)),
+        // README 顶上那张通栏横幅。与 wordmark 的区别只有 viewBox 的比例，
+        // 但那一个差别是关键：以 width="100%" 引用时，一张 450×56 的图会被
+        // 拉成横穿页面的巨型字，而这张按比例缩放后仍然是一个居中的标志。
+        (
+            "hero.svg",
+            repolish_render::svg::hero("discoverability · comprehensibility · credibility"),
+        ),
     ];
 
     for (name, svg) in files {

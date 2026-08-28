@@ -10,12 +10,13 @@ use repolish_md::Readme;
 
 mod files;
 mod git;
+pub mod lang;
 mod manifest;
 mod profile;
 pub mod remote;
 
-pub use files::FileIndex;
-pub use git::{GitFacts, Tag};
+pub use files::{is_content_path, FileIndex};
+pub use git::{GitFacts, Tag, ACTIVITY_WEEKS};
 pub use manifest::{normalize_package_name, Ecosystem, Manifest};
 pub use profile::Profile;
 pub use remote::{RemoteFacts, RepoSlug};

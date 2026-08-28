@@ -73,21 +73,40 @@ jobs:
       # 自评。分数线暂时不设死——先让每次 PR 都能看到分数怎么动的。
       # 这里直接用源码构建而不是用 action，因为 action 下载的是已发布的版本，
       # 那样测的就不是这个 PR 的改动了。
+      # 一次跑完所有产物。分开跑不只是多打几次 GitHub API，
+      # 更要命的是几份产物可能来自不同次的评分结果。
       - name: Score this repository
         run: |
-          cargo run --release -- check . --remote --no-color --badge --report --card
+          cargo run --release -- check . --remote --no-color \
+            --badge --report --card --overview
           cat REPOLISH.md >> "$GITHUB_STEP_SUMMARY"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 徽章和卡片都必须留在仓库里：shields.io 读的是
+      # 表格图不跟着分数走，跟着 README 走：作者改了一行表格，图就该跟着变。
+      # 用 card 而不是 polish 来重画——polish 从不覆盖任何文件，
+      # 第二次跑就是空操作，README 上会一直挂着第一次画的那张图。
+      #
+      # 中文 README 引的是另一套卡片。这个仓库自己就是 --lang 的活样例：
+      # 一张写着 LANGUAGES · BY FILE 的卡片贴在中文 README 顶上，
+      # 是我们把自己的语言塞进了别人的门面。
+      - name: Redraw the tables and the Chinese cards
+        run: |
+          cargo run --release -- card . --kind tables
+          cargo run --release -- card . --kind overview --lang zh-CN \
+            --output .repolish/overview.zh-CN.svg
+          cargo run --release -- card . --kind score --lang zh-CN \
+            --output .repolish/card.zh-CN.svg
+
+      # 徽章和三类 SVG 都必须留在仓库里：shields.io 读的是
       # raw.githubusercontent.com 上的 badge.json，README 里的 <img> 指的是
-      # card.svg —— 两者都由这一次评分产出，不提交就永远停在旧分数上。
-      - name: Commit badge and card
+      # overview.svg / card.svg / tables/*.svg —— 全部由这一次运行产出，
+      # 不提交就永远停在旧数据上。渲染是确定性的，所以没有变化时不会有 diff。
+      - name: Commit the badge and the cards
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name  github-actions
           git config user.email github-actions@github.com
-          git add .repolish REPOLISH.md
+          git add .repolish REPOLISH.md README.md README.zh-CN.md
           git diff --staged --quiet || git commit -m "chore: update repolish score"
           git push

@@ -10,19 +10,35 @@ repolish check . --remote        # 补 GitHub 元数据（topics / description /
 repolish check . --format json   # 供 CI 消费
 repolish check . --min-score 70  # 不达标退出码非 0 → 可当 CI 门禁
 repolish check . --badge         # 顺带写出 .repolish/badge.json
-repolish check . --card          # 顺带写出 .repolish/card.svg
+repolish check . --card          # 顺带写出 .repolish/card.svg（分数卡片）
+repolish check . --overview      # 顺带写出 .repolish/overview.svg（概览卡片）
 
 repolish scan <dir>              # 给一个目录下的所有仓库评分并排名
 repolish scan <dir> --remote --min-score 70
 
 repolish badge .                 # 写 .repolish/badge.json + 打印可复制的 markdown snippet
-repolish card .                  # 写 .repolish/card.svg + 打印可复制的 markdown snippet
+repolish card .                  # 写 .repolish/overview.svg（默认就是概览卡片）
+repolish card . --kind score     # 写 .repolish/card.svg
+repolish card . --kind tables    # 重画 README 里每一张表格的 SVG
+repolish card . --kind all       # 以上全部
 repolish report .                # 写 REPOLISH.md
+repolish demo .                  # 真的跑一遍命令，写出 .repolish/demo.svg（会动的录屏）
+repolish demo . --dry-run        # 只列出它会跑哪几条命令，什么都不执行
+repolish demo . --tape           # 顺带写一份 VHS tape，给想要 GIF 的人
+repolish skill .                 # 把 SKILL.md 写进一个仓库
+repolish skill --list            # 这台机器上装了哪几家智能体
+repolish skill --target detect   # 装进探测到的那几家智能体
 repolish init                    # 生成 .github/workflows/repolish.yml
 
 repolish polish .                # 打印能机械落实的改动，不落盘
 repolish polish . --apply        # 直接改文件，用户自行 commit
+repolish polish . --apply --visuals   # 再加上概览卡片、末尾分数卡片、SVG 表格
 ```
+
+**`card` 覆盖，`polish` 不覆盖。** 这个分工是有意的，也是这两条命令之间唯一需要记住的事：
+`polish` 负责第一次把 `<img>` 引用插进 README，此后一次都不再动那个文件；`card` 负责
+每一次重画。反过来的话，要么 `polish` 破了「从不覆盖」这条不变量，要么 README 上永远
+挂着第一次生成的那张图。CI 里跑的是 `card`。
 
 **优先级说明：** `--min-score` 与 `repolish init` 的优先级高于任何生成类功能——CLI-only 产品的留存靠「进了 CI 就不会被删」。
 
@@ -177,6 +193,72 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
 
 `assets/` 下的 logo 与 wordmark 由 `cargo run -p repolish-render --example logo` 从**同一段几何**生成。手写两份，改了一处忘另一处，两个月后就是两个 logo。
 
+### `.repolish/overview.svg`
+
+**概览卡片，说的是被检查的那个项目，不是我们的分数。** 内容：项目名与一句话、按文件数的语言构成、代码/文档/配置/其他的堆叠比例、一年的每周提交活跃度、许可证、最新 tag，以及 `--remote` 下才有的星标与主题数。
+
+位置在 README 的**顶部**，徽章下面。分数卡片（`.repolish/card.svg`）在**末尾**。这一条早期弄反过：一个陌生人点进你的仓库，第一眼该看到的是这个项目做什么，不是我们给它打了几分。分数卡片的读者其实是作者自己，以及顺着它找过来的下一个作者——那个位置在页面末尾更合适，此时读者已经决定了要不要用这个项目。
+
+活跃度图的窗口**终点是 HEAD 的提交时间，不是「现在」**。按当前时间开窗的话，一个停更两年的仓库会画出一条整齐的零线——那看着像没数据，而不像停更；同时它也会破坏「同一个 commit 逐字节可复现」这条约束。
+
+### `.repolish/tables/*.svg`
+
+README 里每一张表格画成的图。`polish --tables svg` 第一次生成并插入引用，`card --kind tables` 此后重画。
+
+**原表格必须留着**，折进紧挨在图下面的 `<details>` 里。图片没有文本层：读屏软件、`grep`、翻译工具，以及下一个想改这张表的人，读的都是折起来的那一份。这不是可选项。
+
+包起来这件事仍然是**纯插入**——表格自己的字节一个都没动，只是在它上下各加了几行，`polish` 的「只增量插入」不变量因此完好。
+
+选表规则：少于 2 行不画（画成图没有增益），超过 16 行不画并且会说一声（那么高的图在手机上看不清，而真表格本来就会滚动）。文件名里的序号取自**全部**表格的下标而不是入选表格的下标——跳过一张之后如果后面跟着重编号，README 里已经写好的引用就全断了。
+
+### `.repolish/demo.svg`
+
+`repolish demo` 的产物：一段**会动的终端录屏**，动画由 CSS 关键帧驱动。仅当探测到可执行文件、或用 `--cmd` 显式指定了命令时才有意义。
+
+**录制与渲染都在这个仓库里。** 早先的做法是生成一份 [VHS](https://github.com/charmbracelet/vhs) tape 交给用户自己渲染，但 VHS 要 ttyd 和 ffmpeg，产出的是 GIF，而 GIF 与本仓库对自己每一个产物的三条约束全不相容：二进制大块会撑肥 git 历史；没有文本层意味着录屏里那行命令复制不走、`grep` 也找不到；而要求使用者先装一条视频工具链，对一个「让你的仓库体面起来」的工具来说是本末倒置。`--tape` 仍然保留，因为不是每个包平台都渲染 SVG（crates.io 渲染，npm 与 PyPI 对 README 的 HTML 消毒更狠）。
+
+**它真的会跑那些命令。** 这是刻意的：一个专门检查「README 承诺的命令是否真的存在」的工具，自己的演示不能是编的。代价是它会在使用者的机器上执行程序，所以 `--dry-run` 存在，并且这一点写在 `--help` 里。
+
+两处硬限制，写在 `repolish-render/src/cast.rs` 上：
+
+- **不是终端模拟器。** 只认 SGR 颜色、`\n` 和 `\r`。会重绘屏幕的程序（进度条、spinner、全屏 TUI）录出来是不对的。认全就是在写一个 vt100，而这个 crate 的工作是画卡片。
+- **不带伪终端。** 输出接的是管道，所以用 `CLICOLOR_FORCE` 与 `FORCE_COLOR` 强制开色；仍然坚持关色的程序录出来就是黑白的。拉一个 PTY 依赖进来能救最后那一小撮程序，代价是一个平台相关的依赖和 Windows 上另一条实现路径——为一个演示功能不值当。
+
+**第 0 帧是「跑完之后的样子」。** 时间轴开头先定格在最后一步的终态，然后才从第一步开始敲。这是给那些把 SVG 冻在第 0 帧的渲染器兜底的——真存在这样的环境，而如果第 0 帧是一个空终端，那些读者拿到的就是一张白图。`prefers-reduced-motion` 是另一条兜底，两条针对两种情况，都需要。
+
+**它不进每次 push 的 CI。** 录屏里带着样例仓库的 commit 哈希；把提交时间写死好让哈希稳定，那个仓库就变成一年多没人动的仓库，`activity` 判 P1 盖过演示本身，而且报告里会出现每天都在变的「last commit N days ago」。做不到既确定又与时间无关，所以它跟着内容变、由 `demo` workflow 手动重录。理由完整写在 `demo/README.md`。
+
+### `SKILL.md`
+
+`repolish skill` 写出的智能体说明。内容写死在 `crates/repolish-cli/src/skill.md`（编译进二进制），仓库里提交的那一份在 `skills/repolish/SKILL.md`，由脚本重新生成——要改内容，改前者。
+
+两种落点，语义不同：
+
+- `repolish skill .` 写进**一个仓库**（`SKILL.md`），跟着代码走，谁 clone 谁就有。
+- `repolish skill --target claude` 写进**这台机器上的智能体**（`~/.claude/skills/repolish/SKILL.md`），装一次所有项目都用得上。`--target detect` 只装进真的存在的那几家——往一个没装 Codex 的机器上写 `~/.codex/skills` 会凭空造出一个目录，看着像那工具装了。
+
+它的重点不是「有哪些命令」（`--help` 就写着），而是**顺序和边界**：先量，再落实能机械落实的，把需要判断的交回给人。一个智能体拿到「把这个仓库的 README 弄好」时的默认动作是直接重写整个文件——那正是这个工具花了全部力气去反对的做法。
+
+文件里还有一节讲**判断**：repolish 自己的三种判法（事实、交叉核对、分档关键词启发式）哪一种弱，以及每一条发现「好的修法长什么样」与各自的翻车方式。分数量的是「读者需要的那套东西在不在、承诺是不是真的」，不量文字写得好不好——那个缺口正是智能体要补的。
+
+### SVG 的语言
+
+终端报告与 `REPOLISH.md` 一律英文：那是给作者自己看的诊断输出，读它的人正在用一个英文 CLI。
+
+**SVG 不一样。** 卡片会被贴进**别人的 README**，被那个项目的读者看到。一张中文 README 顶上写着 `LANGUAGES · BY FILE` 的卡片，是我们把自己的语言塞进了别人的门面。所以卡片上的每一个字走 `repolish-render/src/i18n.rs` 的文案表，`--lang` 默认 `auto`——**读 README 判断，不读系统 locale**：CI 里一次 `LANG=C` 就把中文 README 顶上的卡片换成英文，是很荒唐的。
+
+判据是 CJK 字符占比过三分之一。不用「有没有中文」判：一份中文 README 里夹着英文命令名是常态，那样判会把几乎所有 README 都判成中文；也不用「过半」判：一个汉字承载的信息量远大于一个拉丁字母，等量对比会永远判成英文。
+
+文案表是一个**结构体**而不是查表函数：少一个字段编译就过不去，翻译漏一条不可能溜进发布版。
+
+### 色板
+
+SVG 有深浅两套完整色板（`--theme dark` / `porcelain`），终端只有一套。区别在于**谁画底**：终端的底色不由我们决定，只能挑一组在深浅底上都立得住的前景色；SVG 自己画底，所以能按真实对比度来定——正文按 WCAG AAA（7:1），弱色按 AA（4.5:1），两条都有测试守着。
+
+`porcelain` 的存在理由是可读性而不是口味：一张深色卡片贴进一份浅色 README，在页面上就是一块挖空。
+
+**不做 `prefers-color-scheme` 切换。** GitHub 把 SVG 当图片经 camo 代理渲染，媒体查询在那条链路上并不可靠——要浅色版就显式选，让文件本身就是浅色的。
+
 ### 产出语言
 
 `reason` / `note` / `message` 一律英文，见 [03-评分维度.md](03-评分维度.md) 设计原则 6。
@@ -220,9 +302,14 @@ skip = ["code-of-conduct"]
 badge-style = "flat"       # flat | flat-square | plastic | for-the-badge | social
 align       = "left"       # left | center
 toc-style   = "bullet"     # bullet | number | roman | fold
-logo        = "assets/hero.png"
-logo-width  = 420
+logo        = "assets/hero.svg"
+logo-width  = "full"       # 像素数，或 "full" → width="100%"
 tree-depth  = 2            # 缺省 = 不生成目录树
+theme       = "dark"       # dark | porcelain，SVG 产物的色板
+lang        = "auto"       # auto | en | zh-CN，SVG 里那些字的语言
+overview    = true         # 徽章下面插一张概览卡片
+footer-card = true         # 末尾插分数卡片与「用 repolish 打磨」一节
+tables      = "svg"        # keep | svg
 ```
 
 `[readme]` 这一段**不影响任何一个分数**。检查项清单与权重在 v1 冻结，一个仓库不能靠换徽章样式让自己好看一点——那样分数就不可横向比较了。
@@ -234,8 +321,11 @@ tree-depth  = 2            # 缺省 = 不生成目录树
 | logo 的 `alt` 必须为空 | 非空 alt 会让这张图成为标题候选，图片标题把 `readme-title-tagline` 从 10 打到 5。空 alt 同时是正确的无障碍语义：旁边已有文字标题，这张图是装饰性的 |
 | logo 块结尾必须空一行 | 图片块是 HTML，紧跟其后的 Markdown 会被并进那个块。少这一行，下面的 `# Name` 就不再是标题，实测 10 分掉到 6 分，标题被认成正文第一个小节 |
 | 追加到已有徽章行时只能用 Markdown | 那一排是作者用 Markdown 写的，混一行 HTML 进去会在渲染上留下接缝。只有另起一块时才谈得上 `align` |
+| 通栏横幅要 `logo-width = "full"` | 钉死在一个像素宽度上的横幅，在宽屏里缩在左上角，在窄屏里撑破版心。`full` 输出 `width="100%"`，配的图 viewBox 也得是通栏比例——一张 450×56 的 wordmark 按 100% 拉开会变成一条横穿页面的巨型字 |
 
 `badge-style` 不指定时**跟着 README 里已有的徽章走**（取出现最多的那种）。一排徽章里混进一个样式不同的，比样式统一但不是默认样式更难看。
+
+`logo`、`tree-depth`、`overview`、`footer-card`、`tables` 这五项**不由任何一条检查驱动**——没有哪一项检查要求 README 里有横幅、目录树或图表。它们默认关闭，`polish` 的干跑输出里也照实写「由配置要求」（requested by configuration），不打扮成一条修复。命名这个例外，比假装它们也是修复要诚实。命令行上 `--visuals` 是后三项的简写。
 
 **优先级：命令行 > 配置文件 > 默认值。** 命令行永远赢——CI 里能临时改的只有那一行。
 

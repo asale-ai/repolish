@@ -1,7 +1,16 @@
-# 渲染 demo/demo.gif 并提交回仓库。
+# 重录 .repolish/demo.svg 并提交回仓库。
 #
-# 只手动触发。GIF 是二进制大块，跟着每次 push 重渲一遍只会把 git 历史撑肥，
-# 而演示的内容一年也变不了几次。
+# **只手动触发**，理由和从前那个 GIF 版本不完全一样，值得写清楚。
+#
+# 格式的问题已经解决了：产物现在是一张文本 SVG，diff 得动，也不会像 GIF 那样
+# 每次重渲都往历史里塞一个几百 KB 的二进制块。
+#
+# 剩下的是**内容**的问题，那个解决不了：录屏里有样例仓库的 commit 哈希（每次
+# setup.sh 重建都不同）。如果把样例的提交时间写死好让哈希稳定，那个仓库就变成
+# 一个「一年多没人动」的仓库，`activity` 判 P1 盖过演示本身，而且报告里会出现
+# 「last commit N days ago」——那句话每天都在变，比哈希还不稳。
+#
+# 换句话说：这段录屏做不到既确定又与时间无关。所以它跟着内容变，不跟着 push 变。
 name: demo
 
 on:
@@ -11,8 +20,8 @@ permissions:
   contents: write
 
 jobs:
-  render:
-    name: vhs
+  record:
+    name: re-record the demo
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,21 +29,27 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      # tape 里敲的是裸 `repolish`，得让它指向这个 commit 构建出来的二进制，
-      # 而不是碰巧装在 runner 上的某个版本
+      # 录的是这个 commit 构建出来的 repolish，不是碰巧装在 runner 上的某个版本
       - name: Build and put repolish on PATH
         run: |
           cargo build --release
           echo "${GITHUB_WORKSPACE}/target/release" >> "$GITHUB_PATH"
 
-      - uses: charmbracelet/vhs-action@v2
-        with:
-          path: demo/demo.tape
+      # 真的前后对比：对一个故意写得很糙的样例仓库跑 check、polish、再 check。
+      # 录屏里那两个分数就是这一次跑出来的分数。
+      - name: Record
+        run: |
+          sample="$(bash ./demo/setup.sh)"
+          repolish demo "$sample" \
+            --cmd "repolish check ." \
+            --cmd "repolish polish . --apply" \
+            --cmd "repolish check ." \
+            --output "${GITHUB_WORKSPACE}/.repolish/demo.svg"
 
-      - name: Commit the gif
+      - name: Commit it
         run: |
           git config user.name  github-actions
           git config user.email github-actions@github.com
-          git add demo/demo.gif
-          git diff --staged --quiet || git commit -m "chore: re-render the demo"
+          git add .repolish/demo.svg
+          git diff --staged --quiet || git commit -m "chore: re-record the demo"
           git push
