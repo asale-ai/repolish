@@ -120,3 +120,73 @@ jobs:
             --title "$tag" \
             --generate-notes \
             dist/*
+
+  # crates.io。跟着 tag 走，而不是在谁的笔记本上跑：
+  # 一个能发布正式版本的令牌不该躺在任何一台开发机上，也不该有人记得
+  # 「发完二进制还要再手动 cargo publish 一次」——那种步骤迟早会被漏掉。
+  #
+  # 只在 push tag 时发。workflow_dispatch 是用来补一次二进制构建的，
+  # 而 crates.io 的版本发出去只能 yank 不能撤，不该被手动触发顺手带上。
+  #
+  # 令牌走仓库 secret `CARGO_REGISTRY_TOKEN`。想再加一道人工闸门的话，
+  # 给这个 job 挂一个带 required reviewers 的 environment 即可——
+  # 这里没挂，是因为没配好的 environment 会让整个 job 起不来。
+  crates:
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # tag 与 Cargo.toml 里的版本必须是同一个。对不上就停——
+      # 发错版本号到 crates.io 是撤不回来的。
+      - name: Check the tag matches the manifest
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          manifest=$(awk '/^\[workspace\.package\]/{f=1} f && /^version = /{gsub(/version = "|"/,""); print; exit}' Cargo.toml)
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::tag v$tag but Cargo.toml says $manifest"
+            exit 1
+          fi
+          echo "version $manifest"
+
+      # 顺序就是依赖顺序：cargo 不接受一个 path 依赖尚未发布的 crate。
+      # 每发一个都要等索引跟上，否则下一个立刻失败。
+      #
+      # 已经发过的版本跳过而不是报错：这个 job 重跑一次是常事
+      # （比如后半截撞上 crates.io 抖动），重跑不该被前半截挡住。
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          crates="repolish-md repolish-ingest repolish-core repolish-checks repolish-render repolish"
+
+          for crate in $crates; do
+            if cargo search "$crate" --limit 1 2>/dev/null | grep -q "^$crate = \"$version\""; then
+              echo "$crate $version is already published — skipping"
+              continue
+            fi
+
+            echo "::group::publish $crate"
+            cargo publish -p "$crate" --locked --no-verify
+            echo "::endgroup::"
+
+            if [ "$crate" != "repolish" ]; then
+              printf 'waiting for the index'
+              for _ in $(seq 1 60); do
+                if cargo search "$crate" --limit 1 2>/dev/null | grep -q "^$crate = \"$version\""; then
+                  echo ' ok'; break
+                fi
+                printf '.'; sleep 5
+              done
+              echo
+            fi
+          done
+
+      - name: Summary
+        run: echo "Published https://crates.io/crates/repolish/${GITHUB_REF_NAME#v}" >> "$GITHUB_STEP_SUMMARY"

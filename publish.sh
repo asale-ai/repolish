@@ -3,8 +3,9 @@
 #
 # Unattended release. Bumps the workspace version on a release branch, opens a
 # pull request against main, lets it merge once the required checks pass, tags
-# the commit that actually landed — which triggers release.yml and builds the
-# binaries — then publishes the crates to crates.io.
+# the commit that actually landed. That tag triggers release.yml, which builds
+# the binaries, creates the GitHub release, and publishes the crates to
+# crates.io — so no crates.io token is ever needed on a developer machine.
 #
 #   ./publish.sh "fix the table column widths"
 #   ./publish.sh --minor "add the overview card"
@@ -24,7 +25,7 @@ EXPLICIT_VERSION=""
 DRY_RUN=0
 WITH_CLAWHUB=0
 SKIP_TESTS=0
-SKIP_CRATES=0
+LOCAL_CRATES=0
 MESSAGE=""
 
 # Publish order is the dependency order. cargo will not accept a crate whose
@@ -51,7 +52,8 @@ Flags:
   --version X.Y.Z               Set an exact version instead of bumping
   --clawhub                     Also publish the skill to ClawHub
   --skip-tests                  Skip the local cargo test (CI still gates the PR)
-  --skip-crates                 Tag and build binaries, but do not publish to crates.io
+  --local-crates                Publish to crates.io from here instead of letting
+                                the release workflow do it. Needs a local token
   --dry-run                     Print what would happen; change nothing
   -h, --help                    This text
 EOF
@@ -65,7 +67,7 @@ while [ $# -gt 0 ]; do
     --version) EXPLICIT_VERSION="${2:?--version needs X.Y.Z}"; shift 2 ;;
     --clawhub) WITH_CLAWHUB=1; shift ;;
     --skip-tests) SKIP_TESTS=1; shift ;;
-    --skip-crates) SKIP_CRATES=1; shift ;;
+    --local-crates) LOCAL_CRATES=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) die "unknown flag: $1 (try --help)" ;;
@@ -95,13 +97,14 @@ gh auth status > /dev/null 2>&1 || die "gh is not authenticated; run: gh auth lo
 git rev-parse --git-dir > /dev/null 2>&1 || die "not a git repository"
 git remote get-url origin > /dev/null 2>&1 || die "no 'origin' remote configured"
 
-if [ "$SKIP_CRATES" = "0" ] && [ "$DRY_RUN" = "0" ]; then
-  # Finding out that the token is missing after the tag is pushed is the worst
-  # possible moment: tags here are immutable, so the release cannot be redone.
-  cargo login --help > /dev/null 2>&1 || true
+if [ "$LOCAL_CRATES" = "1" ] && [ "$DRY_RUN" = "0" ]; then
+  # Only matters on the --local-crates path. Finding out the token is missing
+  # after the tag is pushed is the worst possible moment: the tag is immutable,
+  # so the release cannot simply be redone.
   if [ -z "${CARGO_REGISTRY_TOKEN:-}" ] && [ ! -f "${CARGO_HOME:-$HOME/.cargo}/credentials.toml" ]; then
-    die "no crates.io credentials.
-Run 'cargo login', or export CARGO_REGISTRY_TOKEN, or pass --skip-crates."
+    die "no crates.io credentials, and --local-crates was requested.
+Run 'cargo login', export CARGO_REGISTRY_TOKEN, or drop --local-crates and let
+the release workflow publish (it holds the token as a repository secret)."
   fi
 fi
 
@@ -342,32 +345,22 @@ fi
 
 # ------------------------------------------------------------ crates.io
 
-if [ "$SKIP_CRATES" = "0" ]; then
-  step "Publishing ${#CRATES[@]} crates to crates.io"
-  # Order matters: cargo refuses a crate whose path dependencies are not on
-  # crates.io yet, and the index takes a moment to catch up after each upload.
+if [ "$LOCAL_CRATES" = "1" ]; then
+  # Escape hatch for when the workflow cannot run. Same order, same skip rule.
+  step "Publishing ${#CRATES[@]} crates from here"
   for crate in "${CRATES[@]}"; do
     if [ "$DRY_RUN" = "1" ]; then
       info "[dry-run] cargo publish -p $crate"
       continue
     fi
-
-    # Re-running after a partial failure is normal, so an already-published
-    # version is a skip rather than an error.
     if cargo search "$crate" --limit 1 2>/dev/null | grep -q "^$crate = \"$NEW\""; then
       info "$crate $NEW is already on crates.io — skipping"
       continue
     fi
-
     info "publishing $crate"
-    if ! cargo publish -p "$crate" --locked --no-verify; then
-      die "cargo publish failed for $crate.
-The tag and the binaries are already out. Fix the problem and re-run:
-    ./publish.sh --version $NEW --skip-tests \"$MESSAGE\"
-Crates already published are skipped automatically."
-    fi
-
-    # crates.io indexes asynchronously; the next crate depends on this one.
+    cargo publish -p "$crate" --locked --no-verify || die "cargo publish failed for $crate.
+Crates already published are skipped, so re-running is safe:
+    ./publish.sh --version $NEW --skip-tests --local-crates \"$MESSAGE\""
     if [ "$crate" != "${CRATES[-1]}" ]; then
       printf '    waiting for the index'
       for _ in $(seq 1 60); do
@@ -379,9 +372,10 @@ Crates already published are skipped automatically."
       printf '\n'
     fi
   done
-  info "${GREEN}crates published${RESET} https://crates.io/crates/repolish"
 else
-  warn "skipping crates.io"
+  # The `crates` job in release.yml publishes on the tag, using the repository's
+  # CARGO_REGISTRY_TOKEN secret. Watching release.yml above already covered it.
+  info "crates.io: published by the release workflow (--local-crates to do it here)"
 fi
 
 # ------------------------------------------------------------ clawhub
