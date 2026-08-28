@@ -20,6 +20,7 @@ repolish card .                  # 写 .repolish/overview.svg（默认就是概�
 repolish card . --kind score     # 写 .repolish/card.svg
 repolish card . --kind tables    # 重画 README 里每一张表格的 SVG
 repolish card . --kind all       # 以上全部
+repolish card . --remote --stars # 加上 star 增长曲线
 repolish report .                # 写 REPOLISH.md
 repolish demo .                  # 真的跑一遍命令，写出 .repolish/demo.svg（会动的录屏）
 repolish demo . --dry-run        # 只列出它会跑哪几条命令，什么都不执行
@@ -64,6 +65,22 @@ repolish polish . --apply --visuals   # 再加上概览卡片、末尾分数卡�
 | 5 | 有效检查项覆盖不足 50%，无法给出总分 |
 
 工具自身的运行失败与「检查不通过」必须用不同退出码区分，否则 CI 里无法判断。
+
+---
+
+### star 增长曲线
+
+`--stars` 在概览卡片上加一条 star 增长曲线。默认不开，因为它是 repolish 里唯一一处代价超过一次 API 请求的功能。
+
+**GitHub 没有「历年 star 数」这样的接口。** 但它有 `/stargazers`——带上 `Accept: application/vnd.github.star+json` 之后，它按**加星时间升序**返回，每条带 `starred_at`。于是第 *k* 页的第一个人，就是这个仓库第 *(k-1)×100+1* 颗星落下的那一刻。抽十几页就得到十几个**精确**的点，唯一近似的是点与点之间那几段直线。
+
+三条推论值得写下来：
+
+- **最后一个点取最新那位 stargazer 的 `starred_at`，不取「现在」。** 这样曲线完全由远端状态决定，同一份状态渲染出同一个文件。用时钟的话，每次跑都会画出一条略微不同的尾巴。
+- **横坐标是时间，不是样本序号。** 抽样在页上是均匀的，而 star 不是均匀涨的；按序号画会把沉寂的一年和爆火的一周画成同样宽。
+- **分页上限是 400 页。** 超过四万颗星的部分取不到，曲线就从数据开始的地方开始，而不是假装取到了。
+
+取曲线失败返回空而不是报错：它是卡片上的一段装饰，不该把「配额用完了」变成「评分失败」。点数不足两个就整节不画——一个空的图表框读起来像「这个项目一颗星都没有」。
 
 ---
 

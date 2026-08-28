@@ -19,7 +19,7 @@ pub use files::{is_content_path, FileIndex};
 pub use git::{GitFacts, Tag, ACTIVITY_WEEKS};
 pub use manifest::{normalize_package_name, Ecosystem, Manifest};
 pub use profile::Profile;
-pub use remote::{RemoteFacts, RepoSlug};
+pub use remote::{RemoteFacts, RepoSlug, StarPoint};
 
 #[derive(Debug)]
 pub struct RepoContext {
@@ -92,12 +92,26 @@ impl RepoContext {
     }
 
     /// 拉取 GitHub 元数据。失败不降级——见 [`remote`] 模块说明。
-    pub fn fetch_remote(&mut self, token: Option<&str>) -> Result<(), remote::RemoteError> {
+    ///
+    /// `stars` 额外取 star 增长曲线。它单独开关，是因为代价不一样：元数据是
+    /// 一次请求，曲线是十几次。默认不取，免得每次 `--remote` 都悄悄吃掉
+    /// 匿名配额的五分之一。
+    pub fn fetch_remote(
+        &mut self,
+        token: Option<&str>,
+        stars: bool,
+    ) -> Result<(), remote::RemoteError> {
         let slug = self
             .slug
             .clone()
             .ok_or(remote::RemoteError::NoGithubRemote)?;
-        self.remote = Some(remote::fetch(&slug, token)?);
+        let mut facts = remote::fetch(&slug, token)?;
+        if stars {
+            // 曲线取不到不算失败：它是卡片上的一段装饰，不该把
+            // 「配额用完了」变成「评分失败」
+            facts.star_history = remote::star_history(&slug, token, facts.stars);
+        }
+        self.remote = Some(facts);
         Ok(())
     }
 

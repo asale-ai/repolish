@@ -217,7 +217,10 @@ repolish polish . --apply --visuals   # 把以上全部插进 README
 
 repolish card . --theme porcelain   # 浅色板，给以浅色为主的 README
 repolish card . --lang ja           # en / zh-CN / ja；缺省跟着你的 README 走
+repolish card . --remote --stars    # 加上 star 增长曲线
 ```
+
+`--stars` 画的是这个仓库的 star 是怎么涨起来的。GitHub 没有「历年 star 数」这样的接口，所以点取自 stargazer 列表——它按加星时间返回，于是第 *k* 页的第一个人，就是仓库第 *(k-1)×100+1* 颗星落下的那一刻。抽十几页就得到十几个**精确**的点，近似的只有点与点之间那几段直线。代价是十几次额外的 API 请求，所以默认不开。
 
 **哪张放哪儿才是重点。** 概览卡片在顶上、徽章下面：陌生人第一个问题是「这是什么、还活着吗」。分数卡片在[末尾](#用-repolish-打磨)——放顶上意味着访客第一眼看到的是我们的工具在给你的项目评级，而不是你的项目。
 

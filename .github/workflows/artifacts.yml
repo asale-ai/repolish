@@ -35,7 +35,9 @@ jobs:
       # 更要命的是几份产物可能来自不同次的评分结果。
       - name: Badge, report and cards
         run: |
-          cargo run --release -- check . --remote --no-color \
+          # --stars 多花十几次 API 请求。这里划得来：CI 有 token，
+          # 而卡片上那条曲线正是每次重画的理由之一。
+          cargo run --release -- check . --remote --stars --no-color \
             --badge --report --card --overview
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -24,6 +24,15 @@ impl fmt::Display for RepoSlug {
     }
 }
 
+/// star 曲线上的一个点：某个时刻，这个仓库有多少 star。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StarPoint {
+    /// Unix 秒
+    pub at: i64,
+    /// 累计 star 数
+    pub count: u64,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct RemoteFacts {
     pub description: Option<String>,
@@ -34,6 +43,8 @@ pub struct RemoteFacts {
     pub archived: bool,
     pub stars: u64,
     pub default_branch: Option<String>,
+    /// star 增长曲线，按时间升序。空 = 没取（见 [`star_history`]）。
+    pub star_history: Vec<StarPoint>,
 }
 
 #[derive(Debug)]
@@ -207,6 +218,9 @@ fn minutes_until(at: u64) -> u64 {
 
 fn from_json(v: &serde_json::Value) -> RemoteFacts {
     RemoteFacts {
+        // 曲线由 fetch_remote 单独取——它要额外十几次请求，
+        // 不该藏在「解析一份 JSON」里
+        star_history: Vec::new(),
         description: non_empty(v.get("description")),
         homepage: non_empty(v.get("homepage")),
         topics: v
@@ -244,6 +258,176 @@ fn non_empty(v: Option<&serde_json::Value>) -> Option<String> {
 }
 
 /// 从环境变量取 token。Action 里 `GITHUB_TOKEN` 免费可得。
+/// 曲线上取几个点。
+///
+/// 每个点是一次请求，所以这个数字直接就是这个功能的 API 开销。12 个点足够
+/// 让一条增长曲线看出形状——再多是把速率配额换成读者看不出来的平滑度。
+const STAR_SAMPLES: usize = 12;
+/// 每页固定 100，这是 GitHub 允许的最大值，也是「第 k 页第一个人 = 第
+/// (k-1)*100+1 颗星」这条换算成立的前提。
+const PER_PAGE: u64 = 100;
+/// GitHub 的分页上限。超过这个页数的部分取不到，曲线的**早期**会缺一段——
+/// 缺了就要说出来，不能把一条残缺的线画得像完整的。
+const MAX_PAGE: u64 = 400;
+
+/// 取 star 增长曲线。
+///
+/// **GitHub 没有「历年 star 数」这样的接口。** 但 `/stargazers` 带上
+/// `star+json` 之后会按**加星时间升序**返回，每条带 `starred_at`。于是第 k 页
+/// 的第一个人，就是这个仓库第 `(k-1)*100+1` 颗星落下的那一刻——这是一个
+/// **精确**的数据点，不是估算。抽若干页就得到若干个精确点，点与点之间是直线
+/// 插值，那一段才是近似。
+///
+/// 最后一个点取**最后一页的最后一个人**，不取「现在」：曲线因此完全由远端
+/// 数据决定，同一份远端状态跑两次得到同一条线。用「现在」的话，同一个仓库
+/// 每次跑都会画出一条略微不同的尾巴。
+///
+/// 失败返回空而不是错误：star 曲线是卡片上的一段装饰，它取不到不该让整个
+/// `--remote` 失败——那会把「配额用完了」变成「评分失败」。
+pub fn star_history(slug: &RepoSlug, token: Option<&str>, stars: u64) -> Vec<StarPoint> {
+    if stars == 0 {
+        return Vec::new();
+    }
+    let wanted = sample_pages(stars);
+    let last_page = wanted.last().copied().unwrap_or(1);
+
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(TIMEOUT))
+        .http_status_as_error(false)
+        .build()
+        .into();
+
+    let mut points: Vec<StarPoint> = Vec::new();
+    for page in wanted {
+        let Some(entries) = stargazer_page(&agent, slug, token, page) else {
+            // 中途失败就用已经拿到的点。半条曲线好过没有曲线，
+            // 而点数本身会在卡片上被读出来。
+            break;
+        };
+        let Some(first) = entries.first() else {
+            continue;
+        };
+        points.push(StarPoint {
+            at: *first,
+            count: (page - 1) * PER_PAGE + 1,
+        });
+        // 最后一页还给出曲线的终点：最后一颗星落下的时刻
+        if page == last_page {
+            if let Some(last) = entries.last() {
+                points.push(StarPoint {
+                    at: *last,
+                    count: (page - 1) * PER_PAGE + entries.len() as u64,
+                });
+            }
+        }
+    }
+
+    points.sort_by_key(|p| p.at);
+    points.dedup_by_key(|p| p.at);
+    // 一个点画不出曲线
+    if points.len() < 2 {
+        return Vec::new();
+    }
+    points
+}
+
+/// 要抽哪几页。
+///
+/// 均匀铺开，且**一定包含第一页与最后一页**——曲线的两端最说明问题：
+/// 第一颗星什么时候来的，最后一颗星什么时候来的。
+///
+/// 单独拆出来是为了能测：真正的抓取要网络，而这段算术才是容易出错的地方
+/// （少一页、重复一页、或者最后一页没进去，画出来的曲线都是错的）。
+fn sample_pages(stars: u64) -> Vec<u64> {
+    if stars == 0 {
+        return Vec::new();
+    }
+    let pages = stars.div_ceil(PER_PAGE).min(MAX_PAGE);
+    if pages == 1 {
+        return vec![1];
+    }
+    let n = STAR_SAMPLES.min(pages as usize).max(2);
+    let mut wanted: Vec<u64> = Vec::new();
+    for i in 0..n {
+        let page = 1 + (i as u64 * (pages - 1)) / (n as u64 - 1);
+        if !wanted.contains(&page) {
+            wanted.push(page);
+        }
+    }
+    if !wanted.contains(&pages) {
+        wanted.push(pages);
+    }
+    wanted
+}
+
+/// 一页 stargazer 的 `starred_at`，Unix 秒，升序。
+fn stargazer_page(
+    agent: &ureq::Agent,
+    slug: &RepoSlug,
+    token: Option<&str>,
+    page: u64,
+) -> Option<Vec<i64>> {
+    let url = format!(
+        "{API}/repos/{}/{}/stargazers?per_page={PER_PAGE}&page={page}",
+        slug.owner, slug.name
+    );
+    let mut req = agent
+        .get(&url)
+        // 这个 Accept 是关键：没有它，返回的条目里根本没有 `starred_at`
+        .header("Accept", "application/vnd.github.star+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .header(
+            "User-Agent",
+            concat!("repolish/", env!("CARGO_PKG_VERSION")),
+        );
+    if let Some(t) = token {
+        req = req.header("Authorization", format!("Bearer {t}"));
+    }
+
+    let mut res = req.call().ok()?;
+    if res.status().as_u16() != 200 {
+        return None;
+    }
+    let json: serde_json::Value = res.body_mut().read_json().ok()?;
+    let mut out: Vec<i64> = json
+        .as_array()?
+        .iter()
+        .filter_map(|e| e.get("starred_at")?.as_str().and_then(parse_rfc3339))
+        .collect();
+    out.sort_unstable();
+    Some(out)
+}
+
+/// RFC 3339 → Unix 秒。
+///
+/// 只认 GitHub 实际吐出来的那一种形状：`2024-03-17T08:21:44Z`。不引 chrono——
+/// 为一个固定格式的时间戳拉一个日期库，是这个仓库一直在拒绝的那类依赖。
+fn parse_rfc3339(s: &str) -> Option<i64> {
+    let b = s.as_bytes();
+    if b.len() < 20 || b[4] != b'-' || b[7] != b'-' || b[10] != b'T' {
+        return None;
+    }
+    let num = |a: usize, z: usize| s.get(a..z)?.parse::<i64>().ok();
+    let (y, m, d) = (num(0, 4)?, num(5, 7)?, num(8, 10)?);
+    let (hh, mm, ss) = (num(11, 13)?, num(14, 16)?, num(17, 19)?);
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+        return None;
+    }
+    Some(days_from_civil(y, m, d) * 86_400 + hh * 3600 + mm * 60 + ss)
+}
+
+/// 民用日历 → 距 1970-01-01 的天数。Howard Hinnant 的 `days_from_civil`，
+/// 对 1970 之前也成立。闰年规则写在算式里，没有查表。
+fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (m + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
 pub fn token_from_env() -> Option<String> {
     ["GITHUB_TOKEN", "GH_TOKEN", "REPOLISH_GITHUB_TOKEN"]
         .iter()
@@ -359,5 +543,75 @@ mod refusal_tests {
             !msg.contains("rate limited"),
             "不能把未知原因说成限流: {msg}"
         );
+    }
+}
+
+#[cfg(test)]
+mod star_tests {
+    use super::*;
+
+    #[test]
+    fn no_stars_means_no_requests() {
+        assert!(sample_pages(0).is_empty());
+    }
+
+    /// 一页装得下就只取一页——小仓库不该为一张图打十几次 API
+    #[test]
+    fn a_small_repository_costs_one_request() {
+        assert_eq!(sample_pages(1), vec![1]);
+        assert_eq!(sample_pages(100), vec![1]);
+        assert_eq!(sample_pages(101), vec![1, 2]);
+    }
+
+    /// 两端必须在里面：第一颗星和最后一颗星什么时候来的，是曲线的全部意义
+    #[test]
+    fn both_ends_are_always_sampled() {
+        for stars in [150u64, 999, 21_000, 250_000] {
+            let pages = sample_pages(stars);
+            let last = stars.div_ceil(PER_PAGE).min(MAX_PAGE);
+            assert_eq!(pages.first(), Some(&1), "{stars} 没取第一页");
+            assert_eq!(pages.last(), Some(&last), "{stars} 没取最后一页");
+        }
+    }
+
+    #[test]
+    fn sampling_is_bounded_sorted_and_free_of_duplicates() {
+        for stars in [101u64, 500, 21_000, 10_000_000] {
+            let pages = sample_pages(stars);
+            assert!(
+                pages.len() <= STAR_SAMPLES + 1,
+                "{stars} 抽了 {} 页，超出预算",
+                pages.len()
+            );
+            assert!(
+                pages.windows(2).all(|w| w[0] < w[1]),
+                "{stars}: {pages:?} 没有严格升序"
+            );
+            assert!(
+                pages.iter().all(|p| *p >= 1 && *p <= MAX_PAGE),
+                "{stars}: {pages:?} 越界"
+            );
+        }
+    }
+
+    /// GitHub 的分页有上限，超过的部分取不到——不能假装能取到
+    #[test]
+    fn pagination_is_capped_rather_than_requested_forever() {
+        let pages = sample_pages(10_000_000);
+        assert_eq!(pages.last(), Some(&MAX_PAGE));
+    }
+
+    /// 时间戳解析是自己写的，所以得真的验一遍
+    #[test]
+    fn github_timestamps_parse_to_unix_seconds() {
+        assert_eq!(parse_rfc3339("1970-01-01T00:00:00Z"), Some(0));
+        assert_eq!(parse_rfc3339("2024-03-17T08:21:44Z"), Some(1_710_663_704));
+        // 闰日
+        assert_eq!(parse_rfc3339("2024-02-29T00:00:00Z"), Some(1_709_164_800));
+        // 形状不对的一律拒绝，而不是猜
+        assert_eq!(parse_rfc3339(""), None);
+        assert_eq!(parse_rfc3339("2024-03-17"), None);
+        assert_eq!(parse_rfc3339("not a date at all!!"), None);
+        assert_eq!(parse_rfc3339("2024-13-01T00:00:00Z"), None);
     }
 }

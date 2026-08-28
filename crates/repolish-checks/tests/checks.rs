@@ -246,6 +246,7 @@ fn all_messages_are_english() {
     // `repo-topics` 的一个中文句号就是这么漏过去的。这里直接塞假的远程数据，
     // 让它们也跑起来：一份「什么都没填」和一份「填了但对不上」。
     let empty_remote = RemoteFacts {
+        star_history: Vec::new(),
         description: None,
         homepage: None,
         topics: Vec::new(),

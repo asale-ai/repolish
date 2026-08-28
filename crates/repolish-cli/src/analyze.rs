@@ -41,6 +41,11 @@ pub struct Common {
     #[arg(long, global = true, value_delimiter = ',')]
     pub skip: Vec<String>,
 
+    /// Also fetch the star history curve for the overview card.
+    /// Costs about a dozen extra API calls, so it is off by default
+    #[arg(long, global = true)]
+    pub stars: bool,
+
     #[arg(long, global = true)]
     pub no_color: bool,
 
@@ -124,15 +129,27 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
 
     // 拉不到就退出，不静默降级：本地分与远程分基准不同，
     // 悄悄换基准会让用户拿到一个看不出差异的错分数。
+    if common.stars && !common.remote {
+        eprintln!("warning: --stars needs --remote; no star history was fetched");
+    }
     if common.remote {
         let token = repolish_ingest::remote::token_from_env();
+        // 曲线要十几次请求。匿名配额一小时只有 60 次，用掉五分之一还没提示，
+        // 使用者只会看到下一条命令莫名其妙地 429。
+        if common.stars && token.is_none() {
+            eprintln!(
+                "warning: --stars costs about a dozen API calls and no token is set; \
+                 the anonymous quota is 60 per hour"
+            );
+        }
         if token.is_none() {
             eprintln!("warning: GITHUB_TOKEN is not set; falling back to the anonymous quota of 60 requests per hour");
         }
-        ctx.fetch_remote(token.as_deref()).map_err(|e| {
-            eprintln!("error: {e}");
-            exit::REMOTE_FAILED
-        })?;
+        ctx.fetch_remote(token.as_deref(), common.stars)
+            .map_err(|e| {
+                eprintln!("error: {e}");
+                exit::REMOTE_FAILED
+            })?;
     }
 
     let registry = repolish_checks::registry();

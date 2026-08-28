@@ -243,7 +243,15 @@ repolish polish . --apply --visuals   # insert all of the above into the README
 
 repolish card . --theme porcelain   # light palette, for a light-leaning README
 repolish card . --lang ja           # en / zh-CN / ja; by default it follows your README
+repolish card . --remote --stars    # add the star history curve
 ```
+
+`--stars` draws how the repository's stars accumulated over time. GitHub has no
+"stars over time" endpoint, so the points come from the stargazer list, which is returned
+in the order people starred: page *k*'s first entry is the exact moment the repo reached
+star *(k-1)×100+1*. Sampling a dozen pages gives a dozen **exact** points — only the lines
+between them are interpolated. That costs about a dozen extra API calls, which is why it
+is off by default.
 
 **Where each one goes is the point.** The overview card belongs at the top, under the
 badges: a stranger's first question is what this is and whether it is still alive. The

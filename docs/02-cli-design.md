@@ -20,6 +20,7 @@ repolish card .                  # write .repolish/overview.svg (the default)
 repolish card . --kind score     # write .repolish/card.svg
 repolish card . --kind tables    # redraw every table SVG in the README
 repolish card . --kind all       # all of the above
+repolish card . --remote --stars # add the star history curve
 repolish report .                # write REPOLISH.md
 repolish demo .                  # really run the commands, write .repolish/demo.svg
 repolish demo . --dry-run        # list the commands it would run, run nothing
@@ -50,6 +51,7 @@ the README keeps showing the image generated the first time forever. CI runs `ca
 | `--only <ids>` / `--skip <ids>` | Filter by check id (filtered checks become `Skipped`) |
 | `--theme <dark\|porcelain>` | Palette for the SVG output |
 | `--lang <auto\|en\|zh-CN\|ja>` | Language of the text inside the SVG output |
+| `--stars` | Also fetch the star history curve. Needs `--remote`; costs ~12 API calls |
 | `--no-color` | For CI |
 | `-v` | Expand every check and the passing list |
 
@@ -66,6 +68,35 @@ the README keeps showing the image generated the first time forever. CI runs `ca
 
 The tool failing and the checks failing must be different exit codes, or CI cannot tell
 them apart.
+
+---
+
+### The star history curve
+
+`--stars` adds a star-growth curve to the overview card. Off by default, because it is the
+only part of repolish that costs more than one API call.
+
+**GitHub has no "stars over time" endpoint.** What it does have is `/stargazers`, which
+with `Accept: application/vnd.github.star+json` returns stargazers **in the order they
+starred**, each with `starred_at`. So page *k*'s first entry is the exact moment the
+repository reached star *(k-1)×100+1*. Sampling a dozen pages therefore yields a dozen
+**exact** points; the straight lines between them are the only approximation.
+
+Three consequences worth stating:
+
+- **The last point is the newest stargazer's `starred_at`, not "now".** The curve is then
+  entirely a function of remote state, so the same state renders the same file. Using the
+  clock would give a slightly different tail on every run.
+- **The x axis is time, not sample index.** Sampling is uniform in pages, but stars do not
+  arrive uniformly; plotting by index would draw a quiet year and a viral week the same
+  width.
+- **Pagination is capped at 400 pages.** Beyond 40,000 stars the early history is not
+  reachable, and the curve starts where the data starts rather than pretending otherwise.
+
+A failure fetching the curve returns no curve rather than an error: it is decoration on a
+card, and it must not turn "rate limit reached" into "scoring failed". Fewer than two
+points means the section is not drawn at all — an empty chart frame reads as "this project
+has no stars".
 
 ---
 

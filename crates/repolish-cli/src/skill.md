@@ -133,6 +133,7 @@ repolish card . --kind score        # .repolish/card.svg — what repolish score
 repolish card . --kind both
 repolish card . --theme porcelain   # light palette, for a light-leaning README
 repolish card . --lang zh-CN        # en / zh-CN / ja; by default it follows the README
+repolish card . --remote --stars    # add the star history curve (~12 extra API calls)
 ```
 
 The **overview card** goes at the top of the README: languages, file

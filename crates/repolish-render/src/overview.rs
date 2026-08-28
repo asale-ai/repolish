@@ -53,6 +53,8 @@ pub struct Facts {
     pub days_since_commit: Option<i64>,
     pub license: Option<String>,
     pub stars: Option<u64>,
+    /// star 增长曲线，按时间升序。空 = 没取或取不到。
+    pub star_history: Vec<repolish_ingest::StarPoint>,
     pub topics: Vec<String>,
     pub ecosystem: Option<String>,
     pub branch: Option<String>,
@@ -101,6 +103,11 @@ impl Facts {
             days_since_commit: git.map(|g| g.days_since_head()),
             license,
             stars: ctx.remote.as_ref().map(|r| r.stars),
+            star_history: ctx
+                .remote
+                .as_ref()
+                .map(|r| r.star_history.clone())
+                .unwrap_or_default(),
             topics: ctx
                 .remote
                 .as_ref()
@@ -178,6 +185,7 @@ pub fn overview(facts: &Facts, opts: &Options) -> String {
     y = languages(&mut body, facts, p, s, y + 30);
     y = composition(&mut body, facts, p, s, y + 26);
     y = activity(&mut body, facts, p, s, y + 28);
+    y = star_history(&mut body, facts, p, s, y + 28);
     let height = footer(&mut body, facts, p, s, y + 22);
 
     let aria = match &facts.owner {
@@ -583,6 +591,110 @@ fn activity(out: &mut String, facts: &Facts, p: &Palette, s: &'static Strings, y
     top + h + 14
 }
 
+/// star 增长曲线。
+///
+/// **只有 `--remote --stars` 才有数据**，没有就整节不画——一个空的图表框
+/// 比没有图表更糟：它看起来像这个仓库一颗星都没有。
+///
+/// 曲线的点是**精确**的：GitHub 没有「历年 star 数」这种接口，但
+/// `/stargazers` 按加星时间升序返回，所以第 k 页的第一个人就是第
+/// `(k-1)*100+1` 颗星落下的那一刻。抽样抽的是页，不是插值出来的数——
+/// 近似的只有点与点之间那几段直线。
+fn star_history(out: &mut String, facts: &Facts, p: &Palette, s: &'static Strings, y: i32) -> i32 {
+    let pts = &facts.star_history;
+    if pts.len() < 2 {
+        return y;
+    }
+    let total = pts.last().map(|p| p.count).unwrap_or(0);
+    let first = pts.first().expect("上面判过长度");
+
+    out.push_str(&draw::label(s.star_history, PAD, y, p.muted, Anchor::Start));
+    out.push_str(&draw::text(
+        &format!("{} {}", human(total as usize), s.stars),
+        RIGHT,
+        y,
+        12,
+        p.muted,
+        Anchor::End,
+        false,
+    ));
+
+    let (top, h) = (y + 14, 66);
+    out.push_str(&draw::rect(PAD, top, INNER, h, 6.0, p.panel));
+
+    // 按**时间**取横坐标，不按点的序号：抽样是按页均匀的，而 star 增长
+    // 不是均匀的，照序号画会把一段爆发期和一段沉寂期画成同样宽。
+    let (t0, t1) = (first.at, pts.last().expect("上面判过长度").at);
+    let span = (t1 - t0).max(1) as f32;
+    let w = (INNER - 16) as f32;
+    let x_of = |at: i64| PAD as f32 + 8.0 + w * ((at - t0) as f32 / span);
+    let y_of = |c: u64| (top + 8) as f32 + (h - 16) as f32 * (1.0 - c as f32 / total.max(1) as f32);
+
+    let mut line = String::new();
+    for (i, pt) in pts.iter().enumerate() {
+        let _ = std::fmt::Write::write_fmt(
+            &mut line,
+            format_args!(
+                "{}{:.1} {:.1} ",
+                if i == 0 { "M" } else { "L" },
+                x_of(pt.at),
+                y_of(pt.count)
+            ),
+        );
+    }
+    let line = line.trim_end().to_string();
+    let color = p.series(4);
+    let _ = std::fmt::Write::write_fmt(
+        out,
+        format_args!(
+            "  <path d=\"{line} L{:.1} {} L{:.1} {} Z\" fill=\"{color}\" fill-opacity=\"0.28\"/>\n  \
+             <path d=\"{line}\" fill=\"none\" stroke=\"{color}\" stroke-width=\"2\" \
+             stroke-linejoin=\"round\" stroke-linecap=\"round\"/>\n",
+            x_of(t1),
+            top + h - 8,
+            x_of(t0),
+            top + h - 8,
+        ),
+    );
+
+    // 两端各标一个日期。中间不标：抽样是按页来的，中间那些点的横坐标
+    // 精确，但标注密了只会挡住曲线本身。
+    out.push_str(&draw::text(
+        &format!("{} {}", s.stars_since, year_month(first.at)),
+        PAD,
+        top + h + 14,
+        11,
+        p.muted,
+        Anchor::Start,
+        false,
+    ));
+    out.push_str(&draw::text(
+        &year_month(t1),
+        RIGHT,
+        top + h + 14,
+        11,
+        p.muted,
+        Anchor::End,
+        false,
+    ));
+    top + h + 14
+}
+
+/// Unix 秒 → `2024-03`。只需要年月，所以不引日期库。
+fn year_month(at: i64) -> String {
+    let days = at.div_euclid(86_400);
+    // days_from_civil 的逆运算，同一篇 Hinnant 的算法
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y}-{m:02}")
+}
+
 // ── 页脚 ────────────────────────────────────────────────────
 
 fn footer(out: &mut String, facts: &Facts, p: &Palette, s: &'static Strings, y: i32) -> i32 {
@@ -682,6 +794,7 @@ mod tests {
             days_since_commit: Some(3),
             license: Some("MIT".into()),
             stars: Some(1234),
+            star_history: Vec::new(),
             topics: vec!["cli".into(), "rust".into()],
             ecosystem: Some("cargo".into()),
             branch: Some("main".into()),
@@ -860,6 +973,101 @@ mod tests {
         f.name = "a<b&c".into();
         let svg = overview(&f, &Options::default());
         assert!(svg.contains("a&lt;b&amp;c"));
+    }
+
+    /// 日期换算是自己写的（不引日期库），所以它必须被真的验一遍——
+    /// 闰年、世纪、以及 1970 之前都算对了才算数
+    #[test]
+    fn unix_seconds_convert_to_the_right_year_and_month() {
+        assert_eq!(year_month(0), "1970-01");
+        assert_eq!(year_month(1_710_663_704), "2024-03");
+        // 闰日当天与它的前后
+        assert_eq!(year_month(1_709_164_800), "2024-02"); // 2024-02-29
+        assert_eq!(year_month(1_709_251_200), "2024-03"); // 2024-03-01
+                                                          // 2000 是闰年（能被 400 整除），所以 2000-02-29 存在
+        assert_eq!(year_month(951_782_400), "2000-02"); // 2000-02-29
+        assert_eq!(year_month(951_868_800), "2000-03"); // 2000-03-01
+        assert_eq!(year_month(946_684_800), "2000-01");
+        // 1970 之前
+        assert_eq!(year_month(-1), "1969-12");
+    }
+
+    fn stars(points: &[(i64, u64)]) -> Facts {
+        let mut f = facts();
+        f.star_history = points
+            .iter()
+            .map(|(at, count)| repolish_ingest::StarPoint {
+                at: *at,
+                count: *count,
+            })
+            .collect();
+        f
+    }
+
+    /// 一个空的图表框比没有图表更糟：它看起来像这个仓库一颗星都没有
+    #[test]
+    fn no_star_data_means_no_star_section() {
+        let svg = overview(&stars(&[]), &Options::default());
+        assert!(!svg.contains("STARS"));
+        // 一个点画不出曲线
+        let svg = overview(&stars(&[(1_700_000_000, 1)]), &Options::default());
+        assert!(!svg.contains("STARS"));
+    }
+
+    #[test]
+    fn a_star_curve_is_drawn_with_both_ends_dated() {
+        let svg = overview(
+            &stars(&[
+                (1_640_995_200, 1),     // 2022-01
+                (1_688_169_600, 500),   // 2023-07
+                (1_719_792_000, 1_200), // 2024-07
+            ]),
+            &Options::default(),
+        );
+        assert!(svg.contains("STARS"));
+        assert!(svg.contains("2022-01"), "起点日期没标");
+        assert!(svg.contains("2024-07"), "终点日期没标");
+        assert!(svg.contains("1.2k"), "总数没写出来");
+        crate::draw::assert_self_contained(&svg);
+    }
+
+    /// 横坐标按时间走，不按点的序号——抽样是按页均匀的，而 star 增长不是，
+    /// 照序号画会把一段爆发期和一段沉寂期画成同样宽
+    #[test]
+    fn the_x_axis_follows_time_not_sample_order() {
+        // 前两点相隔一年，后两点相隔一天
+        let mut f = stars(&[
+            (1_600_000_000, 1),
+            (1_631_536_000, 100),
+            (1_631_622_400, 200),
+        ]);
+        // 提交活跃度也会画 path，清掉它免得取错那一条
+        f.activity.clear();
+        let svg = overview(&f, &Options::default());
+
+        // 品牌标记也是 path，所以按描边宽度挑出曲线那一条
+        let d = svg
+            .split("<path d=\"")
+            .skip(1)
+            .filter(|seg| {
+                seg.split("/>")
+                    .next()
+                    .is_some_and(|tag| tag.contains("stroke-width=\"2\""))
+            })
+            .map(|seg| seg.split('"').next().unwrap_or(""))
+            .next()
+            .expect("star 曲线应该画出一条描边 path");
+        let xs: Vec<f32> = d
+            .split(['M', 'L'])
+            .filter_map(|seg| seg.split_whitespace().next()?.parse::<f32>().ok())
+            .collect();
+        assert!(xs.len() >= 3, "解析到的点太少: {xs:?} from {d}");
+
+        let (a, b) = (xs[1] - xs[0], xs[2] - xs[1]);
+        assert!(
+            a > b * 20.0,
+            "一年和一天画成了差不多宽: {a} vs {b} ({xs:?})"
+        );
     }
 
     #[test]
