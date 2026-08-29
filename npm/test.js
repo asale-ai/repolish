@@ -67,6 +67,47 @@ const mod = require('./install.js');
   assert.strictEqual(extractFromZip(zip, 'repolish.exe').toString(), body.toString());
 }
 
+// ── 重试与校验和 ──────────────────────────────────────────────────────
+//
+// 装东西是使用者做的第一件事，而 `npx` 那一下没有「再试一次」的按钮。
+// 这两条都是实测撞出来的：一次 GitHub 下载超时,重跑一次就好了;
+// 而紧接着那个几十字节的 .sha256 被重置了连接,于是一个未经验证的
+// 可执行文件带着一行警告落了盘。
+{
+  const { isRetryable } = load();
+
+  // 服务器的结论,重试没有意义
+  assert.strictEqual(isRetryable({ status: 404 }), false);
+  assert.strictEqual(isRetryable({ status: 403 }), false);
+  // 线路抖了一下,或者服务端自己出问题了
+  assert.strictEqual(isRetryable({ status: 500 }), true);
+  assert.strictEqual(isRetryable({ status: 429 }), true);
+  assert.strictEqual(isRetryable(new Error('read ETIMEDOUT')), true);
+  assert.strictEqual(isRetryable(new Error('socket hang up')), true);
+
+  // 「校验文件不存在」与「这一次没取到」的反应必须不同：前者是关于
+  // 这个 release 的事实,后者对那个文件存不存在一无所知
+  const src = require('fs').readFileSync(path.join(__dirname, 'install.js'), 'utf8');
+
+  // 没有显式超时的话，一条走不通的线路要等操作系统的 connect 超时
+  // （macOS 上约四十秒），乘三次重试就是两分钟的沉默。实测撞到过 124 秒。
+  assert.ok(/timeout: TIMEOUT_MS/.test(src), 'every request needs an explicit timeout');
+  assert.ok(
+    /req\.on\('timeout'[\s\S]{0,120}?req\.destroy/.test(src),
+    "the 'timeout' event does not abort the request on its own; it has to be destroyed"
+  );
+  // 一个安静地卡着的安装,使用者唯一能做的判断是「它是不是死了」
+  assert.ok(/retrying in \$\{wait \/ 1000\}s/.test(src), 'a retry must say so');
+  assert.ok(
+    /e\.status === 404[\s\S]{0,400}?installing unverified/.test(src),
+    'a missing .sha256 (404) should warn and continue — old releases have none'
+  );
+  assert.ok(
+    /else \{\s*fail\(\s*`could not fetch \$\{asset\}\.sha256/.test(src),
+    'any other failure to fetch the checksum must abort, not downgrade to an unverified install'
+  );
+}
+
 // ── 退出码 ────────────────────────────────────────────────────────────
 //
 // `--min-score` 门禁、`verify` 的失败、`--base` 的基线错误全靠退出码区分，
@@ -100,7 +141,7 @@ function load() {
     'exports',
     'require',
     '__dirname',
-    `${src}\nmodule.exports.__test = { extractFromTar, extractFromZip, target };`
+    `${src}\nmodule.exports.__test = { extractFromTar, extractFromZip, target, isRetryable };`
   );
   fn(sandbox.module, sandbox.exports, require, __dirname);
   return sandbox.module.exports.__test;
