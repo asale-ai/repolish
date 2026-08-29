@@ -38,6 +38,7 @@ MESSAGE=""
 # The npm package is scoped; the binary it installs is still called `repolish`.
 NPM_PKG="@asale/repolish"
 NPM_DIR="npm"
+NPM_REGISTRY="https://registry.npmjs.org/"
 
 # Publish order is the dependency order. cargo will not accept a crate whose
 # path dependencies are not on crates.io yet, so this list is not cosmetic.
@@ -119,11 +120,14 @@ git remote get-url origin > /dev/null 2>&1 || die "no 'origin' remote configured
 # taken: sourcing the whole file would drop CARGO_API_KEY and GITHUB_TOKEN into
 # the shell that is about to run cargo and gh, which is a surprise nobody asked
 # for.
-NPM_TOKEN=""
-if [ "$WITH_NPM" = "1" ] && [ -f .env ]; then
-  NPM_TOKEN=$(sed -n 's/^NPM_ACCESS_TOKEN=//p' .env | tr -d '"\r\n' | head -1)
+# The name matches the repository secret the release workflow reads, so there is
+# one name to remember rather than two that drift.
+# Environment first, .env as the fallback: an exported token is an explicit
+# choice for this run, and a file is what is there by default.
+NPM_TOKEN="${NPM_TOKEN:-}"
+if [ "$WITH_NPM" = "1" ] && [ -z "$NPM_TOKEN" ] && [ -f .env ]; then
+  NPM_TOKEN=$(sed -n 's/^NPM_TOKEN=//p' .env | tr -d '"\r\n' | head -1)
 fi
-[ -n "${NPM_TOKEN:-}" ] || NPM_TOKEN="${NPM_ACCESS_TOKEN:-}"
 
 if [ "$WITH_NPM" = "1" ] && [ "$DRY_RUN" = "0" ]; then
   # Finding out the token is missing after the tag is pushed is the worst
@@ -131,8 +135,8 @@ if [ "$WITH_NPM" = "1" ] && [ "$DRY_RUN" = "0" ]; then
   command -v node > /dev/null || die "node is not installed, and the npm package needs it.
 Install node, or pass --no-npm."
   command -v npm  > /dev/null || die "npm is not installed. Install it, or pass --no-npm."
-  [ -n "$NPM_TOKEN" ] || die "no NPM_ACCESS_TOKEN in .env and none in the environment.
-Add it to .env, export NPM_ACCESS_TOKEN, or pass --no-npm."
+  [ -n "$NPM_TOKEN" ] || die "no NPM_TOKEN in .env.
+Add a line 'NPM_TOKEN=npm_...' to .env, or pass --no-npm."
 fi
 
 if [ "$LOCAL_CRATES" = "1" ] && [ "$DRY_RUN" = "0" ]; then
@@ -451,7 +455,7 @@ if [ "$WITH_NPM" = "1" ]; then
   step "Publishing $NPM_PKG to npm"
   if [ "$DRY_RUN" = "1" ]; then
     info "[dry-run] npm publish $NPM_DIR ($NPM_PKG@$NEW)"
-  elif npm view "$NPM_PKG@$NEW" version > /dev/null 2>&1; then
+  elif npm view "$NPM_PKG@$NEW" version --registry "$NPM_REGISTRY" > /dev/null 2>&1; then
     # The release workflow publishes this too when NPM_TOKEN is set as a
     # repository secret. Both paths skip a version that is already up, so
     # whichever runs second is a no-op rather than an error.
@@ -463,7 +467,15 @@ if [ "$WITH_NPM" = "1" ]; then
     NPMRC="$NPM_DIR/.npmrc"
     cleanup_npmrc() { rm -f "$NPMRC"; }
     trap cleanup_npmrc EXIT
-    printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$NPMRC"
+    # The registry is pinned here, not left to whatever this machine is
+    # configured for. A mirror (registry.npmmirror.com and friends) is a read
+    # cache: publishing at it either fails for want of auth — which is how this
+    # was found — or, worse, succeeds somewhere nobody installs from.
+    {
+      printf 'registry=%s\n' "$NPM_REGISTRY"
+      printf '@asale:registry=%s\n' "$NPM_REGISTRY"
+      printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN"
+    } > "$NPMRC"
     chmod 600 "$NPMRC"
 
     # The shim parses tar and zip itself rather than take a dependency, and the
@@ -474,10 +486,27 @@ if [ "$WITH_NPM" = "1" ]; then
     # --provenance signs a statement of where this was built. It needs a CI
     # OIDC token, which a laptop does not have, so it is deliberately absent
     # here; the release workflow adds it when it is the one publishing.
-    (cd "$NPM_DIR" && npm publish) \
-      || { cleanup_npmrc; die "npm publish failed for $NPM_PKG@$NEW.
+    NPM_LOG="${TMPDIR:-/tmp}/repolish-npm-publish.log"
+    if ! (cd "$NPM_DIR" && npm publish) 2>&1 | tee "$NPM_LOG"; then
+      cleanup_npmrc
+      # Publishing is the one step here nobody does often enough to remember its
+      # failure modes, so the two that actually happen get named.
+      if grep -q 'EOTP' "$NPM_LOG" 2>/dev/null; then
+        rm -f "$NPM_LOG"
+        die "npm wants a one-time password, and nothing here can supply one.
+The token in .env is not an automation token. Generate one at
+https://www.npmjs.com/settings/<your-user>/tokens with type 'Automation' —
+those are exempt from 2FA for publishing, which is exactly why CI uses them —
+then put it in .env as NPM_TOKEN and in the repository secret of the same name.
+Nothing was published; the tag and the binaries are already out, so re-running
+with --version $NEW --skip-tests picks up from here."
+      fi
+      rm -f "$NPM_LOG"
+      die "npm publish failed for $NPM_PKG@$NEW.
 The tag and the binaries are already out. Re-run just this part with:
-    cd $NPM_DIR && npm publish"; }
+    cd $NPM_DIR && npm publish --registry $NPM_REGISTRY"
+    fi
+    rm -f "$NPM_LOG"
 
     cleanup_npmrc
     trap - EXIT
