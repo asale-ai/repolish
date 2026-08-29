@@ -4,7 +4,7 @@ The action definition itself lives at [`action.yml`](../action.yml) in the repos
 root — `uses: owner/repo@ref` only resolves a root-level `action.yml`. This directory
 holds usage examples.
 
-Generate a ready-to-commit workflow with `repolish init`, or copy one of these.
+Generate a ready-to-commit workflow with `repolish --stages ci --apply`, or copy one of these.
 
 ## Minimal
 
@@ -171,6 +171,10 @@ artifacts: no badge, no report, nothing appended to the job summary. It cannot k
 your arguments produced, and guessing would mean appending a stale `REPOLISH.md` that was
 committed months ago. `outputs.score` still works, because it is read from the JSON the
 run actually printed.
+
+**There are no subcommands**, so `args` starts with the path — `args: ". --stages check
+--format json"`, not `args: "check . --format json"`. And repolish writes nothing without
+`--apply`, so include it if your arguments are meant to produce files.
 
 ## `REPOLISH.md` is left as it was
 

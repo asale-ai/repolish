@@ -110,7 +110,7 @@ const mod = require('./install.js');
 
 // ── 退出码 ────────────────────────────────────────────────────────────
 //
-// `--min-score` 门禁、`verify` 的失败、`--base` 的基线错误全靠退出码区分，
+// `--min-score` 门禁、`--base` 的基线错误全靠退出码区分，
 // 而 CI 读的正是 `npx repolish` 的退出码。吞掉一个非零码，等于让门禁失效。
 {
   const launcher = path.join(__dirname, 'bin', 'repolish.js');

@@ -25,7 +25,7 @@ repolish/
 │   └── repolish-cli/       # 唯一二进制
 ├── action/                 # composite action 定义与用法示例
 ├── assets/                 # 品牌文件，由 repolish-render 的 logo example 生成
-├── skills/                 # 智能体技能，由 `repolish skill` 生成
+├── skills/                 # 智能体技能，由 `skill` 阶段生成
 ├── demo/                   # 录屏所针对的样例仓库
 └── docs/
 ```
@@ -116,8 +116,8 @@ pub enum Outcome {
 ## 核心设计二：离线优先
 
 ```
-repolish check .           → 纯本地，无网络无 key，秒出分数
-repolish check . --remote  → 补 GitHub API 元数据
+repolish --stages check           → 纯本地，无网络无 key，秒出分数
+repolish --stages check --remote  → 补 GitHub API 元数据
 ```
 
 **默认路径零配置能跑**，这是 CLI 采用率的生死线。

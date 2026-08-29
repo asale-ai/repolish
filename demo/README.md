@@ -5,10 +5,10 @@ repolish itself:
 
 ```bash
 sample="$(bash demo/setup.sh)"
-repolish demo "$sample" \
-  --cmd "repolish check ." \
-  --cmd "repolish polish . --apply" \
-  --cmd "repolish check ." \
+repolish "$sample" --stages demo --apply \
+  --cmd "repolish" \
+  --cmd "repolish --apply" \
+  --cmd "repolish" \
   --output .repolish/demo.svg
 ```
 
@@ -16,9 +16,9 @@ repolish demo "$sample" \
 
 A real before-and-after, not a staged one:
 
-1. `repolish check .` against `sample/`, a deliberately rough repository — 23/100
-2. `repolish polish . --apply`
-3. `repolish check .` again — 34/100
+1. `repolish` against `sample/`, a deliberately rough repository — 23/100
+2. `repolish --apply`
+3. `repolish` again — 34/100
 
 The scores are whatever that run actually produced. A tool whose whole job is checking
 that a README's promises are true has no business faking its own demo.
@@ -53,7 +53,7 @@ the wrong repository name is worse than no demo.
 
 ## If you would rather have a GIF
 
-`repolish demo . --tape` writes a [VHS](https://github.com/charmbracelet/vhs) tape for
+`repolish --stages demo --apply --tape` writes a [VHS](https://github.com/charmbracelet/vhs) tape for
 any project. Render it with `vhs`, which needs `ttyd` and `ffmpeg`.
 
 That path exists for a real reason rather than nostalgia: **not every package registry

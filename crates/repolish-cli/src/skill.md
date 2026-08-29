@@ -24,15 +24,16 @@ produce.
 well-structured one. That destroys the author's voice, their layout, their
 examples, and usually their accuracy. Instead:
 
-1. **Measure.** `repolish check .` — get the actual findings.
-2. **Apply what is mechanical.** `repolish polish . --apply` — badge, table of
-   contents, issue/PR templates, `CONTRIBUTING.md`. It only ever *inserts*; the
-   diff is new lines and nothing else.
+1. **Measure.** `repolish` — one command. It scores the repository and prints
+   every file it would touch, and it writes **nothing**.
+2. **Show the user that plan, then apply it.** `repolish --apply` — badge, table
+   of contents, issue/PR templates, `CONTRIBUTING.md`, the CI workflow. It only
+   ever *inserts*; the diff is new lines and nothing else.
 3. **Hand back what needs judgement.** A missing quickstart, a vague tagline, a
    README claim whose command no longer exists — those need the author's
    knowledge, or a targeted edit you can justify from evidence.
-4. **Measure again** and report the delta — `repolish check . --base <ref>` does
-   the arithmetic for you and lists only the checks that moved.
+4. **Measure again** and report the delta — `repolish --stages check --base <ref>`
+   does the arithmetic for you and lists only the checks that moved.
 
 Only edit prose directly when a finding names a specific line and the fix is
 unambiguous, and say which finding you were acting on.
@@ -51,15 +52,22 @@ it says "command not found", reach for npx — it needs nothing installed and
 works wherever Node does:
 
 ```bash
-npx -y @asale/repolish check .
+npx -y @asale/repolish
 ```
 
-Then read every `repolish …` below as `npx -y @asale/repolish …`. The `-y`
-matters: without it npx stops to ask, and you are not at a terminal to answer.
+Then read every `repolish …` below as `npx -y @asale/repolish …`, **for the rest
+of the session**. The `-y` matters: without it npx stops to ask, and you are not
+at a terminal to answer.
+
+**npx does not install anything onto PATH.** It downloads into a cache and runs
+from there, so `repolish` still will not exist after you have used it once — and
+the tool's own output says `npx @asale/repolish …` back to you for exactly that
+reason. Never drop the prefix partway through, and never tell the user to run
+bare `repolish` unless `repolish --version` worked above.
 
 That package is a launcher — it downloads the release binary, verifies its
 `.sha256` and execs it, forwarding the exit code, which is what `--min-score`
-and `verify` depend on. The current version is %VERSION%.
+depends on. The current version is %VERSION%.
 
 If the user would rather have it on PATH permanently, this installs the binary
 into `~/.local/bin` and drops this skill into whichever agents it finds:
@@ -74,19 +82,38 @@ curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh |
 
 ## Commands
 
-### Score it
+**There are no subcommands.** `repolish` is the whole surface; `--stages` picks
+which parts of the pipeline run. The default is `check,polish,artifacts,ci`.
+
+| Stage | What it does |
+|---|---|
+| `check` | Score the repository and print the report |
+| `polish` | The mechanical fixes: badge, table of contents, issue/PR templates, `CONTRIBUTING.md` |
+| `artifacts` | `.repolish/badge.json`, and redraw every SVG the README already references |
+| `ci` | `.github/workflows/repolish.yml` |
+| `skill` | `SKILL.md` — opt-in, not in the default run |
+| `demo` | Record the CLI — opt-in, and with `--apply` it **executes** the commands |
+
+### Run it
 
 ```bash
-repolish check .                    # local checks only, no network
-repolish check . --remote           # also read description / topics / homepage from GitHub
-repolish check . --format json      # machine-readable, schema frozen at version 1
-repolish check . --min-score 70     # exit 1 below the threshold, for CI
-repolish check . --base origin/main # also score that ref, report only what moved
-repolish check . --sarif out.sarif  # SARIF 2.1.0, for GitHub code scanning
+repolish                            # everything, and nothing is written
+repolish --apply                    # write it
+repolish --apply -v                 # also print every new file in full
+repolish --stages check             # score only, no network
+repolish --stages check --remote    # also read description / topics / homepage from GitHub
+repolish --stages check --format json      # machine-readable, schema frozen at version 1
+repolish --stages check --min-score 70     # exit 1 below the threshold, for CI
+repolish --stages check --base origin/main # also score that ref, report only what moved
+repolish --stages check --sarif out.sarif  # SARIF 2.1.0, for GitHub code scanning
 ```
 
 `--remote` reads `GITHUB_TOKEN` or `GH_TOKEN`. Without a token it falls back to
 60 anonymous requests per hour.
+
+**Always run it once without `--apply` and show the user the plan.** The dry run
+is free, and it is the whole safety story: nothing lands in the author's
+repository that they have not seen first.
 
 **Prefer `--format json` when you are going to act on the result.** The text
 output is laid out for a human reading a terminal; the JSON is stable and tells
@@ -125,10 +152,12 @@ excluded from the score on purpose. Never present them as passes.
 
 ### Fix what can be fixed
 
+The `polish` stage is in the default run, so `repolish --apply` already does
+this. To do it *without* the badge JSON and the CI workflow:
+
 ```bash
-repolish polish .                   # dry run: print the changes it would make
-repolish polish . --apply           # write them
-repolish polish . --apply -v        # also print every new file in full
+repolish --stages check,polish            # dry run: print the changes it would make
+repolish --stages check,polish --apply    # write them
 ```
 
 What it will do: the repolish badge (plus the `.repolish/badge.json` it points
@@ -144,43 +173,10 @@ does not write.
 because `git checkout` is the undo button. Never pass `--force` on the user's
 behalf without saying so.
 
-### Prove the README's commands actually work
-
-```bash
-repolish verify .                   # print the plan; runs nothing
-repolish verify . --run             # execute them in a container
-repolish verify . --run --format json
-```
-
-`claim-consistency` checks the README's commands **exist**. `verify` checks they
-**work** — the same commands, executed from scratch in a container, in one shell
-session.
-
-**Reach for it when a `claim-consistency` finding is not obvious**, or when the
-user asks whether their quick start still works. It is the only thing in the
-toolbox that can tell "the command is missing" apart from "the command is there
-and fails".
-
-Safe by construction, and you should still say what you are doing:
-
-- It **never runs on the host.** With no container engine it exits 6 rather than
-  falling back. Do not work around that.
-- The repository is mounted **read-only** and copied in. Nothing it runs can
-  touch the working tree.
-- It refuses anything that publishes, needs root, never exits, or contains a
-  placeholder — and prints the reason next to each skipped command.
-
-Run it without `--run` first and show the user the plan, the same courtesy
-`demo --dry-run` gets.
-
-Exit 1 means a command failed — a real finding, report it with the README line
-number. Exit 6 means it could not run at all; that is an environment problem,
-**never** report it as a quality result.
-
 ### Wording you are allowed to suggest
 
 ```bash
-repolish polish . --suggest         # needs REPOLISH_LLM_API_KEY
+repolish --suggest                  # needs REPOLISH_LLM_API_KEY
 ```
 
 This asks a model for the three pieces no mechanical rule can write: the
@@ -195,12 +191,12 @@ rewrite what is there, and never invent a command that is not in the manifest.
 ### The visuals
 
 ```bash
-repolish card .                     # .repolish/overview.svg — what this project is
-repolish card . --kind score        # .repolish/card.svg — what repolish scored it
-repolish card . --kind both
-repolish card . --theme porcelain   # light palette, for a light-leaning README
-repolish card . --lang zh-CN        # en / zh-CN / ja; by default it follows the README
-repolish card . --remote --stars    # add the star history curve (~12 extra API calls)
+repolish --stages artifacts --apply                     # redraw everything already referenced
+repolish --stages artifacts --apply --artifact overview # just .repolish/overview.svg
+repolish --stages artifacts --apply --artifact score    # just .repolish/card.svg
+repolish --stages artifacts --apply --theme porcelain   # light palette, for a light README
+repolish --stages artifacts --apply --lang zh-CN        # en / zh-CN / ja; follows the README
+repolish --stages artifacts --apply --remote --stars    # star history curve (~12 extra API calls)
 ```
 
 The **overview card** goes at the top of the README: languages, file
@@ -212,9 +208,9 @@ To have `polish` insert them, and render README tables as SVG with the original
 folded into `<details>`:
 
 ```bash
-repolish polish . --apply --visuals
+repolish --apply --visuals
 # same as: --overview --footer-card --tables svg
-repolish polish . --apply --logo assets/hero.svg --logo-width full --align center
+repolish --apply --logo assets/hero.svg --logo-width full --align center
 ```
 
 Every SVG is self-contained and deterministic: no external fonts, no scripts,
@@ -224,16 +220,16 @@ file.
 ### Record a CLI
 
 ```bash
-repolish demo .                     # runs the commands, writes .repolish/demo.svg
-repolish demo . --dry-run           # list what it would run, run nothing
-repolish demo . --cmd "tool build" --cmd "tool run"
-repolish demo . --tape              # also write a VHS tape, for a GIF instead
+repolish --stages demo                  # list what it would run, run nothing
+repolish --stages demo --apply          # run them, and write .repolish/demo.svg
+repolish --stages demo --apply --cmd "tool build" --cmd "tool run"
+repolish --stages demo --apply --tape   # also write a VHS tape, for a GIF instead
 ```
 
-**This executes the commands.** That is the point — the output in the recording is real —
-but it means you must not run it against a repository whose commands you have not looked
-at. Run `--dry-run` first and show the user the list. Never pass `--cmd` with anything
-destructive.
+**With `--apply` this executes the commands.** That is the point — the output in the
+recording is real — but it means you must not run it against a repository whose commands
+you have not looked at. Run it without `--apply` first and show the user the list. Never
+pass `--cmd` with anything destructive.
 
 The output is an animated SVG with a real text layer, not a GIF, and it needs no external
 tools. Only meaningful when the project actually has a binary; the tape is a plain text
@@ -248,14 +244,12 @@ file the author is expected to edit.
 | 2 | Bad arguments |
 | 3 | Not a valid repository |
 | 4 | `--remote` failed (API error, rate limit, private repo) |
-| 5 | Fewer than half the checks could run — no total score is reported |
-| 6 | `verify --run` could not run: no container engine, or the container died |
+| 5 | Less than half the total weight could be scored — no total score is reported |
 | 7 | `--base` could not be resolved: shallow clone, unknown ref, no git |
 
-Codes 4, 6 and 7 are deliberately distinct from code 1. A rate limit, a machine
-with no docker on it, and a shallow clone are not quality regressions, and must
-never be reported as one. **Say which happened**; do not summarise any of them as
-"the check failed".
+Codes 4 and 7 are deliberately distinct from code 1. A rate limit and a shallow
+clone are not quality regressions, and must never be reported as one. **Say which
+happened**; do not summarise either of them as "the check failed".
 
 ## Making the calls repolish cannot
 
@@ -270,8 +264,6 @@ repolish decides three different ways, and only two of them are strong:
    checks them against the manifest and the filesystem. `readme-install-consistency`
    checks that the install command installs *this* package. These are joins between two
    sources of truth, not opinions — and they are the checks worth acting on first.
-   `repolish verify --run` is the strongest form of this: it stops cross-referencing and
-   executes them.
 3. **Graded heuristics.** `readme-quickstart` scores 0/4/6/8/10 from hand-curated
    substring lists. Most of the README checks have a list like that somewhere.
 
@@ -330,7 +322,6 @@ improved by moving it into the other.
   `package.json`, `make test` as a real target, `./scripts/setup.sh` as a real
   file. A README that fails on its first command is where readers leave. Fix
   those first, and fix them by making the claim true or by correcting it — never
-  by deleting the line to make the check pass. When it is unclear which of those
-  the command needs, `repolish verify . --run` settles it by executing them.
+  by deleting the line to make the check pass.
 - **Report the numbers the tool gave you.** If it says `not scored`, say
   `not scored`.

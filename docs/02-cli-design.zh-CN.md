@@ -6,62 +6,92 @@
 
 ## 命令面
 
+**没有子命令。** 一条命令、一条流水线，而且默认干跑。
+
 ```
-repolish check .                 # 纯本地，终端报告 + 退出码
-repolish check . --remote        # 补 GitHub 元数据（topics / description / homepage）
-repolish check . --format json   # 供 CI 消费
-repolish check . --min-score 70  # 不达标退出码非 0 → 可当 CI 门禁
-repolish check . --badge         # 顺带写出 .repolish/badge.json
-repolish check . --card          # 顺带写出 .repolish/card.svg（分数卡片）
-repolish check . --overview      # 顺带写出 .repolish/overview.svg（概览卡片）
-
-repolish badge .                 # 写 .repolish/badge.json + 打印可复制的 markdown snippet
-repolish card .                  # 写 .repolish/overview.svg（默认就是概览卡片）
-repolish card . --kind score     # 写 .repolish/card.svg
-repolish card . --kind tables    # 重画 README 里每一张表格的 SVG
-repolish card . --kind all       # 以上全部
-repolish card . --remote --stars # 加上 star 增长曲线
-repolish report .                # 写 REPOLISH.md
-repolish demo .                  # 真的跑一遍命令，写出 .repolish/demo.svg（会动的录屏）
-repolish demo . --dry-run        # 只列出它会跑哪几条命令，什么都不执行
-repolish demo . --tape           # 顺带写一份 VHS tape，给想要 GIF 的人
-repolish skill .                 # 把 SKILL.md 写进一个仓库
-repolish skill --list            # 这台机器上装了哪几家智能体
-repolish skill --target detect   # 装进探测到的那几家智能体
-repolish init                    # 生成 .github/workflows/repolish.yml
-
-repolish polish .                # 打印能机械落实的改动，不落盘
-repolish polish . --apply        # 直接改文件，用户自行 commit
-repolish polish . --apply --visuals   # 再加上概览卡片、末尾分数卡片、SVG 表格
-repolish polish . --suggest      # 请模型写它写不了的那三段；从不落盘
-
-repolish verify .                # 打印 README 命令的执行计划，什么都不跑
-repolish verify . --run          # 在容器里执行
-repolish verify . --run --offline           # 断网，用来验证「离线可用」的承诺
-repolish verify . --section 安装             # 只取那一节的命令
-
-repolish check . --base origin/main         # 也评一遍那个 ref，报出差值
-repolish check . --sarif out.sarif          # 每条发现一条注解，落在它自己那一行
-repolish check . --comment out.md           # 短报告，给 PR 评论用
+repolish                         # 打分，然后列出它会动的每一个文件。一个字节都不写。
+repolish --apply                 # 落盘
 ```
 
-**`card` 覆盖，`polish` 不覆盖。** 这个分工是有意的，也是这两条命令之间唯一需要记住的事：
-`polish` 负责第一次把 `<img>` 引用插进 README，此后一次都不再动那个文件；`card` 负责
-每一次重画。反过来的话，要么 `polish` 破了「从不覆盖」这条不变量，要么 README 上永远
-挂着第一次生成的那张图。CI 里跑的是 `card`。
+两条性质撑起整个设计。**不加 `--apply` 就什么都不写**——第一次对着别人的仓库跑必须是
+免费的，否则没人会跑第二次。以及**一次分析喂给所有阶段**：四个阶段共用同一份
+`RepoContext` 和同一份 `Report`。分开跑意味着多打几次 GitHub API，更要命的是几份产物
+可能来自不同次的评分结果。
 
-**优先级说明：** `--min-score` 与 `repolish init` 的优先级高于任何生成类功能——CLI-only 产品的留存靠「进了 CI 就不会被删」。
+### 阶段
+
+`--stages` 决定跑哪几段，默认是 `check,polish,artifacts,ci`。顺序即执行顺序，而顺序是
+有意义的：`polish` 可能刚插入了一张卡片的引用，`artifacts` 紧接着才画得出那张图。
+
+| 阶段 | 写什么 | 在默认流程里 |
+|---|---|---|
+| `check` | 什么都不写 | 是 |
+| `polish` | README 插入、`CONTRIBUTING.md`、issue/PR 模板 | 是 |
+| `artifacts` | `.repolish/badge.json`，以及 README 已经引用的每一张 SVG | 是 |
+| `ci` | `.github/workflows/repolish.yml` | 是 |
+| `skill` | `SKILL.md`；带 `--target` 时写进智能体自己的目录 | 否 |
+| `demo` | `.repolish/demo.svg`——会**执行**它录下的命令 | 否 |
+
+`skill` 和 `demo` 不在默认里是有意的。前者写的文件只有用智能体的人需要；后者会执行
+README 里的任意命令，那不是一个默认动作该做的事。
+
+```
+repolish --stages check --format json      # 供 CI 消费
+repolish --stages check --min-score 70     # 不达标退出码非 0 → 可当 CI 门禁
+repolish --stages check --base origin/main # 也评一遍那个 ref，报出差值
+repolish --stages check --sarif out.sarif  # 每条发现一条注解，落在它自己那一行
+repolish --stages check --comment out.md   # 短报告，给 PR 评论用
+
+repolish --stages artifacts --apply --artifact overview   # 只画 .repolish/overview.svg
+repolish --stages artifacts --apply --artifact score      # 只画 .repolish/card.svg
+repolish --stages artifacts --apply --artifact tables     # 重画每一张已包过的表
+repolish --stages artifacts --apply --remote --stars      # 加上 star 增长曲线
+
+repolish --stages skill --list             # 这台机器上装了哪几家智能体
+repolish --stages skill --target detect --apply   # 装进探测到的那几家
+repolish --stages demo                     # 只列出它会跑哪几条命令，什么都不执行
+repolish --stages demo --apply --tape      # 录制，并写一份 VHS tape 给想要 GIF 的人
+
+repolish --apply --visuals                 # 概览卡片、末尾分数卡片、SVG 表格
+repolish --suggest                         # 请模型写它写不了的那三段；从不落盘
+```
+
+**`artifacts` 覆盖，`polish` 不覆盖。** 这个分工是有意的，也是这两段之间唯一需要记住的
+事：`polish` 负责第一次把 `<img>` 引用插进 README，此后一次都不再动那个文件；
+`artifacts` 负责每一次重画。反过来的话，要么 `polish` 破了「从不覆盖」这条不变量，
+要么 README 上永远挂着第一次生成的那张图。
+
+这也是为什么 `artifacts` 的判据是**「是不是已经被引用」**而不是一个开关：给一张没人引用
+的表生成 SVG，落下的是一个孤儿文件——它会被提交、被一直带着，而没有任何东西指向它。
+真想单独画一张时用 `--artifact` 覆盖这个判据。
+
+### `--output` 和 `--stdout` 什么时候合法
+
+每张产物的默认路径都不同，所以这两个参数只在**恰好产出一件东西**时才说得清：一个
+`--stages`，并且——对 `artifacts` 而言——一个 `--artifact`。其余情况一律报错，不去猜。
+
+**优先级说明：** `--min-score` 与 `ci` 阶段的优先级高于任何生成类功能——CLI-only 产品的留存靠「进了 CI 就不会被删」。
 
 ## 全局参数
 
 | 参数 | 说明 |
 |---|---|
-| `--format <text\|json\|markdown\|sarif\|comment>` | 默认 `text`；`verify` 只收 `text` 和 `json` |
+| `--format <text\|json\|markdown\|sarif\|comment>` | 默认 `text` |
 | `--config <path>` | 默认读 `.repolish.toml` |
 | `--profile <auto\|library\|app\|cli\|docs\|collection\|meta>` | 默认 `auto`，覆盖类型探测结果 |
 | `--only <ids>` / `--skip <ids>` | 按 check id 过滤（被过滤项状态为 `Skipped`） |
 | `--no-color` | CI 环境 |
-| `-v` | 展开全部检查项与通过清单 |
+| `-v` | 展开全部检查项、通过清单，以及每个新文件的完整内容 |
+| `--apply` | 落盘。不加它，除 `--sarif` / `--comment` 外什么都不写 |
+| `--force` | 覆盖已存在的文件，并允许在非 git 目录下写 |
+| `--stages <list>` | 默认 `check,polish,artifacts,ci` |
+| `--artifact <list>` | 把 `artifacts` 阶段限定到 `badge`、`report`、`overview`、`score`、`tables` |
+
+`--sarif` 和 `--comment` 是 `--apply` 的两个例外：点名一个输出路径本身就是请求，
+而且它们默认都不往仓库自己的树里写。
+
+除 `text` 外的每一种格式下，**stdout 只有那份报告**，所有过程性输出走 stderr——所以
+`repolish --format json | jq` 在完整流水线下也是通的，不只是 `--stages check`。
 
 ## 退出码
 
@@ -73,86 +103,18 @@ repolish check . --comment out.md           # 短报告，给 PR 评论用
 | 3 | 目标不是有效的 git 仓库 |
 | 4 | 远程调用失败（`--remote` 时 API 错误或配额耗尽） |
 | 5 | 有效检查项覆盖不足 50%，无法给出总分 |
-| 6 | `verify --run` 跑不起来：没有容器引擎、镜像拉不下来、容器中途死了 |
 | 7 | `--base` 的基线取不到：浅克隆、ref 不存在、PATH 上没有 git |
 
 工具自身的运行失败与「检查不通过」必须用不同退出码区分，否则 CI 里无法判断。
 
-1 是「检查没通过」那一档，`verify` 刻意复用它：一条不再能用的 README 命令，
-与分数低于阈值是同一类事件。6 和 7 与 4 一起站在这条线的另一侧——
-一台没装 docker 的机器、一个从未 fetch 过基线的浅克隆，都不是质量退步，
-也绝不能被报成质量退步。
+1 是「检查没通过」那一档。7 与 4 一起站在这条线的另一侧——一个从未 fetch 过基线的
+浅克隆不是质量退步，也绝不能被报成质量退步。
+
+6 已废弃。它原本表示 `verify --run` 起不来容器；`verify` 已移除，这个值**刻意留空
+不再复用**，因为老版本写的脚本里可能还留着对 6 的判断。
 
 ---
 
-## `verify`
-
-`claim-consistency` 核对 README 的命令**在不在**，`verify` 核对它们**能不能用**。
-这两者之间的缝隙，正是新用户真正卡住的地方：命令还在 `package.json` 里，
-但它需要一个没人写下来的系统依赖。
-
-### 什么跑、什么不跑
-
-命令来自 `claim-consistency` 用的同一个提取器（`repolish_checks::util::command_lines`）——
-「README 里什么算一条命令」只能有一份定义，两份迟早会互相打架。
-反斜杠续行先合并：分开跑的话第二行以 `--flag` 开头，会报出一条子虚乌有的「命令不存在」。
-
-随后逐条分类，方向是**宁可多跳过，不可乱跑**。漏掉一条本可验证的命令，
-代价是报告少一行；跑了一条不该跑的，代价是别人的仓库被发布了一个版本。
-
-| 跳过 | 理由 |
-|---|---|
-| `npm publish`、`git push`、`gh release create`、`aws …` | 容器隔离的是文件系统，不是网络那一头 |
-| `sudo …` | 需要 root |
-| `rm -rf /`、`mkfs`、`dd if=` | 破坏性；跑过一次这种命令的报告，没人敢跑第二次 |
-| `npm run dev`、`cargo watch`、`mkdocs serve` | 不会自己退出，报出来的「失败」是我们的超时，不是它的 bug |
-| `docker …`、`kubectl …` | 需要一个容器**里面**没有的运行时。照跑得到 `docker: not found`，那是我们的限制被报成了它的 bug |
-| `vim`、`less`、`man` | 交互式，没有 TTY |
-| `<YOUR_TOKEN>`、`path/to/config`、`example.com` | 留给读者填的占位符 |
-| 任何带 `$VAR` 的 | 我们展开不出来，跑的就不是 README 承诺的那条命令 |
-| `cat <<EOF` | heredoc 跨行，而我们是逐行取的 |
-
-每一条跳过都带理由打印出来。一份写着「12 条通过」而其中 9 条被悄悄跳过的报告，
-比没有报告更糟。
-
-### 怎么执行
-
-一次 `docker run`、一个 `sh` 会话、命令之间用哨兵行隔开：
-
-```sh
-exec 2>&1
-mkdir -p /work && cp -a /repo/. /work/ 2>/dev/null; cd /work || exit 1
-printf '%s %d\n' '__REPOLISH_STEP__' 0
-<命令 0>
-printf '%s %d %d\n' '__REPOLISH_EXIT__' 0 "$?"
-…
-```
-
-一个会话而不是一条命令一个容器，因为 README 的命令序列几乎总是依赖这一点——
-`cd docs` 然后 `make html`。哨兵行是仍然能**逐条**归因的原因。
-
-开头的 `exec 2>&1` 把 stderr 并进 stdout：一条报错和它上一行的上下文，分开看没有意义。
-
-仓库以**只读**挂载在 `/repo` 再复制到 `/work`。README 里的任何命令都碰不到使用者的工作区——
-正是这条性质，让「降级到宿主机跑」不能作为一个选项存在。
-
-计划里要跑却没有 `__REPOLISH_EXIT__` 标记的，一律报 `not_run`，绝不报 `passed`。
-反过来默认会把一次超时变成一份满分报告，而那正是这个工具存在的理由的反面。
-
-超时按容器名杀（`docker rm -f`），不是杀客户端进程——那只杀掉 CLI，容器会继续跑。
-已产出的部分输出保留：半份日志远好过没有日志。
-
-### 镜像
-
-跟着包清单选，且报告总要说清是哪一个、为什么：`Cargo.toml` → `rust:slim`，
-`package.json` → `node:lts`，以及 `python:3-slim`、`golang:latest`、`ruby:slim`、
-`composer:latest`、`maven:eclipse-temurin`；什么都探测不到时用 `debian:stable-slim`，
-并提示可以用 `--image` 指定。
-
-标签**刻意不钉到补丁版本**。README 的承诺是「在这个生态的当前版本上能跑」，
-钉死会让结论随着标签过期而漂移，而且是悄悄地漂。
-
----
 
 ## `--base`
 
@@ -167,7 +129,7 @@ printf '%s %d %d\n' '__REPOLISH_EXIT__' 0 "$?"
 描述、topics、homepage 是**仓库**的属性而不是 commit 的属性，重新拉一次是花配额买同一个答案；
 更要紧的是不复制过去的话，基线会悄悄退化成 local 模式——两个不同的分母相减。
 
-目标是子目录时（`repolish check demo/sample --base …`），子路径要在检出里接回去。
+目标是子目录时（`repolish demo/sample --base …`），子路径要在检出里接回去。
 不接的话评的就是仓库根：一份看起来完全正常、内容全错的差值。
 
 `delta` 以 `skip_serializing_if` 加进 JSON，所以不给 `--base` 时这个键根本不出现，
@@ -264,13 +226,13 @@ repolish 里唯一会跟模型说话的地方，而它不在评分路径上。
 **`mode` 的作用：** 本地分与远程分基准不同（三个远程检查项会被剔出分母），数值不可横向比较。因此：
 
 - `mode = "local"` 时，`label` 必须降级为 `repolish (local)`，使读者一眼可辨
-- `repolish init` 生成的 workflow 默认带 `--remote`（Action 里 `GITHUB_TOKEN` 免费可得），正常路径产出的都是完整分
+- `ci` 阶段生成的 workflow 默认带 `--remote`（Action 里 `GITHUB_TOKEN` 免费可得），正常路径产出的都是完整分
 
 覆盖不足 50% 时不生成 `badge.json`，并以退出码 5 提示。
 
 ### 徽章 snippet
 
-`repolish badge` 打印：
+只选了 `artifacts` 阶段时，它还会打印：
 
 ```markdown
 [![Repolish](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/OWNER/REPO/BRANCH/.repolish/badge.json)](https://github.com/OWNER_OF_REPOLISH/repolish)
@@ -366,7 +328,7 @@ README 里每一张表格画成的图。`polish --tables svg` 第一次生成并
 
 ### `.repolish/demo.svg`
 
-`repolish demo` 的产物：一段**会动的终端录屏**，动画由 CSS 关键帧驱动。仅当探测到可执行文件、或用 `--cmd` 显式指定了命令时才有意义。
+`demo` 阶段的产物：一段**会动的终端录屏**，动画由 CSS 关键帧驱动。仅当探测到可执行文件、或用 `--cmd` 显式指定了命令时才有意义。
 
 **录制与渲染都在这个仓库里。** 早先的做法是生成一份 [VHS](https://github.com/charmbracelet/vhs) tape 交给用户自己渲染，但 VHS 要 ttyd 和 ffmpeg，产出的是 GIF，而 GIF 与本仓库对自己每一个产物的三条约束全不相容：二进制大块会撑肥 git 历史；没有文本层意味着录屏里那行命令复制不走、`grep` 也找不到；而要求使用者先装一条视频工具链，对一个「让你的仓库体面起来」的工具来说是本末倒置。`--tape` 仍然保留，因为不是每个包平台都渲染 SVG（crates.io 渲染，npm 与 PyPI 对 README 的 HTML 消毒更狠）。
 
@@ -383,12 +345,12 @@ README 里每一张表格画成的图。`polish --tables svg` 第一次生成并
 
 ### `SKILL.md`
 
-`repolish skill` 写出的智能体说明。内容写死在 `crates/repolish-cli/src/skill.md`（编译进二进制），仓库里提交的那一份在 `skills/repolish/SKILL.md`，由脚本重新生成——要改内容，改前者。
+`skill` 阶段写出的智能体说明。内容写死在 `crates/repolish-cli/src/skill.md`（编译进二进制），仓库里提交的那一份在 `skills/repolish/SKILL.md`，由脚本重新生成——要改内容，改前者。
 
 两种落点，语义不同：
 
-- `repolish skill .` 写进**一个仓库**（`SKILL.md`），跟着代码走，谁 clone 谁就有。
-- `repolish skill --target claude` 写进**这台机器上的智能体**（`~/.claude/skills/repolish/SKILL.md`），装一次所有项目都用得上。`--target detect` 只装进真的存在的那几家——往一个没装 Codex 的机器上写 `~/.codex/skills` 会凭空造出一个目录，看着像那工具装了。
+- `repolish --stages skill --apply` 写进**一个仓库**（`SKILL.md`），跟着代码走，谁 clone 谁就有。
+- `repolish --stages skill --target claude --apply` 写进**这台机器上的智能体**（`~/.claude/skills/repolish/SKILL.md`），装一次所有项目都用得上。`--target detect` 只装进真的存在的那几家——往一个没装 Codex 的机器上写 `~/.codex/skills` 会凭空造出一个目录，看着像那工具装了。
 
 它的重点不是「有哪些命令」（`--help` 就写着），而是**顺序和边界**：先量，再落实能机械落实的，把需要判断的交回给人。一个智能体拿到「把这个仓库的 README 弄好」时的默认动作是直接重写整个文件——那正是这个工具花了全部力气去反对的做法。
 
@@ -517,7 +479,7 @@ composite action 定义在**仓库根目录的 `action.yml`**（`uses: owner/rep
 为省掉重复的 API 调用，action 只跑一次 `check`，用 `--badge --report` 让同一次运行
 写出全部产物——分开跑意味着几份产物可能来自不同次的评分。
 
-`repolish init` 生成的 workflow 模板：
+`ci` 阶段生成的 workflow 模板：
 
 ```yaml
 name: repolish
@@ -559,7 +521,7 @@ jobs:
 
 Action 内部还需把分数写入 `$GITHUB_STEP_SUMMARY`，使每次运行页顶部展示健康度卡片。
 
-想要自动开 PR 的用户，在模板中改用 `peter-evans/create-pull-request` 承接 `polish --apply` 的产物。
+想要自动开 PR 的用户，在模板中改用 `peter-evans/create-pull-request` 承接 `--apply` 那一次运行的产物。
 
 ## `polish`
 

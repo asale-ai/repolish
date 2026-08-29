@@ -680,7 +680,7 @@ mod tests {
     fn steps() -> Vec<Step> {
         vec![
             Step {
-                command: "repolish check .".into(),
+                command: "repolish".into(),
                 output: vec![Line(vec![Span {
                     text: "SCORE 23 / 100".into(),
                     fg: Some(DARK.bad),
@@ -688,7 +688,7 @@ mod tests {
                 }])],
             },
             Step {
-                command: "repolish polish . --apply".into(),
+                command: "repolish --apply".into(),
                 output: vec![Line(vec![Span {
                     text: "Written.".into(),
                     fg: None,
@@ -718,8 +718,8 @@ mod tests {
     #[test]
     fn the_typed_command_is_selectable_text() {
         let svg = cast(&steps(), &Timing::default(), &Options::default());
-        assert!(svg.contains("repolish check ."));
-        assert!(svg.contains("repolish polish . --apply"));
+        assert!(svg.contains("repolish"));
+        assert!(svg.contains("repolish --apply"));
         assert!(svg.contains("SCORE 23 / 100"));
     }
 
@@ -802,9 +802,13 @@ mod tests {
     #[test]
     fn the_timeline_ignores_how_long_the_commands_actually_took() {
         let t = Timing::default();
-        let plan = schedule(&steps(), &t);
+        let all = steps();
+        let plan = schedule(&all, &t);
         let first = &plan.windows[0];
-        assert_eq!(first.typed_ms - first.start_ms, 16 * t.type_ms);
+        // 从命令本身的长度算，而不是写死一个数：改一次夹具就得改一次断言，
+        // 那种断言迟早会被人顺手改成「当前值」，也就再也守不住任何东西。
+        let typed = all[0].command.chars().count() as u32;
+        assert_eq!(first.typed_ms - first.start_ms, typed * t.type_ms);
     }
 
     #[test]

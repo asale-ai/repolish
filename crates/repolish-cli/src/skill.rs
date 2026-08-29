@@ -8,14 +8,14 @@
 //! 所以这份文件的重点不在「有哪些命令」（`--help` 就写着），而在**顺序和
 //! 边界**：先量，再改能机械改的，最后把需要判断的那几条留给人。
 //!
-//! 内容写死在这里，不从磁盘读：`repolish skill` 要能在任何一个目录下跑出
+//! 内容写死在这里，不从磁盘读：`skill` 阶段要能在任何一个目录下跑出
 //! 同一份文件，包括 `cargo install` 之后没有仓库可读的那种情况。
 //!
 //! 两种用法，落点不同：
 //!
-//! - `repolish skill .` 写进**一个仓库**（`SKILL.md`），跟着代码走，
+//! - `repolish --stages skill` 写进**一个仓库**（`SKILL.md`），跟着代码走，
 //!   谁 clone 谁就有。
-//! - `repolish skill --target claude` 写进**这台机器上的智能体**
+//! - `repolish --stages skill --target claude` 写进**这台机器上的智能体**
 //!   （`~/.claude/skills/repolish/SKILL.md`），装一次，所有项目都用得上。
 
 use std::path::PathBuf;
@@ -214,12 +214,26 @@ mod tests {
         assert!(gemini_context().contains("skills/repolish/SKILL.md"));
     }
 
+    /// 技能文档教的必须是**现在**这套命令面。子命令取消之后，一份还在教
+    /// `repolish check .` 的技能，会让智能体照着敲出 command not found。
     #[test]
     fn it_states_the_workflow_and_the_boundary() {
         let md = markdown();
-        assert!(md.contains("repolish check"));
-        assert!(md.contains("repolish polish"));
+        assert!(md.contains("--stages"));
         assert!(md.contains("--apply"));
         assert!(md.contains("Do not rewrite the README"));
+        // 干跑优先是这份技能唯一的安全保证：智能体必须先给人看计划
+        assert!(md.contains("without `--apply`"));
+        // 每一段都要有名有姓，否则智能体只会跑默认那四段
+        for stage in ["check", "polish", "artifacts", "ci", "skill", "demo"] {
+            assert!(
+                md.contains(stage),
+                "skill.md never mentions the `{stage}` stage"
+            );
+        }
+        assert!(
+            !md.contains("repolish check ."),
+            "skill.md still teaches the removed subcommand form"
+        );
     }
 }

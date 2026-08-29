@@ -86,7 +86,7 @@ pub fn compare(
     )
     .map_err(BaseError::Worktree)?;
 
-    // 被检查的可能是仓库里的一个子目录（`repolish check demo/sample`）。
+    // 被检查的可能是仓库里的一个子目录（`repolish demo/sample`）。
     // 工作树检出的是仓库根，直接对着它跑会去评分**另一个项目**——
     // 一份看起来正常、内容全错的差值。
     let result = run_base(&tmp.join(&subpath), head, opts);
@@ -199,7 +199,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir.parent().unwrap());
     }
 
-    /// `repolish check demo/sample --base …` 检出的是仓库根,
+    /// `repolish demo/sample --base …` 检出的是仓库根,
     /// 不把子路径接回去就会去评分另一个项目——一份看起来正常、内容全错的差值
     #[test]
     fn a_subdirectory_is_located_again_inside_the_baseline_checkout() {

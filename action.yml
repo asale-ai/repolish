@@ -89,7 +89,9 @@ inputs:
     required: false
     default: "false"
   args:
-    description: Raw arguments; when given, they override every switch above
+    description: >
+      Raw arguments; when given, they override every switch above. They are passed
+      to `repolish` verbatim, and there are no subcommands — start with the path.
     required: false
     default: ""
 
@@ -196,10 +198,20 @@ runs:
           # shellcheck disable=SC2086
           set -- $IN_ARGS
         else
-          set -- check "$IN_PATH" --no-color --format json
+          # 阶段是显式的，而且**永远不含 polish**：在 CI 里改别人的 README
+          # 不是这个 action 该做的事。要产物才加 artifacts，要产物才加
+          # --apply——没有 --apply 时 repolish 一个字节都不写。
+          stages=check
+          if [ "$IN_BADGE" = "true" ] || [ "$IN_CARD" = "true" ] \
+             || [ "$IN_OVERVIEW" = "true" ] || [ "$want_md" = "true" ]; then
+            stages=check,artifacts
+          fi
+
+          set -- "$IN_PATH" --no-color --format json --stages "$stages"
+          [ "$stages" = "check,artifacts" ] && set -- "$@" --apply
           [ "$IN_REMOTE" = "true" ] && set -- "$@" --remote
-          [ "$IN_BADGE" = "true" ] && set -- "$@" --badge
-          [ "$IN_CARD" = "true" ] && set -- "$@" --card
+          [ "$IN_BADGE" != "true" ] && set -- "$@" --no-badge
+          [ "$IN_CARD" = "true" ] && set -- "$@" --footer-card
           [ "$IN_OVERVIEW" = "true" ] && set -- "$@" --overview
           if [ "$IN_CARD" = "true" ] || [ "$IN_OVERVIEW" = "true" ]; then
             set -- "$@" --theme "$IN_THEME" --lang "$IN_LANG"

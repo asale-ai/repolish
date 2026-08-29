@@ -1,4 +1,4 @@
-//! `repolish init`：生成 GitHub Actions workflow。
+//! `ci` 阶段：生成 GitHub Actions workflow。
 //!
 //! 这是留存的关键一步——CLI-only 的产品，用户装完跑一次就忘了；
 //! 进了 CI 才会每周替他跑一次，也才会有人持续看到那个徽章。

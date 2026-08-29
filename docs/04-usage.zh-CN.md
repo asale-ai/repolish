@@ -8,9 +8,9 @@ README 讲的是「这是什么」和「怎么开始」。剩下的在这里：�
 ## polish 插入的东西怎么调样式
 
 ```bash
-repolish polish . --badge-style for-the-badge --toc-style fold --align center
-repolish polish . --logo assets/hero.svg --logo-width full --tree-depth 2
-repolish polish . --visuals         # --overview --footer-card --tables svg
+npx @asale/repolish --badge-style for-the-badge --toc-style fold --align center
+npx @asale/repolish --logo assets/hero.svg --logo-width full --tree-depth 2 --apply
+npx @asale/repolish --visuals --apply  # --overview --footer-card --tables svg
 ```
 
 也可以写在 `.repolish.toml` 的 `[readme]` 下（[全部键](02-cli-design.zh-CN.md)）。
@@ -22,7 +22,7 @@ logo、目录树和卡片不由任何检查驱动：不显式开就不会有，�
 ## `--suggest` 能做什么、不能做什么
 
 ```bash
-repolish polish . --suggest         # 需要 REPOLISH_LLM_API_KEY
+npx @asale/repolish --suggest  # 需要 REPOLISH_LLM_API_KEY
 ```
 
 **评分路径里没有模型**是一条关于*评分*的规则，它没有变——`check` 前后跑，数字一模一样。
@@ -43,9 +43,9 @@ repolish polish . --suggest         # 需要 REPOLISH_LLM_API_KEY
 才告诉他该做什么。
 
 ```bash
-repolish check . --base origin/main
-repolish check . --sarif repolish.sarif    # 每条发现一个标注，落在它自己那一行
-repolish check . --comment comment.md      # 短版本，用来发 PR 评论
+npx @asale/repolish --stages check --base origin/main
+npx @asale/repolish --stages check --sarif repolish.sarif  # 每条发现一个标注，落在它自己那一行
+npx @asale/repolish --stages check --comment comment.md    # 短版本，用来发 PR 评论
 ```
 
 `--base` 把基线检出到一个**临时 git worktree** 里，用完全相同的选项打分——你的工作区
@@ -64,6 +64,6 @@ repolish check . --comment comment.md      # 短版本，用来发 PR 评论
 ```
 
 评论是**每次推送改写同一条**，不是往下追加——一个每次都新发一条评论的机器人，
-第三条之后就会被所有人折叠，连带把真正变红的那一次一起埋掉。`repolish init` 会替你
+第三条之后就会被所有人折叠，连带把真正变红的那一次一起埋掉。`npx @asale/repolish --stages ci --apply` 会替你
 写好这个 workflow。所需权限、SARIF 上传步骤，以及基线所需的 `fetch-depth: 0`，见
 [action/README.md](../action/README.md)。
