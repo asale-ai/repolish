@@ -7,7 +7,7 @@
     </linearGradient>
   </defs>
   <style>
-    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace; }
+    .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK SC", "Noto Sans Mono CJK JP", "Microsoft YaHei", "Hiragino Sans", "Yu Gothic", monospace; }
   </style>
   <rect x="360" y="62" width="76" height="76" rx="19.8" fill="url(#brand)"/>
   <path d="M393.4 78.7Q398.6 99.4 419.3 104.6Q398.6 109.7 393.4 130.4Q388.3 109.7 367.6 104.6Q388.3 99.4 393.4 78.7Z" fill="#1a1a24"/>

@@ -89,7 +89,7 @@ which parts of the pipeline run. The default is `check,polish,artifacts,ci`.
 |---|---|
 | `check` | Score the repository and print the report |
 | `polish` | The mechanical fixes: badge, table of contents, issue/PR templates, `CONTRIBUTING.md` |
-| `artifacts` | `.repolish/badge.json`, the overview and report cards, and every SVG the README already references |
+| `artifacts` | `.repolish/badge.json`, the banner, the overview and report cards, and every SVG the README already references |
 | `ci` | `.github/workflows/repolish.yml` |
 | `skill` | `SKILL.md` — opt-in, not in the default run |
 | `demo` | Record the CLI — opt-in, and with `--apply` it **executes** the commands. A run that skipped it says so at the end |

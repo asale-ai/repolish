@@ -246,6 +246,8 @@ fn roman(mut n: usize) -> String {
 /// 一次 `polish` 运行的全部排版选项
 #[derive(Debug, Clone, Default)]
 pub struct ReadmeStyle {
+    /// README 顶上那张通栏横幅
+    pub hero: bool,
     pub badge: BadgeStyle,
     pub align: Align,
     pub toc: TocStyle,

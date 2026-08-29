@@ -203,6 +203,10 @@ struct Cli {
     #[arg(long)]
     tree_depth: Option<usize>,
 
+    /// Draw a banner carrying this project's name, and put it above the title
+    #[arg(long)]
+    hero: bool,
+
     /// Insert a project overview card below the badges, and draw it
     #[arg(long)]
     overview: bool,
@@ -294,6 +298,8 @@ const DEFAULT_STAGES: &[Stage] = &[Stage::Check, Stage::Polish, Stage::Artifacts
 enum Artifact {
     /// .repolish/badge.json, read by shields.io out of your own repository
     Badge,
+    /// .repolish/hero.svg — the banner above the README's title
+    Hero,
     /// REPOLISH.md, the full report as markdown
     Report,
     /// .repolish/overview.svg — what this project is
@@ -630,6 +636,7 @@ fn stage_check(cli: &Cli, a: &mut Analysis) -> u8 {
 /// 单项开关排在 `--no-visuals` 前面是有意的——同时给了这两个,说的是
 /// 「除了这一样,其余都别动」。
 struct Visuals {
+    hero: bool,
     overview: bool,
     footer_card: bool,
     tables: style::TableStyle,
@@ -638,6 +645,7 @@ struct Visuals {
 fn visuals(cli: &Cli, cfg: &crate::config::Readme) -> Visuals {
     let on = !cli.no_visuals;
     Visuals {
+        hero: cli.hero || (on && cfg.hero.unwrap_or(true)),
         overview: cli.overview || (on && cfg.overview.unwrap_or(true)),
         footer_card: cli.footer_card || (on && cfg.footer_card.unwrap_or(true)),
         tables: cli.tables.or(cfg.tables).unwrap_or(if on {
@@ -688,6 +696,7 @@ fn stage_polish(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
             .or(cfg.lang)
             .unwrap_or_default()
             .resolve(readme_raw),
+        hero: v.hero,
         overview: v.overview,
         footer_card: v.footer_card,
         tables: v.tables,
@@ -793,7 +802,6 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
         }
     };
     let opts = cli.common.card_options(ctx, &cfg);
-    let v = visuals(cli, &cfg);
 
     // 点名了就只做点到的；没点名就是「徽章 + README 已经引用的那些」。
     let named = !cli.artifact.is_empty();
@@ -804,12 +812,14 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
             match k {
                 Artifact::Badge => !cli.no_badge,
                 Artifact::Report => cli.report,
-                Artifact::Overview => {
-                    v.overview || ctx.root.join(repolish_render::OVERVIEW_PATH).exists()
-                }
-                Artifact::Score => {
-                    v.footer_card || ctx.root.join(repolish_render::CARD_PATH).exists()
-                }
+                // **只重画已经在那儿的。** 第一次是 `polish` 的活:它插入引用，
+                // 并同时把文件生成出来。这里再按「视觉产物默认开」去画一遍，
+                // 落下的是一个没有任何东西指向的孤儿文件——本仓库顶上挂的是
+                // 作者自己的 `assets/hero.svg`，`polish` 会正确让位，而这里
+                // 却照画不误。要强行画某一张，用 `--artifact`。
+                Artifact::Hero => ctx.root.join(repolish_render::HERO_PATH).exists(),
+                Artifact::Overview => ctx.root.join(repolish_render::OVERVIEW_PATH).exists(),
+                Artifact::Score => ctx.root.join(repolish_render::CARD_PATH).exists(),
                 Artifact::Tables => true,
             }
         }
@@ -892,6 +902,23 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
             .clone()
             .unwrap_or_else(|| ctx.root.join("REPOLISH.md"));
         if let Err(code) = ledger.write(&ctx.root, &path, &md, "full report") {
+            return code;
+        }
+    }
+
+    if want(Artifact::Hero) {
+        let facts = repolish_render::Facts::from_ctx(ctx, opts.lang);
+        let tagline = facts.description.clone().unwrap_or_default();
+        let svg = repolish_render::svg::hero(&facts.name, &tagline, opts.lang);
+        if cli.stdout {
+            print!("{svg}");
+            return exit::OK;
+        }
+        let path = cli
+            .output
+            .clone()
+            .unwrap_or_else(|| ctx.root.join(repolish_render::HERO_PATH));
+        if let Err(code) = ledger.write(&ctx.root, &path, &svg, "banner") {
             return code;
         }
     }

@@ -197,10 +197,36 @@ pub fn overview(facts: &Facts, opts: &Options) -> String {
 
 // ── 页眉 ────────────────────────────────────────────────────
 
+/// 抬头上的字标：**这个项目的名字**，不是我们的。
+///
+/// 这张卡贴在别人的 README 顶上，第一眼该看到的是他们的项目。我们的署名在
+/// 页脚那一行就够了。
+///
+/// 点阵字体只有 `A-Z0-9.-`，装不下的名字退回普通文字：
+///
+/// - 非拉丁名（中文、日文）在点阵下会渲染成**一片空白**——空白抬头比朴素
+///   字体糟得多，所以这里宁可换字体也不能出空白。
+/// - 太长的名字会一路压到右边的 PROFILE 上，所以先算宽度再决定。
+///
+/// `_` 先换成 `-`：仓库名里下划线很常见，而它恰好是这套字体没有的那几个
+/// 字符之一，换成连字符比开个空洞好看。
+fn wordmark(name: &str, x: i32, y: i32, size: i32, p: &Palette) -> String {
+    const CELL: i32 = 3;
+    /// 字标右侧要给 PROFILE 那一列留出的空间
+    const RESERVED: i32 = 140;
+
+    if let Some(blocks) = draw::as_blocks(name, CELL, RIGHT - RESERVED - x) {
+        return draw::blocks(&blocks, x, y + 1, CELL, p);
+    }
+    // 兜底：原样的名字，画成和点阵字标差不多高的普通文字
+    let text = draw::fit(name, (RIGHT - RESERVED - x) as f32, 20.0);
+    draw::text(&text, x, y + size - 6, 20, p.text, Anchor::Start, true)
+}
+
 fn header(out: &mut String, facts: &Facts, p: &Palette, s: &'static Strings, y: i32) -> i32 {
     let size = 26;
     out.push_str(&draw::mark(PAD, y, size, p));
-    out.push_str(&draw::blocks("REPOLISH", PAD + size + 12, y + 1, 3, p));
+    out.push_str(&wordmark(&facts.name, PAD + size + 12, y, size, p));
 
     out.push_str(&draw::label(s.profile, RIGHT, y + 10, p.muted, Anchor::End));
     out.push_str(&draw::text(
@@ -222,17 +248,9 @@ fn header(out: &mut String, facts: &Facts, p: &Palette, s: &'static Strings, y: 
 /// 截图里那个位置放的是花掉的钱——因为那张卡片就是一张账单。这张卡片是
 /// 一个项目的名片，读者要的第一个信息是「这是什么」。
 fn headline(out: &mut String, facts: &Facts, p: &Palette, s: &'static Strings, y: i32) -> i32 {
-    let size = 40;
-    let name = draw::fit(&facts.name, INNER as f32 * 0.62, size as f32);
-    out.push_str(&draw::text(
-        &name,
-        PAD,
-        y + size,
-        size,
-        p.text,
-        Anchor::Start,
-        true,
-    ));
+    // 项目名不在这里——它已经是抬头的字标了。同一个名字印两遍，等于把这张
+    // 卡最值钱的那块位置浪费掉一次。
+    let mut bottom = y;
 
     // 星标只在 --remote 下有值。没有就不画那一格，而不是写个 0——
     // 「0 星」和「没查」是两回事
@@ -241,39 +259,41 @@ fn headline(out: &mut String, facts: &Facts, p: &Palette, s: &'static Strings, y
         out.push_str(&draw::text(
             &label,
             RIGHT,
-            y + size - 16,
+            y + 13,
             14,
             p.text,
             Anchor::End,
             true,
         ));
+        bottom = y + 13;
     }
     if let Some(tag) = &facts.latest_tag {
-        out.push_str(&draw::text(
-            tag,
-            RIGHT,
-            y + size + 4,
-            13,
-            p.muted,
-            Anchor::End,
-            false,
-        ));
+        let ty = if facts.stars.is_some() {
+            y + 31
+        } else {
+            y + 13
+        };
+        out.push_str(&draw::text(tag, RIGHT, ty, 13, p.muted, Anchor::End, false));
+        bottom = bottom.max(ty);
     }
 
+    // 描述独占一行，排在右列下面。和星标挤在同一行的话，一句长描述会直接
+    // 压过去。
     if let Some(d) = &facts.description {
+        let dy = bottom + 20;
         let text = draw::fit(d, INNER as f32, 13.0);
         out.push_str(&draw::text(
             &text,
             PAD,
-            y + size + 24,
+            dy,
             13,
             p.muted,
             Anchor::Start,
             false,
         ));
-        return y + size + 24;
+        bottom = dy;
     }
-    y + size + 4
+    bottom
 }
 
 /// `61 FILES · 3 LANGUAGES · 12 TAGS · MIT` 那一行。
@@ -761,6 +781,46 @@ mod tests {
     use crate::theme::{DARK, PORCELAIN};
     use repolish_ingest::lang::{Kind, LangStat};
 
+    /// 字标画的是**项目名**，不是 repolish。这张卡贴在别人的 README 顶上，
+    /// 抬头印我们的名字是把最值钱的位置拿去做自我推销。
+    #[test]
+    fn the_masthead_carries_the_project_name() {
+        let svg = wordmark("taskvault", 74, 36, 26, &DARK);
+        // 点阵路径：一堆 3px 的方块，没有一个 <text>
+        assert!(svg.contains(r#"width="3""#), "expected the block wordmark");
+        assert!(
+            !svg.contains("<text"),
+            "a fitting ASCII name should not fall back"
+        );
+        assert!(!svg.to_lowercase().contains("repolish"));
+    }
+
+    /// 点阵字体只有 A-Z0-9.-。非拉丁名字整串都画不出来，硬画就是一片空白，
+    /// 所以必须退回普通文字。
+    #[test]
+    fn a_name_the_block_font_cannot_draw_falls_back_to_text() {
+        let svg = wordmark("中文项目", 74, 36, 26, &DARK);
+        assert!(svg.contains("<text"), "expected the text fallback");
+        assert!(svg.contains("中文项目"));
+    }
+
+    /// 太长的名字会一路压到右边的 PROFILE 上。
+    #[test]
+    fn an_overlong_name_falls_back_rather_than_running_into_the_profile() {
+        let long = "a-very-long-repository-name-that-cannot-possibly-fit-up-there";
+        let svg = wordmark(long, 74, 36, 26, &DARK);
+        assert!(svg.contains("<text"), "expected the text fallback");
+    }
+
+    /// 下划线在仓库名里很常见，而它恰好是这套字体没有的字符之一。
+    /// 换成连字符，而不是开一个空洞、或者整串退回文字。
+    #[test]
+    fn an_underscore_becomes_a_hyphen_rather_than_a_hole() {
+        let svg = wordmark("my_tool", 74, 36, 26, &DARK);
+        assert!(svg.contains(r#"width="3""#), "expected the block wordmark");
+        assert!(!svg.contains("<text"));
+    }
+
     fn facts() -> Facts {
         Facts {
             name: "taskvault".into(),
@@ -816,11 +876,22 @@ mod tests {
         assert_eq!(overview(&facts(), &o), overview(&facts(), &o));
     }
 
+    /// 项目名是这张卡上最大的东西——但它现在是**抬头的字标**，画成点阵方块，
+    /// 不再是下面那行 40px 的文字。同一个名字印两遍，等于把最值钱的位置浪费
+    /// 掉一次；这条测试守的是「只出现一次，且在抬头」。
     #[test]
-    fn the_project_name_is_the_biggest_thing_on_the_card() {
+    fn the_project_name_is_the_masthead_and_is_not_repeated_below() {
         let svg = overview(&facts(), &Options::default());
-        assert!(svg.contains(r#"font-size="40""#));
-        assert!(svg.contains(">taskvault<"));
+        assert!(
+            !svg.contains(">taskvault<"),
+            "名字应该在字标里，而不是再画一行文字"
+        );
+        // 字标是点阵方块，而点阵只有在名字画得出来时才会出现
+        assert!(svg.contains(r#"width="3""#), "抬头缺了点阵字标");
+        assert!(
+            wordmark("taskvault", 74, 36, 26, &DARK).contains(r#"width="3""#),
+            "taskvault 应该走点阵那条路"
+        );
     }
 
     /// 概览卡片说的是项目，不是我们的分数——一个分数都不该出现在上面

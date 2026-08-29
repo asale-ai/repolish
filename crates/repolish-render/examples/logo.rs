@@ -27,7 +27,9 @@ fn hero(lang: Lang) -> String {
         Lang::En => tagline.join(" · ").to_lowercase(),
         Lang::ZhCn | Lang::Ja => tagline.join(" · "),
     };
-    repolish_render::svg::hero(&joined, lang)
+    // 这个 example 画的是**我们自己的**门面，所以名字在这里是写死的；
+    // CLI 给别人画时传的是那个项目的名字。
+    repolish_render::svg::hero("repolish", &joined, lang)
 }
 
 fn main() -> std::io::Result<()> {

@@ -27,7 +27,7 @@ repolish --apply                 # 落盘
 |---|---|---|
 | `check` | 什么都不写 | 是 |
 | `polish` | README 插入、`CONTRIBUTING.md`、issue/PR 模板 | 是 |
-| `artifacts` | `.repolish/badge.json`，以及 README 已经引用的每一张 SVG | 是 |
+| `artifacts` | `.repolish/badge.json`、横幅、两张卡片，以及 README 已经引用的每一张 SVG | 是 |
 | `ci` | `.github/workflows/repolish.yml` | 是 |
 | `skill` | `SKILL.md`；带 `--target` 时写进智能体自己的目录 | 否 |
 | `demo` | `.repolish/demo.svg`——会**执行**它录下的命令 | 否 |
@@ -85,7 +85,7 @@ repolish --suggest                         # 请模型写它写不了的那三�
 | `--apply` | 落盘。不加它，除 `--sarif` / `--comment` 外什么都不写 |
 | `--force` | 覆盖已存在的文件，并允许在非 git 目录下写 |
 | `--stages <list>` | 默认 `check,polish,artifacts,ci` |
-| `--artifact <list>` | 把 `artifacts` 阶段限定到 `badge`、`report`、`overview`、`score`、`tables` |
+| `--artifact <list>` | 把 `artifacts` 阶段限定到 `badge`、`report`、`hero`、`overview`、`score`、`tables` |
 | `--no-visuals` | 不动 README 的视觉产物。卡片与 SVG 表格默认是开的 |
 
 `--sarif` 和 `--comment` 是 `--apply` 的两个例外：点名一个输出路径本身就是请求，

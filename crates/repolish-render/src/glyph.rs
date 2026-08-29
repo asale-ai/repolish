@@ -70,6 +70,14 @@ pub struct Bitmap {
     pub bits: Vec<Vec<bool>>,
 }
 
+/// 这个字符有没有点阵。
+///
+/// 没有的会画成一列空白——所以整串里只要有一个画不出来，调用方就该换一种
+/// 画法。一个中文项目名在这套字体下会变成一片空白，那比用朴素字体糟得多。
+pub fn supports(c: char) -> bool {
+    glyph(c) != [0; H]
+}
+
 pub fn bitmap(text: &str) -> Bitmap {
     let n = text.chars().count();
     let width = if n == 0 { 0 } else { n * (W + GAP) - GAP };

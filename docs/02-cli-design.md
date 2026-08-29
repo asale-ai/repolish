@@ -29,7 +29,7 @@ execution order, and it matters: `polish` may insert a reference to a card that
 |---|---|---|
 | `check` | nothing | yes |
 | `polish` | README inserts, `CONTRIBUTING.md`, issue/PR templates | yes |
-| `artifacts` | `.repolish/badge.json`, and every SVG the README already references | yes |
+| `artifacts` | `.repolish/badge.json`, the banner, the cards, and every SVG the README already references | yes |
 | `ci` | `.github/workflows/repolish.yml` | yes |
 | `skill` | `SKILL.md`, or an agent's own directory with `--target` | no |
 | `demo` | `.repolish/demo.svg` — **executes** the commands it records | no |
@@ -90,7 +90,7 @@ exactly one thing is being produced: one `--stages`, and — for `artifacts` —
 | `--apply` | Write. Without it nothing is written except `--sarif` / `--comment` |
 | `--force` | Overwrite existing files, and write outside a git repository |
 | `--stages <list>` | Default `check,polish,artifacts,ci` |
-| `--artifact <list>` | Restrict the `artifacts` stage to `badge`, `report`, `overview`, `score`, `tables` |
+| `--artifact <list>` | Restrict the `artifacts` stage to `badge`, `report`, `hero`, `overview`, `score`, `tables` |
 | `--no-visuals` | Leave the README's visuals alone. The cards and SVG tables are on by default |
 
 `--sarif` and `--comment` are the two exceptions to `--apply`: naming an output path *is*
