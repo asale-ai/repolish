@@ -65,7 +65,7 @@ them **in the diff** instead of in a log nobody expands. The action wires all th
 together:
 
 ```yaml
-- uses: asale-ai/repolish@v0.3.1
+- uses: asale-ai/repolish@v0.4.1
   with:
     min-score: 70
     base: ${{ github.event.pull_request.base.sha }}

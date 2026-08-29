@@ -252,7 +252,7 @@ npx @asale/repolish --stages ci --min-score 70 --apply
 To wire it up by hand, the action takes the threshold directly:
 
 ```yaml
-- uses: asale-ai/repolish@v0.4.0
+- uses: asale-ai/repolish@v0.4.1
   with:
     min-score: 70
   env:
