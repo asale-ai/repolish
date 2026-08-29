@@ -167,7 +167,7 @@ Five stages, in order. The order matters: `polish` may insert a reference to a c
 | `polish` | The fixes that follow mechanically: the badge, a table of contents built from your own headings, GitHub issue and PR templates, and a `CONTRIBUTING.md` whose commands come from your detected package manifest |
 | `artifacts` | Write `.repolish/badge.json`, draw the banner and the two cards, and redraw every SVG the README already references |
 | `ci` | Write `.github/workflows/repolish.yml` |
-| `demo` | Record the CLI as an animated SVG. Prints the command list; **only `--apply` runs them** |
+| `demo` | Record the CLI as an animated SVG and reference it from the README and every translation. Prints the command list; **only `--apply` runs them** |
 
 **Where it cannot know, it does not write.** No manifest means no `CONTRIBUTING.md`,
 because the alternative is `<your build command here>` — a file that turns the check green

@@ -93,7 +93,7 @@ which parts of the pipeline run. The default is
 | `artifacts` | `.repolish/badge.json`, the banner, the overview and report cards, and every SVG the README already references |
 | `ci` | `.github/workflows/repolish.yml` |
 | `skill` | `SKILL.md` — opt-in, not in the default run. A run that skipped it says so at the end |
-| `demo` | Record the CLI. In the default run, but it only prints the command list — **`--apply` executes them** |
+| `demo` | Record the CLI and reference it from the README and every translation. In the default run, but it only prints the command list — **`--apply` executes them** |
 
 ### Run it
 

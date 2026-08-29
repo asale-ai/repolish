@@ -1250,13 +1250,41 @@ fn stage_demo(cli: &Cli, root: &Path, ledger: &mut Ledger, gaps: &mut Gaps) -> u
     if let Err(code) = ledger.write(root, &path, &svg, "terminal recording") {
         return code;
     }
+    // 引用**自己插进去**,主 README 加每一份译本。打印一行让人手动粘贴,
+    // 等于把最后一步留给一个刚被告知「录屏好了」的人去做——他多半不会做,
+    // 于是仓库里躺着一个没人引用的 SVG。
+    //
+    // 一份中文 README 同样需要那张图:录屏没有语言,而「这东西跑起来什么样」
+    // 对两种读者是同一个问题。
+    let rel = relative(root, &path);
+    let mut targets: Vec<(std::path::PathBuf, String)> = Vec::new();
+    if let Some(readme) = ctx.readme.as_ref() {
+        targets.push((readme.path.clone(), readme.raw.clone()));
+        for t in tables::translations(&ctx, readme) {
+            if let Some(raw) = ctx.files.read(&t) {
+                targets.push((ctx.root.join(&t), raw));
+            }
+        }
+    }
+    for (rpath, raw) in targets {
+        let name = rpath.to_string_lossy().into_owned();
+        let parsed = Readme::parse(&name, raw.clone());
+        // 文件名先于内容:一份短译本可能通篇 ASCII，内容检测会判成英文，
+        // 于是中文 README 里写着 `![terminal recording]`。
+        let lang = repolish_render::Lang::from_filename(&name)
+            .unwrap_or_else(|| repolish_render::Lang::detect(&raw));
+        let inserts = polish::recording_inserts(&parsed, &rel, lang);
+        if inserts.is_empty() {
+            continue;
+        }
+        let out = repolish_md::edit::apply(&raw, &inserts);
+        let n = inserts.iter().map(|i| i.lines.len()).sum::<usize>();
+        if let Err(code) = ledger.write(root, &rpath, &out, format!("+{n} lines")) {
+            return code;
+        }
+    }
+
     if only_stage(cli, Stage::Demo) {
-        say!(cli, "\n  Paste this into your README:\n");
-        say!(
-            cli,
-            "    {}",
-            demo::snippet(&relative(root, &path), "terminal recording")
-        );
         say!(
             cli,
             "\n  It is a plain SVG: no fonts, no scripts, nothing hosted by us, and the \

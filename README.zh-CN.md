@@ -158,7 +158,7 @@ npx @asale/repolish --apply
 | `polish` | 能机械落实的那些改动：徽章、用你自己的标题生成的目录、GitHub 的 issue 与 PR 模板，以及一份构建和测试命令来自探测到的包清单的 `CONTRIBUTING.md` |
 | `artifacts` | 写 `.repolish/badge.json`，画出横幅与两张卡片，并重画 README 已经引用的每一张 SVG |
 | `ci` | 写 `.github/workflows/repolish.yml` |
-| `demo` | 把 CLI 录成动画 SVG。会先列出命令清单，**只有 `--apply` 才真的执行** |
+| `demo` | 把 CLI 录成动画 SVG，并把引用插进 README 和每一份译本。会先列出命令清单，**只有 `--apply` 才真的执行** |
 
 **推不出来就不写。** 没有包清单就没有 `CONTRIBUTING.md`——另一条路是写一份
 `<your build command here>`，那种文件让检查变绿，问题却原地不动。已经存在的文件一律
