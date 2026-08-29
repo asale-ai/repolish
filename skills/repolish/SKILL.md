@@ -67,7 +67,7 @@ bare `repolish` unless `repolish --version` worked above.
 
 That package is a launcher — it downloads the release binary, verifies its
 `.sha256` and execs it, forwarding the exit code, which is what `--min-score`
-depends on. The current version is 0.4.2.
+depends on. The current version is 0.4.3.
 
 If the user would rather have it on PATH permanently:
 
@@ -471,7 +471,7 @@ line) and the fixes.
 
 ```json
 {
-  "repolishVersion": "0.4.2",
+  "repolishVersion": "0.4.3",
   "schemaVersion": 1,
   "repository": { "owner": "acme", "name": "taskvault", "commit": "796160e…" },
   "profile": { "detected": "cli", "overridden": false },

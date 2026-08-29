@@ -5,17 +5,17 @@ members = ["crates/*"]
 exclude = ["demo"]
 
 [workspace.package]
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-repolish-core   = { path = "crates/repolish-core", version = "0.4.2" }
-repolish-ingest = { path = "crates/repolish-ingest", version = "0.4.2" }
-repolish-md     = { path = "crates/repolish-md", version = "0.4.2" }
-repolish-checks = { path = "crates/repolish-checks", version = "0.4.2" }
-repolish-render = { path = "crates/repolish-render", version = "0.4.2" }
+repolish-core   = { path = "crates/repolish-core", version = "0.4.3" }
+repolish-ingest = { path = "crates/repolish-ingest", version = "0.4.3" }
+repolish-md     = { path = "crates/repolish-md", version = "0.4.3" }
+repolish-checks = { path = "crates/repolish-checks", version = "0.4.3" }
+repolish-render = { path = "crates/repolish-render", version = "0.4.3" }
 
 anyhow      = "1"
 thiserror   = "2"

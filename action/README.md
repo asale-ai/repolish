@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0        # required: the default depth of 1 fetches no tags
-      - uses: asale-ai/repolish@v0.4.2
+      - uses: asale-ai/repolish@v0.4.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -38,7 +38,7 @@ API call failed — deliberately different, so a rate limit does not read as a q
 regression.
 
 ```yaml
-      - uses: asale-ai/repolish@v0.4.2
+      - uses: asale-ai/repolish@v0.4.3
         with:
           min-score: 70
         env:
@@ -68,7 +68,7 @@ jobs:
         with:
           fetch-depth: 0    # required: the baseline commit has to exist locally
 
-      - uses: asale-ai/repolish@v0.4.2
+      - uses: asale-ai/repolish@v0.4.3
         with:
           base: ${{ github.event.pull_request.base.sha }}
           sarif: repolish.sarif
@@ -111,7 +111,7 @@ also means the file has to be committed for the badge to update. The same applie
 directory rather than naming files one by one.
 
 ```yaml
-      - uses: asale-ai/repolish@v0.4.2
+      - uses: asale-ai/repolish@v0.4.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -127,7 +127,7 @@ directory rather than naming files one by one.
 ## Use the score in later steps
 
 ```yaml
-      - uses: asale-ai/repolish@v0.4.2
+      - uses: asale-ai/repolish@v0.4.3
         id: repolish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
