@@ -49,6 +49,30 @@ mod exit {
     pub const BASE_FAILED: u8 = 7;
 }
 
+/// 提示里该怎么称呼自己。
+///
+/// `npx @asale/repolish check .` 里的那份二进制跑完就没了，`repolish` 从来
+/// 没进过 PATH。照着我们印出来的 ``Run `repolish check .``` 敲下去，得到的
+/// 是 command not found——提示把人送进了死路。
+///
+/// 只有启动器知道自己是怎么被调起来的（npx 缓存、项目依赖、还是全局装），
+/// 所以由它用 `REPOLISH_INVOKED_AS` 把这件事告诉我们。没有这个变量就是
+/// 直接执行的二进制，裸 `repolish` 本来就对。
+fn invocation() -> String {
+    // 这段字符串会被原样印进提示里，所以只放行命令行里该有的字符——
+    // 环境变量不是可信输入。
+    fn plausible(v: &str) -> bool {
+        !v.is_empty()
+            && v.len() <= 40
+            && v.chars()
+                .all(|c| c.is_ascii_alphanumeric() || " @/._-".contains(c))
+    }
+    match std::env::var("REPOLISH_INVOKED_AS") {
+        Ok(v) if plausible(&v) => v,
+        _ => "repolish".to_string(),
+    }
+}
+
 #[derive(Parser)]
 #[command(
     name = "repolish",
@@ -706,7 +730,8 @@ fn run_card(args: CardArgs) -> u8 {
         if unwrapped > 0 {
             println!(
                 "{unwrapped} table(s) in the README are not wrapped yet, so nothing was \
-                 drawn for them.\n  To wrap them: repolish polish . --apply --tables svg"
+                 drawn for them.\n  To wrap them: {} polish . --apply --tables svg",
+                invocation()
             );
         }
         if written.is_empty() {
@@ -745,9 +770,10 @@ fn run_card(args: CardArgs) -> u8 {
         );
     }
     println!(
-        "Or let polish place them: `repolish polish . --apply --visuals`.\n\
+        "Or let polish place them: `{} polish . --apply --visuals`.\n\
          Everything here is a plain file in your own repository: no fonts, no scripts, \
-         nothing hosted by us."
+         nothing hosted by us.",
+        invocation()
     );
     exit::OK
 }
@@ -783,9 +809,10 @@ fn run_demo(args: DemoArgs) -> u8 {
         let Some(bin) = demo::binary(&ctx) else {
             eprintln!(
                 "error: no command-line binary detected in {}.\n\
-                 note: repolish demo records a CLI. If this project has one, name the \
-                 commands yourself:\n      repolish demo . --cmd \"yourtool --help\"",
-                root.display()
+                 note: {inv} demo records a CLI. If this project has one, name the \
+                 commands yourself:\n      {inv} demo . --cmd \"yourtool --help\"",
+                root.display(),
+                inv = invocation()
             );
             return exit::BAD_USAGE;
         };
@@ -911,7 +938,8 @@ fn run_skill(args: SkillArgs) -> u8 {
     println!("wrote {}", relative(&root, &path));
     println!(
         "\nIt teaches an agent to measure before it edits, and never to rewrite a README \
-         wholesale.\nTo install it for every project instead: `repolish skill --target detect`."
+         wholesale.\nTo install it for every project instead: `{} skill --target detect`.",
+        invocation()
     );
     exit::OK
 }
@@ -934,8 +962,9 @@ fn list_skill_targets() -> u8 {
         println!("               {}", t.docs);
     }
     println!("\n  · = detected on this machine");
-    println!("\n  repolish skill --target detect     install into the ones marked above");
-    println!("  repolish skill --target all        install into every one of them");
+    let inv = invocation();
+    println!("\n  {inv} skill --target detect     install into the ones marked above");
+    println!("  {inv} skill --target all        install into every one of them");
     exit::OK
 }
 
@@ -974,8 +1003,9 @@ fn install_skill(requested: &[String], md: &str, force: bool) -> u8 {
 
     if targets.is_empty() {
         println!("No agent detected on this machine, so nothing was installed.");
-        println!("Run `repolish skill --list` to see what is supported, or name one:");
-        println!("    repolish skill --target claude");
+        let inv = invocation();
+        println!("Run `{inv} skill --list` to see what is supported, or name one:");
+        println!("    {inv} skill --target claude");
         // 一台机器上没装任何智能体不是错误，只是没事可做
         return exit::OK;
     }
@@ -1261,7 +1291,10 @@ fn run_polish(args: PolishArgs) -> u8 {
     if plan.is_empty() {
         println!("Nothing to apply — everything polish can fix mechanically is already in place.");
         if !args.suggest {
-            println!("Run `repolish check .` for the findings that still need a human.");
+            println!(
+                "Run `{} check .` for the findings that still need a human.",
+                invocation()
+            );
             return exit::OK;
         }
         // --suggest 要的正是「机械修不了的那部分」,没有机械改动恰恰是它该上场的时候

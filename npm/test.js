@@ -125,6 +125,49 @@ const mod = require('./install.js');
   );
 }
 
+// ── 提示里的命令名 ────────────────────────────────────────────────────
+//
+// npx 解出来的二进制跑完就没了,`repolish` 从来没进过 PATH。二进制自己
+// 看不出这一点,只有壳知道,所以这条信息靠 REPOLISH_INVOKED_AS 传过去。
+// 传丢了不会报错——只会让每一条提示都指向 command not found。
+{
+  const fs = require('fs');
+  const launcher = fs.readFileSync(path.join(__dirname, 'bin', 'repolish.js'), 'utf8');
+  assert.ok(
+    /REPOLISH_INVOKED_AS: inv[\s\S]{0,200}?spawnSync\(BIN_PATH[\s\S]{0,80}?env/.test(
+      launcher
+    ),
+    'the launcher must actually hand REPOLISH_INVOKED_AS to the binary it spawns'
+  );
+
+  // 变量名两边各写了一次。改了一边而没改另一边,提示会安静地退回裸
+  // `repolish`——正是这条改动要修掉的那个 bug。
+  const rust = fs.readFileSync(
+    path.join(__dirname, '..', 'crates', 'repolish-cli', 'src', 'main.rs'),
+    'utf8'
+  );
+  assert.ok(
+    rust.includes('REPOLISH_INVOKED_AS'),
+    'main.rs no longer reads REPOLISH_INVOKED_AS; the launcher is talking to nobody'
+  );
+
+  // 三种落点、三种说法
+  const invokedAs = (dir, env) =>
+    new Function(
+      'path',
+      '__dirname',
+      'process',
+      `${launcher.match(/function invokedAs\(\)[\s\S]*?\n\}/)[0]}\nreturn invokedAs();`
+    )(path, dir, { env });
+
+  const npxCache = path.join('/home', 'u', '.npm', '_npx', 'abc123', 'node_modules', '@asale', 'repolish', 'bin');
+  assert.strictEqual(invokedAs(npxCache, { npm_command: 'exec' }), 'npx @asale/repolish');
+  const projectDep = path.join('/repo', 'node_modules', '@asale', 'repolish', 'bin');
+  assert.strictEqual(invokedAs(projectDep, { npm_command: 'exec' }), 'npx repolish');
+  const global = path.join('/usr', 'local', 'lib', 'node_modules', '@asale', 'repolish', 'bin');
+  assert.strictEqual(invokedAs(global, {}), null, 'a global install really is on PATH');
+}
+
 console.log('npm shim: ok');
 
 // ── 帮手 ──────────────────────────────────────────────────────────────

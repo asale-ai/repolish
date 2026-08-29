@@ -61,7 +61,13 @@ npx @asale/repolish check .
 检查本身都是同一个静态 Rust 二进制。
 
 <details>
-<summary>另外三种装法</summary>
+<summary>另外四种装法</summary>
+
+**用 npm 全局装**，让 `repolish` 直接在 PATH 上：
+
+```bash
+npm install -g @asale/repolish
+```
 
 **一行装好**，它顺带把[智能体技能](#给编码智能体用)放进这台机器上装了的那几家智能体里：
 
@@ -69,7 +75,7 @@ npx @asale/repolish check .
 curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
 ```
 
-它下载二进制、核对 `.sha256`、装进 `~/.local/bin`。POSIX `sh`，两百行左右，就干这四件事——
+同样是下载加 `.sha256` 校验，装进 `~/.local/bin`。POSIX `sh`，两百行左右——
 不想把脚本管道进 shell 的话，先读一遍。`REPOLISH_VERSION`、`REPOLISH_BIN_DIR`、
 `REPOLISH_TARGET` 可以覆盖默认值。
 
@@ -91,7 +97,7 @@ Linux 版只有 glibc 构建。在 musl（Alpine）上安装器会直说并停�
 ## 快速开始
 
 ```bash
-repolish check .
+repolish check .   # 或者：npx @asale/repolish check .
 ```
 
 就这一条。下面是它跑在 `demo/sample` 上的真实录屏——那是一个故意写得很糙的仓库：先 check，再把能改的改掉，然后重新 check。
@@ -151,16 +157,6 @@ repolish check . --only license,ci-present
 `--remote` 从环境变量读取 `GITHUB_TOKEN` 或 `GH_TOKEN`。没有 token 时走匿名配额，
 每小时 60 次。
 
-### 插入物的排版
-
-```bash
-repolish polish . --badge-style for-the-badge --toc-style fold --align center
-repolish polish . --logo assets/hero.zh-CN.svg --logo-width full --tree-depth 2
-repolish polish . --visuals         # --overview --footer-card --tables svg
-```
-
-也可以写在 `.repolish.toml` 的 `[readme]` 段里，完整清单见 [docs/02-cli-design.zh-CN.md](docs/02-cli-design.zh-CN.md)。**这些都不影响分数**——检查项清单与权重在 v1 冻结，一个仓库不能靠换徽章样式让自己好看一点。logo、目录树和卡片不由任何检查驱动，不显式开就不会有，干跑时也照实写「由配置要求」，而不是把它们打扮成修复。
-
 ### 把能改的直接改掉
 
 ```bash
@@ -174,6 +170,9 @@ repolish polish . --apply           # 真的写
 
 **它只增量插入。** 产出的 diff 全是新增行：你的制表符、列表标记、引用式链接定义和行尾逐字节保留。不在 git 仓库里时 `--apply` 会拒绝执行，除非加 `--force`——没有 `git checkout` 就没有撤销键。
 
+徽章样式、目录样式、对齐、logo 和那几张 SVG 都是开关，也可以写进 `.repolish.toml` 的
+`[readme]` 段。**它们都不影响分数**——[完整清单](docs/04-usage.zh-CN.md)。
+
 ### 它替你写不了的那三段
 
 ```bash
@@ -182,19 +181,9 @@ repolish polish . --suggest         # 需要 REPOLISH_LLM_API_KEY
 
 权重最高的三项，恰好是任何机械规则都满足不了的：一句话简介（Critical）、
 快速开始（Critical）、用法示例（High）。`--suggest` 起草这三段，且只有这三段。
-
-**「评分路径无模型」是一条关于评分的规矩，它一个字都没改**——生成建议前后跑 `check`，
-数字完全一样。当初的错误是把它顺手延伸到了**修复**上：结果 `polish` 忙着插徽章，
-而作者卡在标题下面那一句话上。
-
-边界因此画在别处，而且画得更死。它**从不落盘**——连 `--apply` 都不写，它打印，你自己挑着贴。
-它**只补缺的那一段**，因为重写别人的 README 正是这个工具存在的理由所要防的失败。
-它还**编不出东西**：交给它的是仓库里真实的包清单、可执行文件名和脚本名，
-并被要求「缺一个事实就把建议留空并说明，绝不硬编一个」——一条编造的安装命令，
-恰恰是 `claim-consistency` 生来要抓的东西。完整理由见
-[docs/02-cli-design.md](docs/02-cli-design.md)。
-
-密钥取自 `REPOLISH_LLM_API_KEY` 或 `ANTHROPIC_API_KEY`。repolish 里没有别的地方会跟模型说话。
+它**从不落盘**，`--apply` 也不写；它**只补缺的那一段**；它还**编不出东西**——
+缺一个事实就把建议留空，绝不硬编一个。
+[每一条的理由，以及评分路径为什么仍然无模型](docs/04-usage.zh-CN.md)。
 
 ### 用作 CI 门禁
 
@@ -217,10 +206,7 @@ repolish check . --remote --min-score 70
 退出码 1 表示分数不达标，4 表示 GitHub 调用失败——两者刻意区分开，
 免得一次限流被读成质量退步。
 
-#### 在 PR 上，重点是变化量
-
-一个绝对分数对评审的人没有意义。「这个 PR 让分数掉了 4 分，因为第 42 行的链接失效了」
-才告诉他该做什么。
+在 PR 上，重点是变化量，不是那个绝对数字：
 
 ```bash
 repolish check . --base origin/main
@@ -228,25 +214,8 @@ repolish check . --sarif repolish.sarif    # 每条发现一条注解，落在�
 repolish check . --comment comment.md      # 短报告，给 PR 评论用
 ```
 
-`--base` 把基线检出到一个**临时 git 工作树**，用完全相同的一套选项再评一次——
-你的工作区一个字节都不会动，本地分也绝不会拿去和远程分相减，报告只列出动过的那几项。
-
-每一条扣分从第一个版本起就带着文件和行号。SARIF 做的事是把它们放进 **diff 里**，
-紧挨着代码，而不是留在一段没人展开的 CI 日志里。action 把三者一起接好了：
-
-```yaml
-- uses: asale-ai/repolish@v0.3.0
-  with:
-    min-score: 70
-    base: ${{ github.event.pull_request.base.sha }}
-    sarif: repolish.sarif
-    comment: true
-```
-
-评论是**每次推送改写同一条**，不是往下追加——一个每次都新发一条评论的机器人，
-第三条之后就会被所有人折叠，连带把真正变红的那一次一起埋掉。
-所需权限、SARIF 上传步骤，以及基线所需的 `fetch-depth: 0`，见
-[action/README.md](action/README.md)。
+`repolish init` 会写一个把这三样都接上的 workflow——
+[每一个的行为](docs/04-usage.zh-CN.md)、[action 的输入项](action/README.md)。
 
 ### 退出码
 
@@ -304,7 +273,7 @@ repolish verify . --run --image python:3.12 --section 安装
 
 ## 卡片、表格与录屏
 
-repolish 画出来的每一张图都是**自包含、确定性的 SVG**：不引外部字体、不引脚本、不由我们托管，同一个 commit 逐字节一致。全部是**你自己仓库里**的普通文件。
+repolish 画出来的每一张图都是**自包含、确定性的 SVG**，全部是**你自己仓库里**的普通文件。
 
 ```bash
 repolish card .                 # .repolish/overview.svg —— 这个项目是什么

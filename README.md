@@ -62,7 +62,13 @@ reimplementation: it downloads the release binary for your platform, verifies it
 `.sha256`, and runs it — the checks are a single static Rust binary either way.
 
 <details>
-<summary>The other three ways</summary>
+<summary>The other four ways</summary>
+
+**Globally with npm**, for `repolish` on PATH:
+
+```bash
+npm install -g @asale/repolish
+```
 
 **One line**, which also drops the [agent skill](#for-coding-agents) into whichever agents
 it finds on the machine:
@@ -71,9 +77,8 @@ it finds on the machine:
 curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
 ```
 
-It downloads the binary, verifies its `.sha256`, and installs into `~/.local/bin`. POSIX
-`sh`, about 200 lines, doing exactly those four things — read it first if you would rather
-not pipe a script into a shell. `REPOLISH_VERSION`, `REPOLISH_BIN_DIR` and
+Same download and `.sha256` check, into `~/.local/bin`. POSIX `sh`, about 200 lines —
+read it first if you would rather not pipe a script into a shell. `REPOLISH_VERSION`, `REPOLISH_BIN_DIR` and
 `REPOLISH_TARGET` override the defaults.
 
 **With cargo**, needing Rust 1.88 or newer:
@@ -95,7 +100,7 @@ binary that cannot run; use `cargo install repolish` there. For the GitHub Actio
 ## Quick start
 
 ```bash
-repolish check .
+repolish check .   # or: npx @asale/repolish check .
 ```
 
 That is the whole thing. Here it is against `demo/sample`, written badly on purpose —
@@ -157,19 +162,6 @@ repolish check . --only license,ci-present
 `--remote` reads `GITHUB_TOKEN` or `GH_TOKEN`; without one, the anonymous quota is 60
 requests per hour.
 
-### Styling what it inserts
-
-```bash
-repolish polish . --badge-style for-the-badge --toc-style fold --align center
-repolish polish . --logo assets/hero.svg --logo-width full --tree-depth 2
-repolish polish . --visuals         # --overview --footer-card --tables svg
-```
-
-Also settable under `[readme]` in `.repolish.toml`
-([the full list](docs/02-cli-design.md)). **None of it moves a score** — the check list
-and weights are frozen at v1, so a repository cannot look better by picking a different
-badge style.
-
 ### Fixing what can be fixed
 
 ```bash
@@ -190,6 +182,10 @@ reference-style link definitions and line endings survive byte for byte. `--appl
 to run outside a git repository unless you pass `--force`, because `git checkout` is the
 undo button.
 
+Badge style, table of contents style, alignment, logo and the SVG visuals are flags, or
+`[readme]` keys in `.repolish.toml`. **None of them move a score**
+— [the full list](docs/04-usage.md).
+
 ### The three things it cannot write for you
 
 ```bash
@@ -198,18 +194,9 @@ repolish polish . --suggest         # needs REPOLISH_LLM_API_KEY
 
 The heaviest checks are the ones no mechanical rule can satisfy: the tagline (Critical),
 the quick start (Critical), the usage example (High). `--suggest` drafts those three, and
-only those three.
-
-**No model in the scoring path** is a rule about *scoring*, and it has not moved — run
-`check` before and after, the number is identical. Extending it to *fixing* was the
-mistake: it left `polish` inserting badges while the author was stuck on the sentence
-under the title.
-
-The boundary sits elsewhere, and is stricter. It **never writes**, not even with
-`--apply`. It **only fills gaps**, never rewriting what is there. And it **cannot
-invent**: given the repository's real manifest, it is told to leave a suggestion empty
-rather than make one up — a fabricated install command being exactly what
-`claim-consistency` was built to catch. [Why each](docs/02-cli-design.md).
+only those three. It **never writes**, not even with `--apply`; it **only fills gaps**;
+and it **cannot invent** — told to leave a suggestion empty rather than make one up.
+[Why each, and why the scoring path is still model-free](docs/04-usage.md).
 
 ### As a CI gate
 
@@ -227,10 +214,7 @@ Anywhere else the exit code is the gate: `repolish check . --remote --min-score 
 Exit 1 means the score was too low; exit 4 means the GitHub call failed — deliberately
 different, so a rate limit never reads as a regression.
 
-#### On a pull request, the change is the story
-
-An absolute score tells a reviewer nothing. *This pull request dropped it four points,
-because the link on line 42 stopped resolving* tells them what to do.
+On a pull request the *change* is the story, not the absolute number:
 
 ```bash
 repolish check . --base origin/main
@@ -238,14 +222,8 @@ repolish check . --sarif repolish.sarif    # one annotation per finding, on its 
 repolish check . --comment comment.md      # the short form, for a PR comment
 ```
 
-`--base` checks the baseline out into a **temporary git worktree** and scores it with the
-identical options — your working tree is never touched, a local score is never compared
-against a remote one, and the report lists only the checks that moved.
-
-Every deduction has carried a file and a line since the first release; SARIF is what puts
-them **in the diff** instead of in a log nobody expands. `repolish init` writes a workflow
-wiring all three up on every pull request — see
-[action/README.md](action/README.md).
+`repolish init` writes a workflow wiring all three up —
+[how each behaves](docs/04-usage.md), [the Action's inputs](action/README.md).
 
 ### Exit codes
 
@@ -309,10 +287,9 @@ repolish demo .                 # run the CLI and record it as an animated SVG
 repolish polish . --apply --visuals   # insert all of the above into the README
 ```
 
-Everything repolish draws is a **self-contained, deterministic SVG**: no external fonts,
-no scripts, nothing hosted by us, and the same commit renders a byte-identical file. It is
-a plain file in **your** repository, so it cannot go 404 on you, rate-limit you, or log
-who read your README.
+Everything repolish draws is a **self-contained, deterministic SVG**, and a plain file in
+**your** repository — so it cannot go 404 on you, rate-limit you, or log who read your
+README.
 
 **Where each one goes is the point.** The overview card belongs at the top, under the
 badges. The report card belongs at the [end](#polished-with-repolish) — at the top, the
