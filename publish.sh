@@ -535,4 +535,4 @@ fi
 
 printf '\n%sv%s%s\n' "$GREEN" "$NEW" "$RESET"
 info "cargo install repolish"
-info "npx $NPM_PKG check ."
+info "npx $NPM_PKG"
