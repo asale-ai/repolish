@@ -21,7 +21,7 @@ worse — artifacts that came from different scoring results.
 
 ### Stages
 
-`--stages` picks which parts run; the default is `check,polish,artifacts,ci`. Order is
+`--stages` picks which parts run; the default is `check,polish,artifacts,ci,demo`. Order is
 execution order, and it matters: `polish` may insert a reference to a card that
 `artifacts` then has to draw.
 
@@ -32,10 +32,12 @@ execution order, and it matters: `polish` may insert a reference to a card that
 | `artifacts` | `.repolish/badge.json`, the banner, the cards, and every SVG the README already references | yes |
 | `ci` | `.github/workflows/repolish.yml` | yes |
 | `skill` | `SKILL.md`, or an agent's own directory with `--target` | no |
-| `demo` | `.repolish/demo.svg` — **executes** the commands it records | no |
+| `demo` | `.repolish/demo.svg` — **executes** the commands it records | yes, but it only prints the list until `--apply` |
 
-`skill` and `demo` are out of the default on purpose. `skill` writes a file only agent
-users need; `demo` runs arbitrary commands out of the README, which no default should do.
+`skill` is out of the default on purpose: it writes a file only agent users need. `demo`
+is in it, but running the commands is not — without `--apply` the stage prints the list it
+would execute and stops there. That list *is* the informed consent; a default run cannot
+execute arbitrary commands out of a README behind the author's back.
 
 ```
 repolish --stages check --format json      # for CI to consume
@@ -89,7 +91,7 @@ exactly one thing is being produced: one `--stages`, and — for `artifacts` —
 | `-v` | Expand every check, the passing list, and the full contents of every new file |
 | `--apply` | Write. Without it nothing is written except `--sarif` / `--comment` |
 | `--force` | Overwrite existing files, and write outside a git repository |
-| `--stages <list>` | Default `check,polish,artifacts,ci` |
+| `--stages <list>` | Default `check,polish,artifacts,ci,demo` |
 | `--artifact <list>` | Restrict the `artifacts` stage to `badge`, `report`, `hero`, `overview`, `score`, `tables` |
 | `--no-visuals` | Leave the README's visuals alone. The cards and SVG tables are on by default |
 
@@ -366,9 +368,9 @@ commit · version.
 
 ### `.repolish/tables/*.svg`
 
-One image per README table. `polish --tables svg` generates them and inserts the
-references the first time; `card --kind tables` redraws them afterwards, and only for
-tables `polish` has already wrapped — drawing one for an unwrapped table would leave an
+One image per README table. `--stages polish --tables svg` generates them and inserts the
+references the first time; `--stages artifacts --artifact tables` redraws them afterwards,
+and only for tables `polish` has already wrapped — drawing one for an unwrapped table would leave an
 orphan file that nothing points at.
 
 **The original table is kept**, folded into a `<details>` immediately below the image. An
@@ -399,8 +401,9 @@ package registry renders SVG (crates.io does; npm and PyPI sanitise more aggress
 
 **It really runs the commands.** That is deliberate: a tool whose job is checking that a
 README's promises are true has no business faking its own demo. The cost is that it
-executes programs on the user's machine, which is why `--dry-run` exists and why the help
-text says so.
+executes programs on the user's machine, which is why nothing runs without `--apply`: the
+stage prints the commands it would execute and stops. That printed list is the consent,
+and the help text says so.
 
 Two hard limits, documented in `repolish-render/src/cast.rs`:
 
@@ -555,7 +558,7 @@ toc-style   = "bullet"     # bullet | number | roman | fold
 logo        = "assets/hero.svg"
 logo-width  = "full"       # a pixel count, or "full" → width="100%"
 tree-depth  = 2            # omitted = no project tree
-theme       = "dark"       # 12 palettes; see docs/themes/
+theme       = "dark"       # 14 palettes; see docs/themes/
 lang        = "auto"       # auto | en | zh-CN | ja
 overview    = true         # insert the overview card under the badges
 footer-card = true         # insert the score card at the end, under its own heading
@@ -609,7 +612,7 @@ where any agent keeps its skills.
 
 | Variable | Default | Effect |
 |---|---|---|
-| `REPOLISH_VERSION` | latest release | Install a specific tag, e.g. `v0.3.0` |
+| `REPOLISH_VERSION` | latest release | Install a specific tag, e.g. `v0.5.0` |
 | `REPOLISH_BIN_DIR` | `~/.local/bin` | Where the binary goes |
 | `REPOLISH_TARGET` | `detect` | Which agents get the skill: `detect`, `all`, `none`, or one id |
 | `REPOLISH_NO_SKILL` | unset | Set to `1` for the binary only |
@@ -630,9 +633,11 @@ The composite action is defined in **`action.yml` at the repository root** (`use
 owner/repo@ref` only looks there); `action/` holds usage examples. It downloads the
 platform binary and runs it, an order of magnitude faster than a Docker action.
 
-To avoid duplicate API calls the action runs `check` **once**, using `--badge --report` so
-one run produces every artifact. Separate runs could produce artifacts from different
-scores.
+To avoid duplicate API calls the action makes **one** invocation — `--stages
+check,artifacts --apply` whenever anything has to be written — so the badge JSON, the
+cards and the report all come out of the same scoring run. Separate runs could produce
+artifacts from different scores. The badge is written by default; `--no-badge` is what the
+action adds when its `badge` input is off.
 
 Two defaults in the generated workflow must not be changed: `fetch-depth: 0` (otherwise
 `release-hygiene` can never decide in CI, since the default depth fetches no tags) and the

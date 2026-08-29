@@ -20,7 +20,7 @@ repolish --apply                 # 落盘
 
 ### 阶段
 
-`--stages` 决定跑哪几段，默认是 `check,polish,artifacts,ci`。顺序即执行顺序，而顺序是
+`--stages` 决定跑哪几段，默认是 `check,polish,artifacts,ci,demo`。顺序即执行顺序，而顺序是
 有意义的：`polish` 可能刚插入了一张卡片的引用，`artifacts` 紧接着才画得出那张图。
 
 | 阶段 | 写什么 | 在默认流程里 |
@@ -30,10 +30,11 @@ repolish --apply                 # 落盘
 | `artifacts` | `.repolish/badge.json`、横幅、两张卡片，以及 README 已经引用的每一张 SVG | 是 |
 | `ci` | `.github/workflows/repolish.yml` | 是 |
 | `skill` | `SKILL.md`；带 `--target` 时写进智能体自己的目录 | 否 |
-| `demo` | `.repolish/demo.svg`——会**执行**它录下的命令 | 否 |
+| `demo` | `.repolish/demo.svg`——会**执行**它录下的命令 | 是，但不加 `--apply` 就只打印清单 |
 
-`skill` 和 `demo` 不在默认里是有意的。前者写的文件只有用智能体的人需要；后者会执行
-README 里的任意命令，那不是一个默认动作该做的事。
+`skill` 不在默认里是有意的：它写的文件只有用智能体的人需要。`demo` **在**默认里，但
+「执行那些命令」不在——不加 `--apply` 时它只打印将要执行的清单就停下。那份清单就是
+执行前的知情同意；一次默认运行不能背着作者去跑 README 里的任意命令。
 
 ```
 repolish --stages check --format json      # 供 CI 消费
@@ -85,7 +86,7 @@ repolish --suggest                         # 请模型写它写不了的那三�
 | `-v` | 展开全部检查项、通过清单，以及每个新文件的完整内容 |
 | `--apply` | 落盘。不加它，除 `--sarif` / `--comment` 外什么都不写 |
 | `--force` | 覆盖已存在的文件，并允许在非 git 目录下写 |
-| `--stages <list>` | 默认 `check,polish,artifacts,ci` |
+| `--stages <list>` | 默认 `check,polish,artifacts,ci,demo` |
 | `--artifact <list>` | 把 `artifacts` 阶段限定到 `badge`、`report`、`hero`、`overview`、`score`、`tables` |
 | `--no-visuals` | 不动 README 的视觉产物。卡片与 SVG 表格默认是开的 |
 
@@ -320,7 +321,7 @@ OWNER / REPO / BRANCH 从 git remote 与当前分支推断，推断失败则提�
 
 ### `.repolish/tables/*.svg`
 
-README 里每一张表格画成的图。`polish --tables svg` 第一次生成并插入引用，`card --kind tables` 此后重画。
+README 里每一张表格画成的图。`--stages polish --tables svg` 第一次生成并插入引用，`--stages artifacts --artifact tables` 此后重画。
 
 **原表格必须留着**，折进紧挨在图下面的 `<details>` 里。图片没有文本层：读屏软件、`grep`、翻译工具，以及下一个想改这张表的人，读的都是折起来的那一份。这不是可选项。
 
@@ -334,7 +335,7 @@ README 里每一张表格画成的图。`polish --tables svg` 第一次生成并
 
 **录制与渲染都在这个仓库里。** 早先的做法是生成一份 [VHS](https://github.com/charmbracelet/vhs) tape 交给用户自己渲染，但 VHS 要 ttyd 和 ffmpeg，产出的是 GIF，而 GIF 与本仓库对自己每一个产物的三条约束全不相容：二进制大块会撑肥 git 历史；没有文本层意味着录屏里那行命令复制不走、`grep` 也找不到；而要求使用者先装一条视频工具链，对一个「让你的仓库体面起来」的工具来说是本末倒置。`--tape` 仍然保留，因为不是每个包平台都渲染 SVG（crates.io 渲染，npm 与 PyPI 对 README 的 HTML 消毒更狠）。
 
-**它真的会跑那些命令。** 这是刻意的：一个专门检查「README 承诺的命令是否真的存在」的工具，自己的演示不能是编的。代价是它会在使用者的机器上执行程序，所以 `--dry-run` 存在，并且这一点写在 `--help` 里。
+**它真的会跑那些命令。** 这是刻意的：一个专门检查「README 承诺的命令是否真的存在」的工具，自己的演示不能是编的。代价是它会在使用者的机器上执行程序，所以不加 `--apply` 就什么都不跑：这一阶段先把将要执行的命令清单打印出来就停下。那份清单就是执行前的知情同意，`--help` 里也这么写。
 
 两处硬限制，写在 `repolish-render/src/cast.rs` 上：
 
@@ -426,7 +427,7 @@ toc-style   = "bullet"     # bullet | number | roman | fold
 logo        = "assets/hero.svg"
 logo-width  = "full"       # 像素数，或 "full" → width="100%"
 tree-depth  = 2            # 缺省 = 不生成目录树
-theme       = "dark"       # SVG 产物的色板，共 12 套，见 docs/themes/
+theme       = "dark"       # SVG 产物的色板，共 14 套，见 docs/themes/
 lang        = "auto"       # auto | en | zh-CN | ja，SVG 里那些字的语言
 overview    = true         # 徽章下面插一张概览卡片
 footer-card = true         # 末尾插分数卡片与「用 repolish 打磨」一节
@@ -464,7 +465,7 @@ tables      = "svg"        # keep | svg
 
 | 变量 | 缺省 | 作用 |
 |---|---|---|
-| `REPOLISH_VERSION` | 最新发布 | 装指定 tag，例如 `v0.3.0` |
+| `REPOLISH_VERSION` | 最新发布 | 装指定 tag，例如 `v0.5.0` |
 | `REPOLISH_BIN_DIR` | `~/.local/bin` | 二进制装到哪 |
 | `REPOLISH_TARGET` | `detect` | 技能装给谁：`detect`、`all`、`none`，或某一个 id |
 | `REPOLISH_NO_SKILL` | 未设 | 设成 `1` 则只装二进制 |
@@ -480,8 +481,10 @@ Linux 版只有 glibc 构建，所以脚本探测到 musl 就直说并停下，�
 composite action 定义在**仓库根目录的 `action.yml`**（`uses: owner/repo@ref` 只认根目录），
 `action/` 下放用法示例。它下载对应平台的二进制并执行，比 Docker action 快一个数量级。
 
-为省掉重复的 API 调用，action 只跑一次 `check`，用 `--badge --report` 让同一次运行
-写出全部产物——分开跑意味着几份产物可能来自不同次的评分。
+为省掉重复的 API 调用，action 只发起**一次**调用——需要写东西时是 `--stages
+check,artifacts --apply`——让徽章 JSON、两张卡片和报告都出自同一次评分；分开跑意味着
+几份产物可能来自不同次的评分。徽章是默认写的，action 的 `badge` 输入关掉时它加的是
+`--no-badge`。
 
 `ci` 阶段生成的 workflow 模板：
 

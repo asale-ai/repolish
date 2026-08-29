@@ -159,7 +159,7 @@ badly on purpose; both scores in it are whatever that run actually produced.
 <summary>What a run looks like, as text</summary>
 
 ```text
-  acme/taskvault  · cli (detected) · local · 52d9d0e4
+  acme/taskvault  · cli (detected) · local · 6bf64fca
 
   SCORE   23 / 100    poor        ▄▄▄▄▄▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
 
@@ -171,17 +171,29 @@ badly on purpose; both scores in it are whatever that run actually produced.
 
   ── TO FIX ──────────────────────────────────────────────────────────────
 
+   P1  claim-consistency
+       1 of the 1 verifiable command claims in the README no longer work.
+       Typing the first command from a README and getting an error is the
+       fastest way to lose a user
+       └ README.md:8  `scripts/setup.sh` — does not exist in the
+         repository
+
    P1  license
        Add a LICENSE file. No license means all rights reserved — legally,
        nobody may use your code
        └ .  no LICENSE file in the repository root
 
-  WOULD WRITE (6 files)
+  WOULD WRITE (10 files)
+    README.md                                   +14 lines
+    .repolish/hero.svg                          new file
+    .repolish/badge.json                        score badge
+    .repolish/overview.svg                      new file
+    .repolish/card.svg                          new file
     .github/ISSUE_TEMPLATE/bug_report.yml       new file
+    .github/ISSUE_TEMPLATE/feature_request.yml  new file
     .github/pull_request_template.md            new file
     CONTRIBUTING.md                             new file
-    .repolish/badge.json                        score badge
-    .github/workflows/repolish.yml              CI workflow
+    .github/workflows/repolish.yml              CI workflow, score recorded not enforced
 
   Nothing was written. Apply with: npx @asale/repolish --apply
 ```

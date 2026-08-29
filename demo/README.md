@@ -18,7 +18,7 @@ A real before-and-after, not a staged one:
 
 1. `repolish` against `sample/`, a deliberately rough repository — 23/100
 2. `repolish --apply`
-3. `repolish` again — 34/100
+3. `repolish` again — 42/100
 
 The scores are whatever that run actually produced. A tool whose whole job is checking
 that a README's promises are true has no business faking its own demo.

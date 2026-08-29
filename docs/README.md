@@ -19,7 +19,7 @@ reference the README links out to, and grows with the CLI rather than being froz
 
 ## Status
 
-v0.3.0 is published to GitHub Releases. 22 checks are frozen, and the JSON schema is
+v0.5.0 is published to GitHub Releases. 22 checks are frozen, and the JSON schema is
 frozen at `schemaVersion: 1`.
 
 - Language: **Rust** (MSRV 1.88)

@@ -18,7 +18,7 @@
 
 ## 当前状态
 
-v0.3.0 已发布到 GitHub Releases。22 个检查项冻结，JSON schema 冻结在 `schemaVersion: 1`。
+v0.5.0 已发布到 GitHub Releases。22 个检查项冻结，JSON schema 冻结在 `schemaVersion: 1`。
 
 - 语言：**Rust**（MSRV 1.88）
 - 形态：**仅 CLI** + GitHub Action，不做托管服务
