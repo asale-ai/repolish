@@ -1835,7 +1835,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "repolish"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "clap",
  "dunce",
@@ -1852,7 +1852,7 @@ dependencies = [
 
 [[package]]
 name = "repolish-checks"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "repolish-core",
  "repolish-ingest",
@@ -1861,7 +1861,7 @@ dependencies = [
 
 [[package]]
 name = "repolish-core"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "repolish-ingest",
  "serde",
@@ -1870,7 +1870,7 @@ dependencies = [
 
 [[package]]
 name = "repolish-ingest"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "dunce",
@@ -1885,14 +1885,14 @@ dependencies = [
 
 [[package]]
 name = "repolish-md"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "comrak",
 ]
 
 [[package]]
 name = "repolish-render"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "repolish-core",
  "repolish-ingest",
