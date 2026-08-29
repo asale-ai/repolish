@@ -1,6 +1,6 @@
 {
   "name": "@asale/repolish",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Scores what your open-source repo looks like to a first-time visitor, and checks that the commands your README promises actually exist.",
   "keywords": ["readme", "documentation", "lint", "cli", "open-source", "repository"],
   "homepage": "https://github.com/asale-ai/repolish#readme",

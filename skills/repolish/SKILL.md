@@ -59,7 +59,7 @@ matters: without it npx stops to ask, and you are not at a terminal to answer.
 
 That package is a launcher — it downloads the release binary, verifies its
 `.sha256` and execs it, forwarding the exit code, which is what `--min-score`
-and `verify` depend on. The current version is 0.3.0.
+and `verify` depend on. The current version is 0.3.1.
 
 If the user would rather have it on PATH permanently, this installs the binary
 into `~/.local/bin` and drops this skill into whichever agents it finds:

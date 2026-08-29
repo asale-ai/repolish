@@ -190,7 +190,7 @@ repolish polish . --suggest         # 需要 REPOLISH_LLM_API_KEY
 在 GitHub 上，action 直接收阈值：
 
 ```yaml
-- uses: asale-ai/repolish@v0.3.0
+- uses: asale-ai/repolish@v0.3.1
   with:
     min-score: 70
   env:
