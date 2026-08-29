@@ -298,24 +298,39 @@ jobs:
   # 跟着 `publish`：壳要下载的正是那个 job 传上去的产物。发在它前面，
   # 每一次 `npx` 都会 404 到二进制追上来为止。
   #
-  # 没有 NPM_TOKEN secret 时这个 job 什么都不做。publish.sh 用 .env 里的
-  # token 发同一个版本,两条路都跳过已发布的版本——谁后跑谁是空操作。
-  # 作用域包的 public 写在 package.json 的 publishConfig 里,不靠命令行记住。
+  # **没有 NPM_TOKEN secret,而且不该有。** 用的是 trusted publishing：
+  # 下面那个 `id-token: write` 就是凭据——npm 拿 GitHub 签发的 OIDC token
+  # 换一个几分钟就过期的发布凭据。一个长期有效的 automation token 存在仓库里,
+  # 泄漏一次就是永久的；这条路上没有任何东西可以泄漏。
+  #
+  # 代价是 npm 侧要先配一次,而且**只能在包已经存在之后配**——配置项在
+  # https://www.npmjs.com/package/@asale/repolish/access 底下,包不存在就没有
+  # 那个页面（npm/cli#8544）。所以第一个版本得用别的方式发一次,
+  # 见 publish.sh --local-npm。
   npm:
     needs: publish
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # `npm publish --provenance` 要签一份来源证明。同一条思路:
-      # 二进制配 .sha256、npm 包配 provenance——使用者能自己核对拿到的是什么。
+      # 这一行就是发布凭据本身，不是给别的东西用的附加权限
       id-token: write
     steps:
       - uses: actions/checkout@v4
+
+      # 不设 registry-url。setup-node 会为它写一个引用 NODE_AUTH_TOKEN 的
+      # .npmrc,而我们没有那个变量——留着就是让 npm 拿一个空 token 去认证。
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
+
+      # trusted publishing 要 npm >= 11.5.1，Node 自带的未必够新。
+      # 版本不够时的报错是「需要认证」,一个字都不会提到版本——
+      # 所以这一步不是保险，是必需的。
+      - name: Get an npm that can do trusted publishing
+        run: |
+          npm install -g npm@latest
+          echo "npm $(npm -v) on node $(node -v)"
 
       # 包版本就是下载 URL 的一部分。对不上的话，npm 上装到的是一个
       # 版本号说 A、二进制是 B 的东西——最难查的那一类问题。
@@ -331,22 +346,28 @@ jobs:
           node npm/test.js
 
       - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::warning::NPM_TOKEN is not set; skipping the npm release"
-            exit 0
-          fi
           version="${GITHUB_REF_NAME#v}"
-          pkg=$(node -p "require('./npm/package.json').name")
-          # publish.sh 用 .env 里的 token 也会发同一个版本。两边都跳过已发布的
-          # 版本,所以谁后跑谁就是空操作,而不是一个失败。
-          if npm view "$pkg@$version" version >/dev/null 2>&1; then
-            echo "$pkg@$version is already on npm — skipping"
+          name=$(node -p "require('./npm/package.json').name")
+
+          # 问真 registry。镜像上「有没有这个版本」的答案说明不了任何事。
+          if npm view "$name@$version" version \
+               --registry https://registry.npmjs.org/ > /dev/null 2>&1; then
+            echo "$name@$version is already on npm — skipping"
             exit 0
           fi
+
+          # --provenance 显式给。npm 文档说 trusted publishing 会自动产出
+          # provenance,实践中不给这个开关会发不出去。
           cd npm
-          npm publish --provenance
-          echo "Published https://www.npmjs.com/package/$pkg/v/$version" >> "$GITHUB_STEP_SUMMARY"
+          if ! npm publish --provenance; then
+            echo "::error::npm publish failed. If the message above is about \
+          authentication, trusted publishing is not configured yet: go to \
+          https://www.npmjs.com/package/$name/access and add a trusted publisher for \
+          ${GITHUB_REPOSITORY}, workflow release.yml. npm only offers that setting once \
+          the package exists, so the first version has to go out another way — \
+          see publish.sh --local-npm."
+            exit 1
+          fi
+          echo "Published https://www.npmjs.com/package/$name/v/$version" >> "$GITHUB_STEP_SUMMARY"

@@ -11,13 +11,15 @@
 #   ./publish.sh --minor "add the overview card"
 #   ./publish.sh --version 1.0.0 "first stable release"
 #   ./publish.sh --clawhub "publish the skill to ClawHub too"
-#   ./publish.sh --no-npm "skip the npm package this time"
+#   ./publish.sh --local-npm "publish the npm package from here"
 #   ./publish.sh --dry-run "see what would happen"
 #
-# npm is published from here rather than from CI, because the token lives in
-# .env on this machine. It runs after the release workflow, not before: the
-# package is a launcher that downloads the release binary, so publishing it
-# ahead of the binaries would ship a version that cannot install.
+# npm goes out from the release workflow, over trusted publishing: GitHub mints
+# a short-lived OIDC token and npm accepts it, so no long-lived credential exists
+# on this machine or in the repository. --local-npm is the escape hatch, and the
+# only way to publish a package npm has never seen — the trusted-publisher
+# setting lives under a package page, which a package that does not exist does
+# not have.
 #
 # There is no interactive confirmation anywhere. Everything that could need a
 # decision is a flag with a documented default.
@@ -32,7 +34,7 @@ DRY_RUN=0
 WITH_CLAWHUB=0
 SKIP_TESTS=0
 LOCAL_CRATES=0
-WITH_NPM=1
+LOCAL_NPM=0
 MESSAGE=""
 
 # The npm package is scoped; the binary it installs is still called `repolish`.
@@ -70,7 +72,10 @@ Flags:
   --skip-tests                  Skip the local cargo test (CI still gates the PR)
   --local-crates                Publish to crates.io from here instead of letting
                                 the release workflow do it. Needs a local token
-  --no-npm                      Skip publishing the npm package
+  --local-npm                   Publish the npm package from here with a token
+                                from .env, instead of letting the release
+                                workflow do it over trusted publishing. Needed
+                                for a package npm has never seen
   --dry-run                     Print what would happen; change nothing
   -h, --help                    This text
 EOF
@@ -85,7 +90,7 @@ while [ $# -gt 0 ]; do
     --clawhub) WITH_CLAWHUB=1; shift ;;
     --skip-tests) SKIP_TESTS=1; shift ;;
     --local-crates) LOCAL_CRATES=1; shift ;;
-    --no-npm) WITH_NPM=0; shift ;;
+    --local-npm) LOCAL_NPM=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) die "unknown flag: $1 (try --help)" ;;
@@ -115,28 +120,29 @@ gh auth status > /dev/null 2>&1 || die "gh is not authenticated; run: gh auth lo
 git rev-parse --git-dir > /dev/null 2>&1 || die "not a git repository"
 git remote get-url origin > /dev/null 2>&1 || die "no 'origin' remote configured"
 
-# The npm token lives in .env, not in the environment, so read it here rather
-# than asking whoever runs this to remember an export. Only this one variable is
-# taken: sourcing the whole file would drop CARGO_API_KEY and GITHUB_TOKEN into
-# the shell that is about to run cargo and gh, which is a surprise nobody asked
-# for.
-# The name matches the repository secret the release workflow reads, so there is
-# one name to remember rather than two that drift.
+# Only --local-npm needs a token. The default path has none by design: the
+# workflow authenticates with an OIDC token GitHub mints for that one run.
+#
 # Environment first, .env as the fallback: an exported token is an explicit
-# choice for this run, and a file is what is there by default.
+# choice for this run, and a file is what is there by default. Only this one
+# variable is read — sourcing the whole file would drop CARGO_API_KEY and
+# GITHUB_TOKEN into the shell that is about to run cargo and gh, which is a
+# surprise nobody asked for.
 NPM_TOKEN="${NPM_TOKEN:-}"
-if [ "$WITH_NPM" = "1" ] && [ -z "$NPM_TOKEN" ] && [ -f .env ]; then
+if [ "$LOCAL_NPM" = "1" ] && [ -z "$NPM_TOKEN" ] && [ -f .env ]; then
   NPM_TOKEN=$(sed -n 's/^NPM_TOKEN=//p' .env | tr -d '"\r\n' | head -1)
 fi
 
-if [ "$WITH_NPM" = "1" ] && [ "$DRY_RUN" = "0" ]; then
+if [ "$LOCAL_NPM" = "1" ] && [ "$DRY_RUN" = "0" ]; then
   # Finding out the token is missing after the tag is pushed is the worst
   # possible moment — the tag is immutable, so the release cannot be redone.
-  command -v node > /dev/null || die "node is not installed, and the npm package needs it.
-Install node, or pass --no-npm."
-  command -v npm  > /dev/null || die "npm is not installed. Install it, or pass --no-npm."
-  [ -n "$NPM_TOKEN" ] || die "no NPM_TOKEN in .env.
-Add a line 'NPM_TOKEN=npm_...' to .env, or pass --no-npm."
+  command -v node > /dev/null || die "node is not installed, and the npm package needs it."
+  command -v npm  > /dev/null || die "npm is not installed."
+  [ -n "$NPM_TOKEN" ] || die "--local-npm needs a token, and there is no NPM_TOKEN in .env.
+Note that npm 2FA rejects an ordinary token with EOTP; publish interactively
+instead, which creates no long-lived credential at all:
+    npm login  --registry $NPM_REGISTRY
+    cd $NPM_DIR && npm publish --registry $NPM_REGISTRY"
 fi
 
 if [ "$LOCAL_CRATES" = "1" ] && [ "$DRY_RUN" = "0" ]; then
@@ -451,14 +457,39 @@ fi
 # postinstall downloads repolish-v$NEW-<target> from the GitHub release and
 # verifies the .sha256 next to it. Published first, every `npx` would 404 until
 # the binaries caught up.
-if [ "$WITH_NPM" = "1" ]; then
-  step "Publishing $NPM_PKG to npm"
+if [ "$LOCAL_NPM" = "0" ]; then
+  # The workflow published it over trusted publishing while we watched the run
+  # above. Confirm rather than assume: that job is allowed to skip itself, and a
+  # release that quietly did not reach npm is the failure this whole script
+  # exists to prevent.
+  step "Confirming $NPM_PKG@$NEW reached npm"
+  if [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] npm view $NPM_PKG@$NEW"
+  else
+    ON_NPM=0
+    for _ in $(seq 1 20); do
+      if npm view "$NPM_PKG@$NEW" version --registry "$NPM_REGISTRY" > /dev/null 2>&1; then
+        ON_NPM=1; break
+      fi
+      sleep 5
+    done
+    if [ "$ON_NPM" = "1" ]; then
+      info "${GREEN}https://www.npmjs.com/package/$NPM_PKG/v/$NEW${RESET}"
+    else
+      warn "$NPM_PKG@$NEW is not on npm.
+If the npm job failed on authentication, trusted publishing is not configured:
+    https://www.npmjs.com/package/$NPM_PKG/access
+      -> add $REPO_SLUG, workflow release.yml
+npm only offers that setting once the package exists, so a package it has never
+seen has to be published once with --local-npm first.
+The tag and the binaries are already out; publishing npm afterwards is safe."
+    fi
+  fi
+else
+  step "Publishing $NPM_PKG to npm from here"
   if [ "$DRY_RUN" = "1" ]; then
     info "[dry-run] npm publish $NPM_DIR ($NPM_PKG@$NEW)"
   elif npm view "$NPM_PKG@$NEW" version --registry "$NPM_REGISTRY" > /dev/null 2>&1; then
-    # The release workflow publishes this too when NPM_TOKEN is set as a
-    # repository secret. Both paths skip a version that is already up, so
-    # whichever runs second is a no-op rather than an error.
     info "$NPM_PKG@$NEW is already on npm — skipping"
   else
     # The token goes in a file scoped to this directory, not in ~/.npmrc and
@@ -483,9 +514,8 @@ if [ "$WITH_NPM" = "1" ]; then
     # by these tests, and this is the last moment they are free to run.
     node "$NPM_DIR/test.js" || { cleanup_npmrc; die "npm shim tests failed; nothing was published"; }
 
-    # --provenance signs a statement of where this was built. It needs a CI
-    # OIDC token, which a laptop does not have, so it is deliberately absent
-    # here; the release workflow adds it when it is the one publishing.
+    # No --provenance here: it needs a CI OIDC token, which a laptop does not
+    # have. The workflow passes it when the workflow is the one publishing.
     NPM_LOG="${TMPDIR:-/tmp}/repolish-npm-publish.log"
     if ! (cd "$NPM_DIR" && npm publish) 2>&1 | tee "$NPM_LOG"; then
       cleanup_npmrc
@@ -494,12 +524,14 @@ if [ "$WITH_NPM" = "1" ]; then
       if grep -q 'EOTP' "$NPM_LOG" 2>/dev/null; then
         rm -f "$NPM_LOG"
         die "npm wants a one-time password, and nothing here can supply one.
-The token in .env is not an automation token. Generate one at
-https://www.npmjs.com/settings/<your-user>/tokens with type 'Automation' —
-those are exempt from 2FA for publishing, which is exactly why CI uses them —
-then put it in .env as NPM_TOKEN and in the repository secret of the same name.
-Nothing was published; the tag and the binaries are already out, so re-running
-with --version $NEW --skip-tests picks up from here."
+Publish interactively instead — it creates no long-lived credential, which is
+the whole point of moving to trusted publishing:
+    npm login  --registry $NPM_REGISTRY
+    cd $NPM_DIR && npm publish --registry $NPM_REGISTRY
+Then configure trusted publishing at
+    https://www.npmjs.com/package/$NPM_PKG/access
+and every release after this one needs no token at all.
+Nothing was published; the tag and the binaries are already out."
       fi
       rm -f "$NPM_LOG"
       die "npm publish failed for $NPM_PKG@$NEW.
@@ -511,9 +543,9 @@ The tag and the binaries are already out. Re-run just this part with:
     cleanup_npmrc
     trap - EXIT
     info "${GREEN}https://www.npmjs.com/package/$NPM_PKG/v/$NEW${RESET}"
+    info "Now configure trusted publishing so this never needs a token again:"
+    info "  https://www.npmjs.com/package/$NPM_PKG/access"
   fi
-else
-  info "npm: skipped (--no-npm)"
 fi
 
 # ------------------------------------------------------------ clawhub
@@ -529,4 +561,4 @@ fi
 
 printf '\n%sv%s%s\n' "$GREEN" "$NEW" "$RESET"
 info "cargo install repolish"
-[ "$WITH_NPM" = "1" ] && info "npx $NPM_PKG check ."
+info "npx $NPM_PKG check ."

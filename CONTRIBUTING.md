@@ -58,9 +58,13 @@ where media queries are not reliable). There are tests for all three.
 ## Releasing
 
 Local credentials live in `.env`, which is gitignored — copy `.env.example` and fill in
-what you need. Only `scripts/publish-clawhub.sh` reads it; crates.io publishing runs in
-CI from a repository secret, so no registry token needs to sit on your machine.
+what you need. Only `scripts/publish-clawhub.sh` reads it. **No registry token needs to
+sit on your machine**: crates.io publishes in CI from a repository secret, and npm
+publishes over [trusted publishing][tp] — GitHub mints a short-lived OIDC token for that
+one workflow run, so there is no long-lived npm credential anywhere, in the repository or
+out of it.
 
+[tp]: https://docs.npmjs.com/trusted-publishers/
 
 ```bash
 ./publish.sh "what changed"          # patch bump
@@ -77,13 +81,25 @@ for the required checks, tag the commit that actually landed, watch
 **in dependency order** — `repolish-md`, `repolish-ingest`, `repolish-core`,
 `repolish-checks`, `repolish-render`, `repolish` — waiting for the index between
 each, because cargo rejects a crate whose path dependencies are not published
-yet.
+yet. Last, it publishes the npm launcher — a separate package,
+`@asale/repolish`, wrapping those same binaries so that
+`npx @asale/repolish check .` needs no toolchain — and then **confirms it
+actually reached the registry** rather than assuming the job ran. A release that
+quietly did not reach npm is exactly the failure this script exists to prevent.
 
 It is designed to be re-runnable. Crates already at the new version are skipped,
 so a partial failure is fixed by running it again with `--version X.Y.Z
 --skip-tests`. It refuses to start if the tree is dirty, if the branch is behind
 `main`, if the tag already exists, or if there are no crates.io credentials —
 each of those is far cheaper to hit before the tag is pushed than after.
+
+Two escape hatches, for when CI cannot do it: `--local-crates` and `--local-npm`
+publish from your machine instead. `--local-npm` is also the only way to publish
+a package npm has never seen, because the trusted-publisher setting lives under
+a package's own page — which a package that does not exist does not have. After
+that first release, configure it at
+`https://www.npmjs.com/package/@asale/repolish/access` and the flag is never
+needed again.
 
 ## The three rules that are not up for debate
 
