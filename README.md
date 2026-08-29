@@ -203,7 +203,7 @@ and it **cannot invent** — told to leave a suggestion empty rather than make o
 On GitHub, the action takes the threshold directly:
 
 ```yaml
-- uses: asale-ai/repolish@v0.3.0
+- uses: asale-ai/repolish@v0.3.1
   with:
     min-score: 70
   env:
