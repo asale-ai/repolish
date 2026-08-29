@@ -215,9 +215,15 @@ struct Cli {
     #[arg(long, value_enum)]
     tables: Option<style::TableStyle>,
 
-    /// Shorthand for --overview --footer-card --tables svg
+    /// Shorthand for --overview --footer-card --tables svg. On by default;
+    /// this only reasserts it after --no-visuals
     #[arg(long)]
     visuals: bool,
+
+    /// Leave the README's visuals alone: no overview card, no report card, and
+    /// tables stay as markdown
+    #[arg(long)]
+    no_visuals: bool,
 
     /// Also ask a model to draft the three pieces repolish cannot write
     /// mechanically: the tagline, the quick start and the usage example. Needs
@@ -334,6 +340,12 @@ impl Ledger {
     }
 
     /// 记一笔,`--apply` 时同时落盘。
+    ///
+    /// **同一个路径只占一行。** 两个阶段写同一个文件是正常的:`--visuals` 下
+    /// `polish` 要把卡片画出来,否则它刚插进 README 的 `<img>` 指向一个不存在
+    /// 的文件;`artifacts` 随后又会重画同一张——它才是重画的归属方。内容一致,
+    /// 但报成两行就等于告诉使用者「9 个文件」而实际只有 7 个,而这份清单唯一
+    /// 的价值就是它说的和落盘的是同一件事。后写的赢:`artifacts` 是权威。
     fn write(
         &mut self,
         root: &Path,
@@ -341,11 +353,19 @@ impl Ledger {
         contents: &str,
         note: impl Into<String>,
     ) -> Result<(), u8> {
+        let rel = relative(root, path);
+        if let Some(e) = self.entries.iter_mut().find(|e| e.rel == rel) {
+            if self.apply {
+                write_file(path, contents)?;
+            }
+            e.note = note.into();
+            return Ok(());
+        }
         if self.apply {
             write_file(path, contents)?;
         }
         self.entries.push(Entry {
-            rel: relative(root, path),
+            rel,
             note: note.into(),
         });
         Ok(())
@@ -455,7 +475,48 @@ fn run(cli: Cli) -> u8 {
     }
 
     report_ledger(&cli, &ledger);
+    report_untouched(&cli, &stages, &root);
     gate
+}
+
+/// 默认流水线跑完之后，说一句还有哪两段没跑。
+///
+/// `demo` 和 `skill` 刻意不在默认里，但「刻意」这件事只有我们知道——使用者
+/// 看到的是一份没有录屏、没有 SKILL.md 的产出，而输出里一个字都没提它们
+/// 存在过。两次被问「其他功能呢」之后，这段就是答案。
+///
+/// **产物已经在了就不再提。** 每次运行都催一遍已经做过的事，是噪音，
+/// 而噪音会让人连有用的那几行一起略过。
+fn report_untouched(cli: &Cli, stages: &[Stage], root: &Path) {
+    let missing = |s: Stage, path: &str| !stages.contains(&s) && !root.join(path).exists();
+    let demo = missing(Stage::Demo, demo::SVG_PATH);
+    let skill = missing(Stage::Skill, skill::SKILL_PATH);
+    if !demo && !skill {
+        return;
+    }
+
+    let inv = invocation();
+    say!(cli, "");
+    say!(cli, "  NOT RUN — these stages are opt-in");
+    if demo {
+        say!(
+            cli,
+            "    demo    record this CLI as an animated SVG   {inv} --stages demo"
+        );
+    }
+    if skill {
+        say!(
+            cli,
+            "    skill   teach a coding agent to drive this   {inv} --stages skill"
+        );
+    }
+    if demo {
+        say!(
+            cli,
+            "\n  `demo` RUNS the commands it records, so it prints the list first and \
+             only records under --apply."
+        );
+    }
 }
 
 /// 统一汇报「会写 / 写了」哪些文件。
@@ -559,6 +620,34 @@ fn stage_check(cli: &Cli, a: &mut Analysis) -> u8 {
     exit::OK
 }
 
+/// README 里那三样视觉产物开不开。
+///
+/// **默认全开。** `polish` 和 `artifacts` 必须算出同一个答案——前者决定往
+/// README 里插什么引用,后者决定画哪几张图,两边不一致就会留下一个指向
+/// 空文件的 `<img>`,或者一张没人引用的孤儿图。所以这里只有一份实现。
+///
+/// 优先级:单项命令行开关 > `--no-visuals` > 配置文件 > 默认(开)。
+/// 单项开关排在 `--no-visuals` 前面是有意的——同时给了这两个,说的是
+/// 「除了这一样,其余都别动」。
+struct Visuals {
+    overview: bool,
+    footer_card: bool,
+    tables: style::TableStyle,
+}
+
+fn visuals(cli: &Cli, cfg: &crate::config::Readme) -> Visuals {
+    let on = !cli.no_visuals;
+    Visuals {
+        overview: cli.overview || (on && cfg.overview.unwrap_or(true)),
+        footer_card: cli.footer_card || (on && cfg.footer_card.unwrap_or(true)),
+        tables: cli.tables.or(cfg.tables).unwrap_or(if on {
+            style::TableStyle::Svg
+        } else {
+            style::TableStyle::Keep
+        }),
+    }
+}
+
 /// 这个阶段是不是被单独点名跑的。
 ///
 /// 跑完整流水线时,`polish` 已经把徽章和图的引用插进 README 了,再printing
@@ -580,6 +669,7 @@ fn stage_polish(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
         }
     };
     let readme_raw = ctx.readme.as_ref().map(|r| r.raw.as_str()).unwrap_or("");
+    let v = visuals(cli, &cfg);
     let style = style::ReadmeStyle {
         badge: cli
             .badge_style
@@ -598,13 +688,9 @@ fn stage_polish(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
             .or(cfg.lang)
             .unwrap_or_default()
             .resolve(readme_raw),
-        overview: cli.overview || cli.visuals || cfg.overview.unwrap_or(false),
-        footer_card: cli.footer_card || cli.visuals || cfg.footer_card.unwrap_or(false),
-        tables: if cli.visuals {
-            style::TableStyle::Svg
-        } else {
-            cli.tables.or(cfg.tables).unwrap_or_default()
-        },
+        overview: v.overview,
+        footer_card: v.footer_card,
+        tables: v.tables,
     };
 
     let plan = polish::plan(ctx, &a.report, &style);
@@ -707,6 +793,7 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
         }
     };
     let opts = cli.common.card_options(ctx, &cfg);
+    let v = visuals(cli, &cfg);
 
     // 点名了就只做点到的；没点名就是「徽章 + README 已经引用的那些」。
     let named = !cli.artifact.is_empty();
@@ -718,14 +805,10 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
                 Artifact::Badge => !cli.no_badge,
                 Artifact::Report => cli.report,
                 Artifact::Overview => {
-                    cli.overview
-                        || cli.visuals
-                        || ctx.root.join(repolish_render::OVERVIEW_PATH).exists()
+                    v.overview || ctx.root.join(repolish_render::OVERVIEW_PATH).exists()
                 }
                 Artifact::Score => {
-                    cli.footer_card
-                        || cli.visuals
-                        || ctx.root.join(repolish_render::CARD_PATH).exists()
+                    v.footer_card || ctx.root.join(repolish_render::CARD_PATH).exists()
                 }
                 Artifact::Tables => true,
             }

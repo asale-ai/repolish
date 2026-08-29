@@ -125,7 +125,7 @@
   <circle cx="454" cy="236" r="5" fill="#43e5d0"/>
   <text class="t" x="844" y="240" font-size="12" fill="#8b87a3" text-anchor="end">18 项已评分 · 4 项未验证</text>
   <rect x="36" y="296" width="808" height="1" fill="#35334a"/>
-  <text class="t" x="36" y="320" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · 36ae226b</text>
-  <text class="t" x="844" y="320" font-size="12" fill="#8b87a3" text-anchor="end">repolish v0.3.1</text>
+  <text class="t" x="36" y="320" font-size="12" fill="#8b87a3" text-anchor="start">asale-ai/repolish · bfbb75e5</text>
+  <text class="t" x="844" y="320" font-size="12" fill="#8b87a3" text-anchor="end">repolish v0.4.0</text>
   <text class="t" x="36" y="338" font-size="11" fill="#8b87a3" text-anchor="start">评分过程确定，不涉及任何模型。</text>
 </svg>

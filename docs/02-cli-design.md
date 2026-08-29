@@ -91,6 +91,7 @@ exactly one thing is being produced: one `--stages`, and — for `artifacts` —
 | `--force` | Overwrite existing files, and write outside a git repository |
 | `--stages <list>` | Default `check,polish,artifacts,ci` |
 | `--artifact <list>` | Restrict the `artifacts` stage to `badge`, `report`, `overview`, `score`, `tables` |
+| `--no-visuals` | Leave the README's visuals alone. The cards and SVG tables are on by default |
 
 `--sarif` and `--comment` are the two exceptions to `--apply`: naming an output path *is*
 the request, and neither writes into the repository's own tree by default.

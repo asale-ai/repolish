@@ -156,7 +156,7 @@ npx @asale/repolish --apply
 |---|---|
 | `check` | 给仓库打分并打印报告 |
 | `polish` | 能机械落实的那些改动：徽章、用你自己的标题生成的目录、GitHub 的 issue 与 PR 模板，以及一份构建和测试命令来自探测到的包清单的 `CONTRIBUTING.md` |
-| `artifacts` | 写 `.repolish/badge.json`，并重画 README 已经引用的每一张 SVG |
+| `artifacts` | 写 `.repolish/badge.json`，画出概览卡与分数卡，并重画 README 已经引用的每一张 SVG |
 | `ci` | 写 `.github/workflows/repolish.yml` |
 
 **推不出来就不写。** 没有包清单就没有 `CONTRIBUTING.md`——另一条路是写一份
@@ -168,7 +168,7 @@ npx @asale/repolish --apply
 | 阶段 | 为什么要显式点名 |
 |---|---|
 | `skill` | 写 `SKILL.md`，只有用编码智能体的人才需要 |
-| `demo` | 会**真的执行**它录下的命令，那不是一个默认动作该做的事 |
+| `demo` | 会**真的执行**它录下的命令，那不是一个默认动作该做的事。跳过它的那次运行会在末尾提醒你 |
 
 ## 怎么控制它
 
@@ -264,7 +264,8 @@ npx @asale/repolish --stages check --comment comment.md    # 短报告，给 PR 
 ## 卡片与录屏
 
 ```bash
-npx @asale/repolish --apply --visuals           # 插入卡片与 SVG 表格，并把图画出来
+npx @asale/repolish --apply                     # 已含卡片与 SVG 表格
+npx @asale/repolish --apply --no-visuals        # 不动 README 的视觉产物
 npx @asale/repolish --stages artifacts --apply  # 重画所有已经被引用的图
 npx @asale/repolish --stages demo --apply       # 把 CLI 录成动画 SVG
 ```

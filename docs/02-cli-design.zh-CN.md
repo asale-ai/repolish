@@ -86,6 +86,7 @@ repolish --suggest                         # 请模型写它写不了的那三�
 | `--force` | 覆盖已存在的文件，并允许在非 git 目录下写 |
 | `--stages <list>` | 默认 `check,polish,artifacts,ci` |
 | `--artifact <list>` | 把 `artifacts` 阶段限定到 `badge`、`report`、`overview`、`score`、`tables` |
+| `--no-visuals` | 不动 README 的视觉产物。卡片与 SVG 表格默认是开的 |
 
 `--sarif` 和 `--comment` 是 `--apply` 的两个例外：点名一个输出路径本身就是请求，
 而且它们默认都不往仓库自己的树里写。

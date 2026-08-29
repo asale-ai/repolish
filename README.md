@@ -165,7 +165,7 @@ Four stages, in order. The order matters: `polish` may insert a reference to a c
 |---|---|
 | `check` | Score the repository and print the report |
 | `polish` | The fixes that follow mechanically: the badge, a table of contents built from your own headings, GitHub issue and PR templates, and a `CONTRIBUTING.md` whose commands come from your detected package manifest |
-| `artifacts` | Write `.repolish/badge.json`, and redraw every SVG the README already references |
+| `artifacts` | Write `.repolish/badge.json`, draw the overview and report cards, and redraw every SVG the README already references |
 | `ci` | Write `.github/workflows/repolish.yml` |
 
 **Where it cannot know, it does not write.** No manifest means no `CONTRIBUTING.md`,
@@ -178,7 +178,7 @@ Two more stages exist but are **not** in the default run, deliberately:
 | Stage | Why it is opt-in |
 |---|---|
 | `skill` | Writes `SKILL.md`, which only matters if you use coding agents |
-| `demo` | **Runs** the commands it records, which is not something a default should do |
+| `demo` | **Runs** the commands it records, which is not something a default should do. A run that skipped it says so at the end |
 
 ## Controlling it
 
@@ -278,7 +278,8 @@ request, not a change to your repository.
 ## Cards and recordings
 
 ```bash
-npx @asale/repolish --apply --visuals           # insert the cards and SVG tables, and draw them
+npx @asale/repolish --apply                     # cards and SVG tables are included
+npx @asale/repolish --apply --no-visuals        # leave the README's visuals alone
 npx @asale/repolish --stages artifacts --apply  # redraw everything already referenced
 npx @asale/repolish --stages demo --apply       # record the CLI as an animated SVG
 ```
