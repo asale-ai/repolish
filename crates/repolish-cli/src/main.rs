@@ -31,7 +31,7 @@ mod suggest;
 mod tables;
 mod tree;
 
-use analyze::{analyze, write_file, Analysis, Common, StarsWanted};
+use analyze::{analyze, write_file, Analysis, Common, Gaps, StarsWanted};
 use repolish_md::Readme;
 
 /// 退出码。工具自身失败与「检查不通过」必须区分，否则 CI 无法判断。
@@ -287,10 +287,18 @@ enum Stage {
 
 /// 不给 `--stages` 时跑的四段。
 ///
-/// `skill` 和 `demo` **刻意不在默认里**:前者往仓库(或用户主目录)里放一份
-/// 只有用智能体的人才需要的文档;后者会**真的执行** README 里的命令,那不是
-/// 一个默认动作该做的事。
-const DEFAULT_STAGES: &[Stage] = &[Stage::Check, Stage::Polish, Stage::Artifacts, Stage::Ci];
+/// `skill` **刻意不在默认里**:它往仓库(或用户主目录)里放一份只有用智能体的
+/// 人才需要的文档。
+///
+/// `demo` 在默认里，但**只有 `--apply` 才会真的执行**那些命令。不加 `--apply`
+/// 时它只列清单——那份清单就是执行前的知情同意。
+const DEFAULT_STAGES: &[Stage] = &[
+    Stage::Check,
+    Stage::Polish,
+    Stage::Artifacts,
+    Stage::Ci,
+    Stage::Demo,
+];
 
 /// `artifacts` 阶段能产出的东西。`--artifact` 点名时**只**产出点到的那些,
 /// 并且不再要求「README 已经引用过」——点名本身就是那个要求。
@@ -456,6 +464,10 @@ fn run(cli: Cli) -> u8 {
     };
 
     let mut ledger = Ledger::new(cli.apply);
+    let mut gaps = analysis
+        .as_mut()
+        .map(|a| std::mem::take(&mut a.gaps))
+        .unwrap_or_default();
     // 分数门禁留到最后:分数不达标时产物照样要写出来,否则 CI 上一次未达标
     // 的运行会连徽章都拿不到。
     let mut gate = exit::OK;
@@ -482,7 +494,7 @@ fn run(cli: Cli) -> u8 {
             ),
             Stage::Ci => stage_ci(&cli, &root, &mut ledger),
             Stage::Skill => stage_skill(&cli, &root, &mut ledger),
-            Stage::Demo => stage_demo(&cli, &root, &mut ledger),
+            Stage::Demo => stage_demo(&cli, &root, &mut ledger, &mut gaps),
         };
         // 工具自身失败就地中止。继续往下跑只会在一个已知坏掉的前提上
         // 堆更多产物。
@@ -493,7 +505,28 @@ fn run(cli: Cli) -> u8 {
 
     report_ledger(&cli, &ledger);
     report_untouched(&cli, &stages, &root);
+    report_gaps(&cli, &gaps);
     gate
+}
+
+/// 跑完了，但有几件事因为缺东西而没做成。
+///
+/// 这些不是错误——流水线照常走完了。但它们散落在过程里各说一句，读的人滚上去
+/// 就看不见了；而每一条都恰好是「补一个输入就能解决」的那种。所以攒到最后
+/// 一起报，并且每条都带上把它补齐的那条命令。
+fn report_gaps(cli: &Cli, gaps: &Gaps) {
+    if gaps.is_empty() {
+        return;
+    }
+    say!(cli, "");
+    say!(
+        cli,
+        "  NEEDS INPUT — these were skipped for want of something"
+    );
+    for g in gaps.iter() {
+        say!(cli, "    · {}", g.what);
+        say!(cli, "      {}", g.fix);
+    }
 }
 
 /// 默认流水线跑完之后，说一句还有哪两段没跑。
@@ -1098,7 +1131,7 @@ fn stage_skill(cli: &Cli, root: &Path, ledger: &mut Ledger) -> u8 {
 }
 
 /// **这一段会真的执行 README 里的命令**,所以没有 `--apply` 时它只列清单。
-fn stage_demo(cli: &Cli, root: &Path, ledger: &mut Ledger) -> u8 {
+fn stage_demo(cli: &Cli, root: &Path, ledger: &mut Ledger, gaps: &mut Gaps) -> u8 {
     let ctx = match repolish_ingest::RepoContext::load(root, None) {
         Ok(c) => c,
         Err(e) => {
@@ -1110,15 +1143,18 @@ fn stage_demo(cli: &Cli, root: &Path, ledger: &mut Ledger) -> u8 {
     let commands = if cli.commands.is_empty() {
         // 录一段跑不起来的命令比没有录屏更糟。认不出可执行文件就明说，
         // 并告诉他怎么手动指定——而不是拿仓库名去赌。
+        // 认不出可执行文件不是错误——大多数仓库根本不是 CLI。记一笔就走，
+        // 中止整条流水线会让前面四段的产出一起作废。
         let Some(bin) = demo::binary(&ctx) else {
-            eprintln!(
-                "error: no command-line binary detected in {}.\n\
-                 note: the demo stage records a CLI. If this project has one, name the \
-                 commands yourself:\n      {inv} --stages demo --cmd \"yourtool --help\" --apply",
-                root.display(),
-                inv = invocation()
+            gaps.note(
+                "no terminal recording — no command-line binary was detected here",
+                format!(
+                    "if this project has a CLI, name the commands: \
+                     {} --stages demo --cmd \"yourtool --help\" --apply",
+                    invocation()
+                ),
             );
-            return exit::BAD_USAGE;
+            return exit::OK;
         };
         demo::default_commands(&bin)
     } else {
@@ -1147,12 +1183,15 @@ fn stage_demo(cli: &Cli, root: &Path, ledger: &mut Ledger) -> u8 {
     let recording = match record::run(&commands, root, |c| eprintln!("  $ {c}")) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("error: {e}");
-            eprintln!(
-                "note: the command has to be on PATH. For a project you have not installed, \
-                 build it first and put the build directory on PATH"
+            // 命令跑不起来同样不该中止:录屏是产出里最不关键的一件,
+            // 而它失败的常见原因只是「这个项目还没构建」。
+            eprintln!("warning: the recording could not run: {e}");
+            gaps.note(
+                "no terminal recording — the commands could not run",
+                "the binary has to be on PATH. Build the project first and put the build \
+                 directory on PATH, then re-run with --stages demo --apply",
             );
-            return exit::BAD_USAGE;
+            return exit::OK;
         }
     };
 

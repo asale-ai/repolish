@@ -149,7 +149,7 @@ npx @asale/repolish --apply
 
 ## 它做了什么
 
-四个阶段，按顺序跑。顺序是有意义的：`polish` 可能刚往 README 里插入了一张卡片的引用，
+五个阶段，按顺序跑。顺序是有意义的：`polish` 可能刚往 README 里插入了一张卡片的引用，
 `artifacts` 紧接着才画得出那张图。
 
 | 阶段 | 做什么 |
@@ -158,17 +158,28 @@ npx @asale/repolish --apply
 | `polish` | 能机械落实的那些改动：徽章、用你自己的标题生成的目录、GitHub 的 issue 与 PR 模板，以及一份构建和测试命令来自探测到的包清单的 `CONTRIBUTING.md` |
 | `artifacts` | 写 `.repolish/badge.json`，画出横幅与两张卡片，并重画 README 已经引用的每一张 SVG |
 | `ci` | 写 `.github/workflows/repolish.yml` |
+| `demo` | 把 CLI 录成动画 SVG。会先列出命令清单，**只有 `--apply` 才真的执行** |
 
 **推不出来就不写。** 没有包清单就没有 `CONTRIBUTING.md`——另一条路是写一份
 `<your build command here>`，那种文件让检查变绿，问题却原地不动。已经存在的文件一律
 不动，`--force` 才重新生成。
 
-还有两个阶段，**刻意不在默认流程里**：
+还有一个阶段**不在默认流程里**：`skill`，它写的 `SKILL.md` 只有用编码智能体的人才
+需要。跳过它的那次运行会在末尾提醒你。
 
-| 阶段 | 为什么要显式点名 |
-|---|---|
-| `skill` | 写 `SKILL.md`，只有用编码智能体的人才需要 |
-| `demo` | 会**真的执行**它录下的命令，那不是一个默认动作该做的事。跳过它的那次运行会在末尾提醒你 |
+**有 token 时默认就调 GitHub API**，所以描述、topics、homepage 都会被检查，star 曲线也
+会画出来。没有 token 时它退回本地并明说，而不是报错——匿名配额一小时只有 60 次，一次
+限流不该把整趟运行一起带走。`--remote` 强制调用，`--no-remote` 完全不调。
+
+任何因为缺输入而没做成的事，都会在末尾连同补齐它的命令一起列出来：
+
+```text
+  NEEDS INPUT — these were skipped for want of something
+    · repository description, topics and homepage were not checked
+      set GITHUB_TOKEN or GH_TOKEN (`export GITHUB_TOKEN=$(gh auth token)`), …
+    · no terminal recording — no command-line binary was detected here
+      if this project has a CLI, name the commands: … --stages demo --cmd "…" --apply
+```
 
 ## 怎么控制它
 

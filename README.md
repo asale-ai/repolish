@@ -158,7 +158,7 @@ because `git checkout` is the undo button.
 
 ## What it does
 
-Four stages, in order. The order matters: `polish` may insert a reference to a card, and
+Five stages, in order. The order matters: `polish` may insert a reference to a card, and
 `artifacts` is what draws it.
 
 | Stage | What it does |
@@ -167,18 +167,31 @@ Four stages, in order. The order matters: `polish` may insert a reference to a c
 | `polish` | The fixes that follow mechanically: the badge, a table of contents built from your own headings, GitHub issue and PR templates, and a `CONTRIBUTING.md` whose commands come from your detected package manifest |
 | `artifacts` | Write `.repolish/badge.json`, draw the banner and the two cards, and redraw every SVG the README already references |
 | `ci` | Write `.github/workflows/repolish.yml` |
+| `demo` | Record the CLI as an animated SVG. Prints the command list; **only `--apply` runs them** |
 
 **Where it cannot know, it does not write.** No manifest means no `CONTRIBUTING.md`,
 because the alternative is `<your build command here>` — a file that turns the check green
 while the problem stays where it was. Existing files are left alone; `--force` regenerates
 them.
 
-Two more stages exist but are **not** in the default run, deliberately:
+One more stage exists but is **not** in the default run: `skill`, which writes `SKILL.md`
+— a file that only matters if you use coding agents. A run that skipped it says so at the
+end.
 
-| Stage | Why it is opt-in |
-|---|---|
-| `skill` | Writes `SKILL.md`, which only matters if you use coding agents |
-| `demo` | **Runs** the commands it records, which is not something a default should do. A run that skipped it says so at the end |
+**The GitHub API is called by default when a token is set**, so description, topics and
+homepage are checked and the star curve is drawn. Without one it stays local and says so
+rather than failing — the anonymous quota is 60 an hour and a single rate limit should not
+take the rest of the run down with it. `--remote` forces it anyway; `--no-remote` never calls.
+
+Anything skipped for want of an input is listed at the end, with the command that fixes it:
+
+```text
+  NEEDS INPUT — these were skipped for want of something
+    · repository description, topics and homepage were not checked
+      set GITHUB_TOKEN or GH_TOKEN (`export GITHUB_TOKEN=$(gh auth token)`), …
+    · no terminal recording — no command-line binary was detected here
+      if this project has a CLI, name the commands: … --stages demo --cmd "…" --apply
+```
 
 ## Controlling it
 

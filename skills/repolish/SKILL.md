@@ -67,7 +67,7 @@ bare `repolish` unless `repolish --version` worked above.
 
 That package is a launcher — it downloads the release binary, verifies its
 `.sha256` and execs it, forwarding the exit code, which is what `--min-score`
-depends on. The current version is 0.4.0.
+depends on. The current version is 0.4.1.
 
 If the user would rather have it on PATH permanently, this installs the binary
 into `~/.local/bin` and drops this skill into whichever agents it finds:
@@ -83,7 +83,8 @@ curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh |
 ## Commands
 
 **There are no subcommands.** `repolish` is the whole surface; `--stages` picks
-which parts of the pipeline run. The default is `check,polish,artifacts,ci`.
+which parts of the pipeline run. The default is
+`check,polish,artifacts,ci,demo`.
 
 | Stage | What it does |
 |---|---|
@@ -91,8 +92,8 @@ which parts of the pipeline run. The default is `check,polish,artifacts,ci`.
 | `polish` | The mechanical fixes: badge, table of contents, issue/PR templates, `CONTRIBUTING.md` |
 | `artifacts` | `.repolish/badge.json`, the banner, the overview and report cards, and every SVG the README already references |
 | `ci` | `.github/workflows/repolish.yml` |
-| `skill` | `SKILL.md` — opt-in, not in the default run |
-| `demo` | Record the CLI — opt-in, and with `--apply` it **executes** the commands. A run that skipped it says so at the end |
+| `skill` | `SKILL.md` — opt-in, not in the default run. A run that skipped it says so at the end |
+| `demo` | Record the CLI. In the default run, but it only prints the command list — **`--apply` executes them** |
 
 ### Run it
 
@@ -113,7 +114,14 @@ repolish --stages check --sarif out.sarif  # SARIF 2.1.0, for GitHub code scanni
 
 **Always run it once without `--apply` and show the user the plan.** The dry run
 is free, and it is the whole safety story: nothing lands in the author's
-repository that they have not seen first.
+repository that they have not seen first — and `--apply` **executes the
+commands the demo stage records**, so that plan is also the consent for
+running them. If the user has not seen it, do not pass `--apply`.
+
+Anything skipped for want of an input is listed under `NEEDS INPUT` at the end,
+each with the command that fixes it. Relay those to the user rather than
+silently accepting a thinner result: a missing `GITHUB_TOKEN` is why three
+checks read as not verified.
 
 **Prefer `--format json` when you are going to act on the result.** The text
 output is laid out for a human reading a terminal; the JSON is stable and tells

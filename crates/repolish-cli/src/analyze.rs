@@ -19,11 +19,16 @@ pub struct Common {
     #[arg(default_value = ".")]
     pub path: PathBuf,
 
-    /// Also read description / topics / homepage from the GitHub API.
-    /// The token comes from GITHUB_TOKEN or GH_TOKEN; without one, the anonymous
-    /// quota of 60 requests per hour applies
+    /// Read description / topics / homepage from the GitHub API. With a token in
+    /// GITHUB_TOKEN or GH_TOKEN this happens by default; passing it explicitly
+    /// also tries anonymously, on a quota of 60 requests per hour
     #[arg(long, global = true)]
     pub remote: bool,
+
+    /// Never call the GitHub API. The three checks that need it report as
+    /// not verified
+    #[arg(long, global = true, conflicts_with = "remote")]
+    pub no_remote: bool,
 
     /// Override the detected project type
     #[arg(long, global = true)]
@@ -91,6 +96,35 @@ pub struct StarsWanted {
     pub overview: bool,
 }
 
+/// 这次运行**因为缺东西而没做成**的事。
+///
+/// 和错误不是一回事：跑完了，只是少做了几件。散落在过程中各说一句，读的人
+/// 滚上去就看不见了；攒到最后一起报，并且每条都带上把它补齐的那条命令。
+#[derive(Default)]
+pub struct Gaps(Vec<Gap>);
+
+pub struct Gap {
+    /// 少了什么
+    pub what: String,
+    /// 怎么补
+    pub fix: String,
+}
+
+impl Gaps {
+    pub fn note(&mut self, what: impl Into<String>, fix: impl Into<String>) {
+        self.0.push(Gap {
+            what: what.into(),
+            fix: fix.into(),
+        });
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    pub fn iter(&self) -> impl Iterator<Item = &Gap> {
+        self.0.iter()
+    }
+}
+
 pub struct Analysis {
     pub ctx: RepoContext,
     pub report: Report,
@@ -100,6 +134,8 @@ pub struct Analysis {
     /// 两侧的 mode、`--only`、`--skip` 有任何一处不同,差值就是拿两把不同的
     /// 尺子相减。
     pub opts: RunOptions,
+    /// 因为缺东西而没做成的事
+    pub gaps: Gaps,
 }
 
 /// 失败时已经打印过错误，直接返回退出码。
@@ -151,12 +187,32 @@ pub fn analyze(common: &Common, wanted: StarsWanted) -> Result<Analysis, u8> {
     //
     // 只在**显式**要了曲线时才提醒。默认是开的，本地模式下每跑一次都提醒
     // 一遍「你要的东西没发生」，那是纯噪音。
-    if common.stars && !common.remote {
-        eprintln!("warning: --stars needs --remote; no star history was fetched");
+    if common.stars && common.no_remote {
+        eprintln!("warning: --stars cannot work with --no-remote; no star history was fetched");
     }
-    if common.remote {
-        let token = repolish_ingest::remote::token_from_env();
 
+    let mut gaps = Gaps::default();
+    let token = repolish_ingest::remote::token_from_env();
+
+    // 远程默认走,**但只在拿得到 token 时**。匿名配额一小时 60 次,而且
+    // 一次限流会以退出码 4 打断整条流水线——把那当默认，等于让离线的人
+    // 每次都撞墙。显式给了 `--remote` 就照办，匿名也去试:那是使用者的取舍。
+    let remote = if common.no_remote {
+        false
+    } else if common.remote {
+        true
+    } else {
+        token.is_some()
+    };
+    if !remote && !common.no_remote {
+        gaps.note(
+            "repository description, topics and homepage were not checked",
+            "set GITHUB_TOKEN or GH_TOKEN (`export GITHUB_TOKEN=$(gh auth token)`), \
+             or pass --remote to try on the anonymous quota",
+        );
+    }
+
+    if remote {
         // 曲线默认要，**但匿名时自动让路**。它要十几次请求，而匿名配额一小时
         // 只有 60 次——把五分之一花在一段装饰上，代价是真正的评分调用 429。
         // 显式给了 `--stars` 就照办：那是使用者自己的取舍。
@@ -175,14 +231,32 @@ pub fn analyze(common: &Common, wanted: StarsWanted) -> Result<Analysis, u8> {
         }
         if token.is_none() {
             eprintln!("warning: GITHUB_TOKEN is not set; falling back to the anonymous quota of 60 requests per hour");
-            if !common.no_stars && !common.stars && wanted.overview {
-                eprintln!("note: the star history curve was skipped to protect that quota; pass --stars to fetch it anyway");
-            }
         }
-        ctx.fetch_remote(token.as_deref(), stars).map_err(|e| {
-            eprintln!("error: {e}");
-            exit::REMOTE_FAILED
-        })?;
+        if !stars && wanted.overview && !common.no_stars {
+            gaps.note(
+                "the overview card has no star history curve",
+                if token.is_none() {
+                    "set GITHUB_TOKEN — anonymously the dozen calls it costs would be a \
+                     fifth of the 60/hour quota"
+                } else {
+                    "pass --stars"
+                },
+            );
+        }
+        if let Err(e) = ctx.fetch_remote(token.as_deref(), stars) {
+            // 显式要了远程,失败就是失败——CI 的门禁靠退出码 4 把「限流」
+            // 和「变差了」分开。默认走到这里则降级为本地,并记一笔:一次
+            // 网络抖动不该让离线也能做完的那些事全部作废。
+            if common.remote {
+                eprintln!("error: {e}");
+                return Err(exit::REMOTE_FAILED);
+            }
+            eprintln!("warning: the GitHub API call failed: {e}");
+            gaps.note(
+                "repository description, topics and homepage were not checked",
+                "the GitHub call failed; re-run with --remote to see the error and fail on it",
+            );
+        }
     }
 
     // 曲线取不到不是错误，但也不能不吭声：使用者对着一张没有曲线的卡片
@@ -209,11 +283,10 @@ pub fn analyze(common: &Common, wanted: StarsWanted) -> Result<Analysis, u8> {
     }
 
     let opts = RunOptions {
-        mode: if common.remote {
-            Mode::Remote
-        } else {
-            Mode::Local
-        },
+        // **看真的抓没抓，而不是看那个开关。** 默认路径下有 token 就会去抓，
+        // 此时标成 Local 会让三个远程检查在数据已经拿到的情况下仍被记为
+        // Skipped——分数因此偏低，而报告上那行「local」还在说另一套。
+        mode: if remote { Mode::Remote } else { Mode::Local },
         only: only.iter().cloned().collect(),
         skip: skip.iter().cloned().collect(),
     };
@@ -224,6 +297,7 @@ pub fn analyze(common: &Common, wanted: StarsWanted) -> Result<Analysis, u8> {
         report,
         min_score: config.min_score,
         opts,
+        gaps,
     })
 }
 
