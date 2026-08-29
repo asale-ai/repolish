@@ -30,6 +30,7 @@ undecidable check is reported as *not verified* and excluded, never guessed at.
 - [Install the CLI](#install-the-cli)
 - [The one command](#the-one-command)
 - [What it does](#what-it-does) — the five stages
+- [Themes](#themes) — fourteen palettes for the cards
 - [Controlling it](#controlling-it)
 - [Configuration](#configuration)
 - [In CI](#in-ci)
@@ -237,6 +238,53 @@ Anything skipped for want of an input is listed at the end, with the command tha
       name the commands: … --stages demo --cmd "…" --apply
 ```
 
+## Themes
+
+The card ends up in **your** page, and that page already has a temperature. Fourteen
+palettes, each shown here on the card it actually produces — click one for its full page,
+hexes and contrast figures. **No palette can move a score**; it picks colours for the same
+numbers.
+
+```bash
+npx @asale/repolish --apply --theme slate
+```
+
+<table>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/dark/README.md"><img src="docs/themes/dark/card.svg" alt="The repolish card in the dark palette" width="420"></a><br><code>dark</code> · the default</td>
+<td width="50%" align="center"><a href="docs/themes/porcelain/README.md"><img src="docs/themes/porcelain/card.svg" alt="The repolish card in the porcelain palette" width="420"></a><br><code>porcelain</code> · warm paper</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/slate/README.md"><img src="docs/themes/slate/card.svg" alt="The repolish card in the slate palette" width="420"></a><br><code>slate</code> · GitHub blue-grey</td>
+<td width="50%" align="center"><a href="docs/themes/nord/README.md"><img src="docs/themes/nord/card.svg" alt="The repolish card in the nord palette" width="420"></a><br><code>nord</code> · desaturated</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/ember/README.md"><img src="docs/themes/ember/card.svg" alt="The repolish card in the ember palette" width="420"></a><br><code>ember</code> · Gruvbox</td>
+<td width="50%" align="center"><a href="docs/themes/solar/README.md"><img src="docs/themes/solar/card.svg" alt="The repolish card in the solar palette" width="420"></a><br><code>solar</code> · Solarized</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/phosphor/README.md"><img src="docs/themes/phosphor/card.svg" alt="The repolish card in the phosphor palette" width="420"></a><br><code>phosphor</code> · single-hue green</td>
+<td width="50%" align="center"><a href="docs/themes/blueprint/README.md"><img src="docs/themes/blueprint/card.svg" alt="The repolish card in the blueprint palette" width="420"></a><br><code>blueprint</code> · drafting blue</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/okabe/README.md"><img src="docs/themes/okabe/card.svg" alt="The repolish card in the okabe palette" width="420"></a><br><code>okabe</code> · colour-blind safe</td>
+<td width="50%" align="center"><a href="docs/themes/newsprint/README.md"><img src="docs/themes/newsprint/card.svg" alt="The repolish card in the newsprint palette" width="420"></a><br><code>newsprint</code> · greyscale + red</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/sakura/README.md"><img src="docs/themes/sakura/card.svg" alt="The repolish card in the sakura palette" width="420"></a><br><code>sakura</code> · soft rose</td>
+<td width="50%" align="center"><a href="docs/themes/glacier/README.md"><img src="docs/themes/glacier/card.svg" alt="The repolish card in the glacier palette" width="420"></a><br><code>glacier</code> · cold light</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/carbon/README.md"><img src="docs/themes/carbon/card.svg" alt="The repolish card in the carbon palette" width="420"></a><br><code>carbon</code> · black and white</td>
+<td width="50%" align="center"><a href="docs/themes/paper/README.md"><img src="docs/themes/paper/card.svg" alt="The repolish card in the paper palette" width="420"></a><br><code>paper</code> · white and black</td>
+</tr>
+</table>
+
+Two of them answer something narrower than taste: `okabe` stays legible with red-green
+colour blindness, and `carbon` / `paper` have no hue and no gradient, so the card is the
+same picture once the colour is taken out of it — on a photocopier, on e-ink, in print.
+All fourteen: [docs/themes](docs/themes/README.md).
+
 ## Controlling it
 
 ```bash
@@ -348,8 +396,10 @@ grading your project before meeting your project.
 
 `polish` inserts each reference once; `artifacts` redraws the file every run after that, so
 the image never goes stale. Pick a single one with
-`--artifact badge,report,hero,overview,score,tables`. The rest — `--theme`, `--lang`,
-`--stars`, why `demo` really runs the commands it records — is in
+`--artifact badge,report,hero,overview,score,tables`.
+
+The rest — `--theme` (the [fourteen palettes](#themes)), `--lang`, `--stars`, why `demo`
+really runs the commands it records — is in
 [docs/02-cli-design.md](docs/02-cli-design.md).
 
 ## What it checks

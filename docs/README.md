@@ -10,6 +10,7 @@ A repository diagnosis and improvement CLI for open-source authors.
 | [02-cli-design.md](02-cli-design.md) | Command surface, exit codes, output contracts (terminal colours and SVG cards), Action template |
 | [03-scoring.md](03-scoring.md) | The check list, weights, aggregation rules, and profile applicability |
 | [04-usage.md](04-usage.md) | Usage reference: polish styling, what `--suggest` may do, the pull-request flags |
+| [themes/](themes/README.md) | Every `--theme` palette, rendered on this repository's own card |
 
 `01`–`03` are the **external contract**: `03` defines how the score is computed, `02`
 defines the output shape and exit codes, and `01` explains why the trade-offs are what

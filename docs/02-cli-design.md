@@ -82,7 +82,7 @@ exactly one thing is being produced: one `--stages`, and — for `artifacts` —
 | `--config <path>` | Defaults to `.repolish.toml` |
 | `--profile <auto\|library\|app\|cli\|docs\|collection\|meta>` | Default `auto`, overrides detection |
 | `--only <ids>` / `--skip <ids>` | Filter by check id (filtered checks become `Skipped`) |
-| `--theme <dark\|porcelain>` | Palette for the SVG output |
+| `--theme <name>` | Palette for the SVG output. Fourteen of them, [rendered side by side](themes/README.md) |
 | `--lang <auto\|en\|zh-CN\|ja>` | Language of the text inside the SVG output |
 | `--stars` / `--no-stars` | The star history curve. Under `--remote` it is fetched by default when a token is set **and** the overview card is being drawn — the curve has nowhere else to go, and anonymously it would spend a fifth of the 60/hour quota on a decoration |
 | `--no-color` | For CI |
@@ -481,14 +481,25 @@ error, so a missing translation cannot reach a release.
 
 ### Palettes
 
-The SVGs have two complete palettes (`--theme dark` / `porcelain`); the terminal has one.
-The difference is **who paints the background**: a terminal's background is not ours to
-choose, so we pick foreground colours that hold up on both light and dark; an SVG paints
-its own, so it can be held to real contrast — body text at WCAG AAA (7:1), muted text at
-AA (4.5:1), both enforced by test.
+The SVGs have fourteen complete palettes; the terminal has one. The difference is **who
+paints the background**: a terminal's background is not ours to choose, so we pick
+foreground colours that hold up on both light and dark; an SVG paints its own, so it can
+be held to real contrast — body text at WCAG AAA (7:1), muted text at AA (4.5:1), both
+enforced by test. Every palette is a **complete** one rather than a handful of overrides
+on top of the default: half a palette eventually misses a constant and leaves invisible
+text somewhere on the card.
 
 `porcelain` exists for readability rather than taste: a dark card dropped into a
-light-leaning README is a hole in the page.
+light-leaning README is a hole in the page. The other ten are there because a card is
+pasted into someone else's page, and that page already has a temperature — GitHub's own
+blue-grey (`slate`), a warm terminal (`ember`), drafting blue (`blueprint`), newsprint
+(`newsprint`). Four of them answer something narrower than taste: `okabe` stays legible
+with red-green colour blindness; `phosphor` separates its series by brightness alone; and
+`carbon` / `paper` have no hue anywhere and no gradient, so the card is the same picture
+before and after the colour is taken out of it — on a photocopier, on e-ink, in print. Each one is rendered on this
+repository's own card in [docs/themes](themes/README.md).
+
+**A palette cannot change a score.** It picks colours for the same numbers.
 
 **No `prefers-color-scheme` switching.** GitHub serves SVGs through the camo image proxy,
 where media queries are not reliable — so choose the light palette explicitly and the file
@@ -544,7 +555,7 @@ toc-style   = "bullet"     # bullet | number | roman | fold
 logo        = "assets/hero.svg"
 logo-width  = "full"       # a pixel count, or "full" → width="100%"
 tree-depth  = 2            # omitted = no project tree
-theme       = "dark"       # dark | porcelain
+theme       = "dark"       # 12 palettes; see docs/themes/
 lang        = "auto"       # auto | en | zh-CN | ja
 overview    = true         # insert the overview card under the badges
 footer-card = true         # insert the score card at the end, under its own heading

@@ -81,9 +81,18 @@ fn invocation() -> String {
 ///
 /// `--format` 不是 text 时,stdout 必须只有那一份报告——否则下游第一个
 /// `jq` 就会炸。进度是进度,不是数据。
+///
+/// `--stdout` 同理,而且更狠:那一份产物**就是** stdout。此前进度仍然按 text
+/// 走 println,于是 `repolish --stages artifacts --stdout > card.svg` 写出来的
+/// 文件在 `</svg>` 之后拖着一段「NOT RUN — these stages are opt-in」。
+/// 浏览器容忍它,`svgo`、`xmllint` 和任何一个当真的解析器不容忍。
 macro_rules! say {
     ($cli:expr, $($arg:tt)*) => {
-        if $cli.format == Format::Text { println!($($arg)*) } else { eprintln!($($arg)*) }
+        if $cli.format == Format::Text && !$cli.stdout {
+            println!($($arg)*)
+        } else {
+            eprintln!($($arg)*)
+        }
     };
 }
 

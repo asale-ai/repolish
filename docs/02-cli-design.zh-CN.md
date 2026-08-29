@@ -372,9 +372,11 @@ README 里每一张表格画成的图。`polish --tables svg` 第一次生成并
 
 ### 色板
 
-SVG 有深浅两套完整色板（`--theme dark` / `porcelain`），终端只有一套。区别在于**谁画底**：终端的底色不由我们决定，只能挑一组在深浅底上都立得住的前景色；SVG 自己画底，所以能按真实对比度来定——正文按 WCAG AAA（7:1），弱色按 AA（4.5:1），两条都有测试守着。
+SVG 有十四套完整色板，终端只有一套。区别在于**谁画底**：终端的底色不由我们决定，只能挑一组在深浅底上都立得住的前景色；SVG 自己画底，所以能按真实对比度来定——正文按 WCAG AAA（7:1），弱色按 AA（4.5:1），两条都有测试守着。每一套都是**完整**色板而不是「默认色板加几个覆盖」——半套色板迟早会漏掉一个常量，在卡片某处留下一行看不见的字。
 
-`porcelain` 的存在理由是可读性而不是口味：一张深色卡片贴进一份浅色 README，在页面上就是一块挖空。
+`porcelain` 的存在理由是可读性而不是口味：一张深色卡片贴进一份浅色 README，在页面上就是一块挖空。另外十套的理由是：卡片是贴进**别人的版面**的，而那一页本来就有自己的温度——GitHub 自己的蓝灰（`slate`）、暖色终端（`ember`）、工程制图蓝（`blueprint`）、报纸（`newsprint`）。其中四套回答的不是口味问题：`okabe` 在红绿色觉异常下仍能区分；`phosphor` 的序列色只靠明度分层；`carbon` 与 `paper` 则完全没有色相、也没有渐变，卡片去色前后是同一张图——影印机上、电子墨水上、纸上都一样。每一套都用本仓库自己的卡片渲染在 [docs/themes](themes/README.zh-CN.md) 里。
+
+**色板不改变分数。** 它只是给同一组数字挑颜色。
 
 **不做 `prefers-color-scheme` 切换。** GitHub 把 SVG 当图片经 camo 代理渲染，媒体查询在那条链路上并不可靠——要浅色版就显式选，让文件本身就是浅色的。
 
@@ -424,7 +426,7 @@ toc-style   = "bullet"     # bullet | number | roman | fold
 logo        = "assets/hero.svg"
 logo-width  = "full"       # 像素数，或 "full" → width="100%"
 tree-depth  = 2            # 缺省 = 不生成目录树
-theme       = "dark"       # dark | porcelain，SVG 产物的色板
+theme       = "dark"       # SVG 产物的色板，共 12 套，见 docs/themes/
 lang        = "auto"       # auto | en | zh-CN | ja，SVG 里那些字的语言
 overview    = true         # 徽章下面插一张概览卡片
 footer-card = true         # 末尾插分数卡片与「用 repolish 打磨」一节

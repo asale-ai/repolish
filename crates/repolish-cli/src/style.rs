@@ -87,6 +87,30 @@ pub enum Theme {
     Dark,
     /// Warm paper, dark ink. A dark card in a light README is a hole in the page
     Porcelain,
+    /// GitHub's own dark blue-grey. The card stops looking like a bolted-on image
+    Slate,
+    /// Nordic and desaturated. For a card that should not upstage the page
+    Nord,
+    /// Gruvbox: warm brown, amber and olive. The one warm dark palette
+    Ember,
+    /// Solarized dark, unmodified. Half the terminals on earth already wear it
+    Solar,
+    /// One green, five brightnesses. Survives being printed in black and white
+    Phosphor,
+    /// Drafting blue with cold white rules, for hardware and protocol projects
+    Blueprint,
+    /// Okabe-Ito on pure black: legible with red-green colour blindness
+    Okabe,
+    /// Light. Greyscale with a single red, like a page of newsprint
+    Newsprint,
+    /// Light. Soft rose paper, for projects whose readers are not all engineers
+    Sakura,
+    /// Light and cold, where porcelain is light and warm
+    Glacier,
+    /// White on black. No hue anywhere, and no gradient — the plainest dark one
+    Carbon,
+    /// Black on white. Carbon inverted: for photocopiers, e-ink and print
+    Paper,
 }
 
 impl Theme {
@@ -94,6 +118,18 @@ impl Theme {
         match self {
             Theme::Dark => &repolish_render::DARK,
             Theme::Porcelain => &repolish_render::PORCELAIN,
+            Theme::Slate => &repolish_render::SLATE,
+            Theme::Nord => &repolish_render::NORD,
+            Theme::Ember => &repolish_render::EMBER,
+            Theme::Solar => &repolish_render::SOLAR,
+            Theme::Phosphor => &repolish_render::PHOSPHOR,
+            Theme::Blueprint => &repolish_render::BLUEPRINT,
+            Theme::Okabe => &repolish_render::OKABE,
+            Theme::Newsprint => &repolish_render::NEWSPRINT,
+            Theme::Sakura => &repolish_render::SAKURA,
+            Theme::Glacier => &repolish_render::GLACIER,
+            Theme::Carbon => &repolish_render::CARBON,
+            Theme::Paper => &repolish_render::PAPER,
         }
     }
 }

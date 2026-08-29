@@ -10,6 +10,7 @@
 | [02-cli-design](02-cli-design.zh-CN.md) | 命令面、退出码、输出契约（含终端配色与 SVG 卡片）、Action 模板 |
 | [03-scoring](03-scoring.zh-CN.md) | 检查项清单、权重、聚合规则与 Profile 适用性 |
 | [04-usage](04-usage.zh-CN.md) | 用法参考：polish 的排版开关、`--suggest` 的边界、PR 上的那几个开关 |
+| [themes/](themes/README.zh-CN.md) | `--theme` 的每一套色板，都用本仓库自己的卡片渲染过 |
 
 `01`–`03` 是**对外的契约**：`03` 定义分数怎么算，`02` 定义输出结构与退出码，
 `01` 解释为什么是这些取舍。改动它们等于改动使用者能依赖的东西。`04` 是 README 链出去的

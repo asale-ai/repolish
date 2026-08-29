@@ -28,7 +28,10 @@ pub use overview::{has_star_history, overview, Facts, OVERVIEW_PATH};
 pub const HERO_PATH: &str = ".repolish/hero.svg";
 pub use svg::{card, CARD_PATH};
 pub use table::table;
-pub use theme::{ColorLevel, Palette, DARK, PORCELAIN};
+pub use theme::{
+    ColorLevel, Palette, ALL as PALETTES, BLUEPRINT, CARBON, DARK, EMBER, GLACIER, NEWSPRINT, NORD,
+    OKABE, PAPER, PHOSPHOR, PORCELAIN, SAKURA, SLATE, SOLAR,
+};
 
 use std::fmt::Write as _;
 

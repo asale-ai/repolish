@@ -53,7 +53,10 @@ inputs:
     required: false
     default: "false"
   theme:
-    description: 'Palette for the SVG cards: dark or porcelain'
+    description: >
+      Palette for the SVG cards. One of dark, porcelain, slate, nord, ember,
+      solar, phosphor, blueprint, okabe, newsprint, sakura, glacier, carbon,
+      paper. All fourteen are rendered side by side in docs/themes/.
     required: false
     default: dark
   lang:

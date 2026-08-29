@@ -28,6 +28,7 @@ repolish 按陌生人的读法过一遍仓库，对 22 个具体信号打分，�
 - [装命令行工具](#装命令行工具)
 - [一条命令](#一条命令)
 - [它做了什么](#它做了什么) —— 五个阶段
+- [色板](#色板) —— 卡片的十四套配色
 - [怎么控制它](#怎么控制它)
 - [配置](#配置)
 - [在 CI 里](#在-ci-里)
@@ -230,6 +231,51 @@ npx @asale/repolish --apply
       if this project has a CLI, name the commands: … --stages demo --cmd "…" --apply
 ```
 
+## 色板
+
+卡片最后是要贴进**你的**版面的，而那一页本来就有自己的温度。十四套色板，每一套都用它
+真正画出来的卡片展示在下面——点开任意一套可以看到完整页面、十六进制色值和对比度。
+**色板不改变分数**，它只是给同一组数字挑颜色。
+
+```bash
+npx @asale/repolish --apply --theme slate
+```
+
+<table>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/dark/README.zh-CN.md"><img src="docs/themes/dark/card.svg" alt="The repolish card in the dark palette" width="420"></a><br><code>dark</code> · 默认</td>
+<td width="50%" align="center"><a href="docs/themes/porcelain/README.zh-CN.md"><img src="docs/themes/porcelain/card.svg" alt="The repolish card in the porcelain palette" width="420"></a><br><code>porcelain</code> · 暖白纸</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/slate/README.zh-CN.md"><img src="docs/themes/slate/card.svg" alt="The repolish card in the slate palette" width="420"></a><br><code>slate</code> · GitHub 蓝灰</td>
+<td width="50%" align="center"><a href="docs/themes/nord/README.zh-CN.md"><img src="docs/themes/nord/card.svg" alt="The repolish card in the nord palette" width="420"></a><br><code>nord</code> · 低饱和</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/ember/README.zh-CN.md"><img src="docs/themes/ember/card.svg" alt="The repolish card in the ember palette" width="420"></a><br><code>ember</code> · Gruvbox</td>
+<td width="50%" align="center"><a href="docs/themes/solar/README.zh-CN.md"><img src="docs/themes/solar/card.svg" alt="The repolish card in the solar palette" width="420"></a><br><code>solar</code> · Solarized</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/phosphor/README.zh-CN.md"><img src="docs/themes/phosphor/card.svg" alt="The repolish card in the phosphor palette" width="420"></a><br><code>phosphor</code> · 单色绿</td>
+<td width="50%" align="center"><a href="docs/themes/blueprint/README.zh-CN.md"><img src="docs/themes/blueprint/card.svg" alt="The repolish card in the blueprint palette" width="420"></a><br><code>blueprint</code> · 制图蓝</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/okabe/README.zh-CN.md"><img src="docs/themes/okabe/card.svg" alt="The repolish card in the okabe palette" width="420"></a><br><code>okabe</code> · 色盲友好</td>
+<td width="50%" align="center"><a href="docs/themes/newsprint/README.zh-CN.md"><img src="docs/themes/newsprint/card.svg" alt="The repolish card in the newsprint palette" width="420"></a><br><code>newsprint</code> · 灰阶加红</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/sakura/README.zh-CN.md"><img src="docs/themes/sakura/card.svg" alt="The repolish card in the sakura palette" width="420"></a><br><code>sakura</code> · 柔粉</td>
+<td width="50%" align="center"><a href="docs/themes/glacier/README.zh-CN.md"><img src="docs/themes/glacier/card.svg" alt="The repolish card in the glacier palette" width="420"></a><br><code>glacier</code> · 冷调浅色</td>
+</tr>
+<tr>
+<td width="50%" align="center"><a href="docs/themes/carbon/README.zh-CN.md"><img src="docs/themes/carbon/card.svg" alt="The repolish card in the carbon palette" width="420"></a><br><code>carbon</code> · 纯黑白</td>
+<td width="50%" align="center"><a href="docs/themes/paper/README.zh-CN.md"><img src="docs/themes/paper/card.svg" alt="The repolish card in the paper palette" width="420"></a><br><code>paper</code> · 纯白黑</td>
+</tr>
+</table>
+
+其中两套回答的不是口味问题：`okabe` 在红绿色觉异常下仍能区分；`carbon` 与 `paper`
+没有色相也没有渐变，卡片去色前后是同一张图——影印机上、电子墨水上、纸上都一样。
+全部十四套：[docs/themes](docs/themes/README.zh-CN.md)。
+
 ## 怎么控制它
 
 ```bash
@@ -339,9 +385,9 @@ repolish 画出来的一切都是**自包含、确定性的 SVG**，而且是**�
 `polish` 负责第一次把引用插进 README，此后每一次重画由 `artifacts` 负责，图就不会过期。
 要单独指定一张，用 `--artifact badge,report,hero,overview,score,tables`。横幅上印的是
 **你的**项目名——点阵字体画不出的名字（非拉丁文，或者单纯太长）会退回普通文字，
-而不是渲染成一片空白。其余的——`--theme`、
-`--lang`、`--stars` 为什么只对你有管理权的仓库有用、`demo` 为什么真的会执行它录下的
-命令——都在 [docs/02-cli-design.zh-CN.md](docs/02-cli-design.zh-CN.md)。
+而不是渲染成一片空白。其余的——`--theme`（[十四套色板](#色板)）、`--lang`、`--stars` 为什么只对你有管理权的
+仓库有用、`demo` 为什么真的会执行它录下的命令——都在
+[docs/02-cli-design.zh-CN.md](docs/02-cli-design.zh-CN.md)。
 
 ## 检查什么
 
