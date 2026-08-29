@@ -72,7 +72,7 @@ jobs:
       - run: node npm/test.js
 
   self:
-    name: repolish check .
+    name: repolish (self-score)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,8 +96,8 @@ jobs:
       # 产物改由手动的 artifacts workflow 重新生成，见 .github/workflows/artifacts.yml。
       - name: Score this repository
         run: |
-          cargo run --release -- check . --remote --no-color
-          cargo run --release -- check . --remote --no-color --format markdown \
+          cargo run --release -- . --stages check --remote --no-color
+          cargo run --release -- . --stages check --remote --no-color --format markdown \
             >> "$GITHUB_STEP_SUMMARY"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -4,9 +4,8 @@
 //! `readme-install-consistency` 都靠它，而这两项一旦误报就会直接摧毁工具的可信度
 //! （见 docs/03 设计原则 4），所以这里的取舍一律偏保守：宁可少认，不可错认。
 //!
-//! [`command_lines`] 是公开的，因为 `repolish verify` 要执行的正是
-//! `claim-consistency` 静态核对过的那同一批命令。两处各自认一遍「什么算命令」，
-//! 迟早会给出互相矛盾的两份结论。
+//! [`command_lines`] 是公开的：认「什么算命令」这件事只能有一处实现，
+//! 两处各自认一遍迟早会给出互相矛盾的两份结论。
 
 use repolish_md::Readme;
 

@@ -6,56 +6,79 @@ Binary name: `repolish`
 
 ## Command surface
 
+**There are no subcommands.** One command, one pipeline, and it is dry by default.
+
 ```
-repolish check .                 # local only, terminal report + exit code
-repolish check . --remote        # adds GitHub metadata (topics / description / homepage)
-repolish check . --format json   # for CI to consume
-repolish check . --min-score 70  # non-zero exit below the threshold → a CI gate
-repolish check . --badge         # also write .repolish/badge.json
-repolish check . --card          # also write .repolish/card.svg (the score card)
-repolish check . --overview      # also write .repolish/overview.svg (the overview card)
-
-repolish badge .                 # write .repolish/badge.json + print a markdown snippet
-repolish card .                  # write .repolish/overview.svg (the default)
-repolish card . --kind score     # write .repolish/card.svg
-repolish card . --kind tables    # redraw every table SVG in the README
-repolish card . --kind all       # all of the above
-repolish card . --remote --stars # add the star history curve
-repolish report .                # write REPOLISH.md
-repolish demo .                  # really run the commands, write .repolish/demo.svg
-repolish demo . --dry-run        # list the commands it would run, run nothing
-repolish demo . --tape           # also write a VHS tape, for people who want a GIF
-repolish skill .                 # write SKILL.md into a repository
-repolish skill --list            # which agents are installed on this machine
-repolish skill --target detect   # install the skill into the ones that are
-repolish init                    # generate .github/workflows/repolish.yml
-
-repolish polish .                # print the mechanical changes, write nothing
-repolish polish . --apply        # write them; the user commits
-repolish polish . --apply --visuals   # plus overview card, footer score card, SVG tables
-repolish polish . --suggest      # ask a model for the three it cannot write; never writes
-
-repolish verify .                # print the plan for the README's commands, run nothing
-repolish verify . --run          # execute them in a container
-repolish verify . --run --offline           # no network, to test an offline promise
-repolish verify . --section Install         # only that heading's commands
-
-repolish check . --base origin/main         # also score that ref, report the difference
-repolish check . --sarif out.sarif          # one annotation per finding, on its line
-repolish check . --comment out.md           # the short form, for a pull request comment
+repolish                         # score, then report every file it would touch. Writes nothing.
+repolish --apply                 # do it
 ```
 
-**`card` overwrites; `polish` does not.** That division is deliberate and is the only
-thing to remember about these two commands: `polish` inserts the `<img>` reference into
-the README the first time and never touches that file again; `card` handles every redraw
+Two properties carry the whole design. **Nothing is written without `--apply`** — the
+first run against a stranger's repository has to be free, or nobody runs it twice. And
+**one analysis feeds every stage**: the four stages share a single `RepoContext` and a
+single `Report`. Running them separately would mean several trips to the GitHub API, and —
+worse — artifacts that came from different scoring results.
+
+### Stages
+
+`--stages` picks which parts run; the default is `check,polish,artifacts,ci`. Order is
+execution order, and it matters: `polish` may insert a reference to a card that
+`artifacts` then has to draw.
+
+| Stage | Writes | In the default run |
+|---|---|---|
+| `check` | nothing | yes |
+| `polish` | README inserts, `CONTRIBUTING.md`, issue/PR templates | yes |
+| `artifacts` | `.repolish/badge.json`, and every SVG the README already references | yes |
+| `ci` | `.github/workflows/repolish.yml` | yes |
+| `skill` | `SKILL.md`, or an agent's own directory with `--target` | no |
+| `demo` | `.repolish/demo.svg` — **executes** the commands it records | no |
+
+`skill` and `demo` are out of the default on purpose. `skill` writes a file only agent
+users need; `demo` runs arbitrary commands out of the README, which no default should do.
+
+```
+repolish --stages check --format json      # for CI to consume
+repolish --stages check --min-score 70     # non-zero exit below the threshold → a CI gate
+repolish --stages check --base origin/main # also score that ref, report the difference
+repolish --stages check --sarif out.sarif  # one annotation per finding, on its line
+repolish --stages check --comment out.md   # the short form, for a pull request comment
+
+repolish --stages artifacts --apply --artifact overview   # just .repolish/overview.svg
+repolish --stages artifacts --apply --artifact score      # just .repolish/card.svg
+repolish --stages artifacts --apply --artifact tables     # redraw every wrapped table
+repolish --stages artifacts --apply --remote --stars      # add the star history curve
+
+repolish --stages skill --list             # which agents are installed on this machine
+repolish --stages skill --target detect --apply   # install the skill into the ones that are
+repolish --stages demo                     # list the commands it would run, run nothing
+repolish --stages demo --apply --tape      # record, and write a VHS tape for a GIF
+
+repolish --apply --visuals                 # overview card, footer score card, SVG tables
+repolish --suggest                         # ask a model for the three it cannot write; never writes
+```
+
+**`artifacts` overwrites; `polish` does not.** That division is deliberate and is the only
+thing to remember about these two stages: `polish` inserts the `<img>` reference into the
+README the first time and never touches that file again; `artifacts` handles every redraw
 afterwards. The other way round, either `polish` breaks its never-overwrite invariant, or
-the README keeps showing the image generated the first time forever. CI runs `card`.
+the README keeps showing the image generated the first time forever.
+
+That is also why `artifacts` keys off **"is it already referenced"** rather than a flag:
+drawing an SVG nothing points at leaves an orphan file that gets committed and carried
+forever. `--artifact` overrides that when you genuinely want one drawn.
+
+### Where `--output` and `--stdout` are legal
+
+Each artifact has a different default path, so those two flags only mean something when
+exactly one thing is being produced: one `--stages`, and — for `artifacts` — one
+`--artifact`. Anything else is rejected rather than guessed at.
 
 ## Global flags
 
 | Flag | Meaning |
 |---|---|
-| `--format <text\|json\|markdown\|sarif\|comment>` | Default `text`. `verify` takes `text` and `json` only |
+| `--format <text\|json\|markdown\|sarif\|comment>` | Default `text` |
 | `--config <path>` | Defaults to `.repolish.toml` |
 | `--profile <auto\|library\|app\|cli\|docs\|collection\|meta>` | Default `auto`, overrides detection |
 | `--only <ids>` / `--skip <ids>` | Filter by check id (filtered checks become `Skipped`) |
@@ -63,7 +86,18 @@ the README keeps showing the image generated the first time forever. CI runs `ca
 | `--lang <auto\|en\|zh-CN\|ja>` | Language of the text inside the SVG output |
 | `--stars` | Also fetch the star history curve. Needs `--remote`; costs ~12 API calls |
 | `--no-color` | For CI |
-| `-v` | Expand every check and the passing list |
+| `-v` | Expand every check, the passing list, and the full contents of every new file |
+| `--apply` | Write. Without it nothing is written except `--sarif` / `--comment` |
+| `--force` | Overwrite existing files, and write outside a git repository |
+| `--stages <list>` | Default `check,polish,artifacts,ci` |
+| `--artifact <list>` | Restrict the `artifacts` stage to `badge`, `report`, `overview`, `score`, `tables` |
+
+`--sarif` and `--comment` are the two exceptions to `--apply`: naming an output path *is*
+the request, and neither writes into the repository's own tree by default.
+
+In every format but `text`, **stdout carries only the report** and all procedural output
+goes to stderr — so `repolish --format json | jq` works on a full pipeline run, not just
+on `--stages check`.
 
 ## Exit codes
 
@@ -75,97 +109,21 @@ the README keeps showing the image generated the first time forever. CI runs `ca
 | 3 | The target is not a valid git repository |
 | 4 | Remote call failed (API error or rate limit under `--remote`) |
 | 5 | Under 50% coverage, so no total is reported |
-| 6 | `verify --run` could not run: no container engine, image pull failed, container died |
 | 7 | `--base` could not be resolved: shallow clone, unknown ref, no git on PATH |
 
 The tool failing and the checks failing must be different exit codes, or CI cannot tell
 them apart.
 
-1 is the "checks did not pass" code, and `verify` reuses it deliberately: a README command
-that no longer works is the same class of event as a score under the threshold. 6 and 7
-sit on the other side of that line with 4 — a machine with no docker on it, and a shallow
-clone that never fetched the baseline, are not quality regressions and must not be
+1 is the "checks did not pass" code. 7 sits on the other side of that line with 4 — a
+shallow clone that never fetched the baseline is not a quality regression and must not be
 reported as one.
 
----
-
-## `verify`
-
-`claim-consistency` checks that the README's commands **exist**. `verify` checks that they
-**work**. The gap between those two is where new users actually get stuck: the command is
-still in `package.json`, but it needs a system package nobody wrote down.
-
-### What runs, and what does not
-
-Commands come from the same extractor `claim-consistency` uses
-(`repolish_checks::util::command_lines`) — one source of truth for "what counts as a
-command in a README", because two extractors would eventually disagree with each other.
-Backslash continuations are joined first: run separately, the second line starts with
-`--flag` and reports a bogus "command not found".
-
-Each command is then classified, and the bias is **skip rather than run**. Missing a
-verifiable command costs one line of the report; running one that should not have run
-costs somebody a published release.
-
-| Skipped | Reason |
-|---|---|
-| `npm publish`, `git push`, `gh release create`, `aws …` | The container isolates the filesystem, not the far end of the network |
-| `sudo …` | Needs root |
-| `rm -rf /`, `mkfs`, `dd if=` | Destructive; nobody runs a report twice that did this once |
-| `npm run dev`, `cargo watch`, `mkdocs serve` | Does not exit on its own; the "failure" would be our timeout, not their bug |
-| `docker …`, `kubectl …` | Needs a runtime we do not provide *inside* the container. Running it yields `docker: not found`, which is our limitation reported as their bug |
-| `vim`, `less`, `man` | Interactive; no TTY |
-| `<YOUR_TOKEN>`, `path/to/config`, `example.com` | A placeholder for the reader to fill in |
-| Anything with `$VAR` | We cannot resolve it, so what runs is not the command the README promised |
-| `cat <<EOF` | A heredoc spans lines we take one at a time |
-
-Every skip is printed with its reason. A report that says "12 passed" while quietly
-skipping nine is worse than no report.
-
-### How it executes
-
-One `docker run`, one `sh` session, sentinel lines between commands:
-
-```sh
-exec 2>&1
-mkdir -p /work && cp -a /repo/. /work/ 2>/dev/null; cd /work || exit 1
-printf '%s %d\n' '__REPOLISH_STEP__' 0
-<command 0>
-printf '%s %d %d\n' '__REPOLISH_EXIT__' 0 "$?"
-…
-```
-
-One session rather than one container per command, because README command sequences almost
-always depend on it — `cd docs` then `make html`. The sentinels are what still allow
-per-command attribution.
-
-`exec 2>&1` merges stderr into stdout at the top: an error and the line of context above
-it are useless read separately.
-
-The repository is mounted **read-only** at `/repo` and copied to `/work`. Nothing a README
-command does can reach the user's working tree — that property is why running on the host
-is not offered as a fallback.
-
-A command in the plan with no `__REPOLISH_EXIT__` marker is reported `not_run`, never
-`passed`. Defaulting the other way would turn one timeout into a perfect report, which is
-the exact failure this tool exists to prevent.
-
-Timeouts kill the container by name (`docker rm -f`), not by killing the client process —
-that only kills the CLI and leaves the container running. The partial output is kept: half
-a log beats no log.
-
-### The image
-
-Picked from the package manifest, and the report always says which and why: `rust:slim`
-for a `Cargo.toml`, `node:lts` for `package.json`, `python:3-slim`, `golang:latest`,
-`ruby:slim`, `composer:latest`, `maven:eclipse-temurin`; `debian:stable-slim` when nothing
-is detected, with a note to pass `--image`.
-
-Tags are deliberately **not pinned to a patch version**. The README's promise is "this
-works on the current version of this ecosystem"; pinning would make the result drift as
-the tag goes stale, and silently.
+6 is retired. It was `verify --run` failing to start a container; `verify` has been
+removed, and the value is deliberately left unassigned rather than reused, because
+scripts written against older releases may still branch on it.
 
 ---
+
 
 ## `--base`
 
@@ -184,7 +142,7 @@ The baseline runs with the **same `RunOptions`** as the head, and the head's fet
 *not* copying them would silently demote the baseline to local mode — two different
 denominators, subtracted from each other.
 
-When the target is a subdirectory (`repolish check demo/sample --base …`) the subpath is
+When the target is a subdirectory (`repolish demo/sample --base …`) the subpath is
 rejoined inside the checkout. Without that it would score the repository root: a
 difference that looks perfectly normal and is entirely wrong.
 
@@ -312,14 +270,14 @@ red. They come from `repolish_core::band_index`, the single place those numbers 
 checks drop out), so the numbers are not comparable. Therefore:
 
 - when `mode = "local"`, `label` degrades to `repolish (local)` so a reader can tell
-- the workflow `repolish init` writes passes `--remote` by default, since `GITHUB_TOKEN`
+- the workflow the `ci` stage writes passes `--remote` by default, since `GITHUB_TOKEN`
   is free inside an Action
 
 Under 50% coverage no `badge.json` is written, and exit code 5 says why.
 
 ### Badge snippet
 
-`repolish badge` prints:
+With only the `artifacts` stage selected, it also prints:
 
 ```markdown
 [![repolish](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/OWNER/REPO/BRANCH/.repolish/badge.json)](https://github.com/asale-ai/repolish)
@@ -465,15 +423,15 @@ workflow. Full reasoning in `demo/README.md`.
 
 ### `SKILL.md`
 
-The agent instructions written by `repolish skill`. The content is compiled into the
+The agent instructions written by the `skill` stage. The content is compiled into the
 binary from `crates/repolish-cli/src/skill.md`; the copy committed here is
 `skills/repolish/SKILL.md`, regenerated by script — edit the former.
 
 Two destinations with different meanings:
 
-- `repolish skill .` writes into **a repository** (`SKILL.md`), so it travels with the
+- `repolish --stages skill --apply` writes into **a repository** (`SKILL.md`), so it travels with the
   code and everyone who clones gets it.
-- `repolish skill --target claude` writes into **an agent on this machine**
+- `repolish --stages skill --target claude --apply` writes into **an agent on this machine**
   (`~/.claude/skills/repolish/SKILL.md`), installed once and available in every project.
   `--target detect` only installs into agents that actually exist — writing
   `~/.codex/skills` on a machine without Codex would fabricate its presence.
@@ -669,7 +627,7 @@ The action also writes the score into `$GITHUB_STEP_SUMMARY`, so every run page 
 health card at the top.
 
 Users who want an automatic pull request swap in `peter-evans/create-pull-request` to
-carry the output of `polish --apply`.
+carry the output of a `--apply` run.
 
 ---
 

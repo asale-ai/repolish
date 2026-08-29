@@ -35,15 +35,15 @@ jobs:
           cargo build --release
           echo "${GITHUB_WORKSPACE}/target/release" >> "$GITHUB_PATH"
 
-      # 真的前后对比：对一个故意写得很糙的样例仓库跑 check、polish、再 check。
+      # 真的前后对比：对一个故意写得很糙的样例仓库跑一遍干跑、--apply、再跑一遍。
       # 录屏里那两个分数就是这一次跑出来的分数。
       - name: Record
         run: |
           sample="$(bash ./demo/setup.sh)"
-          repolish demo "$sample" \
-            --cmd "repolish check ." \
-            --cmd "repolish polish . --apply" \
-            --cmd "repolish check ." \
+          repolish "$sample" --stages demo --apply \
+            --cmd "repolish" \
+            --cmd "repolish --apply" \
+            --cmd "repolish" \
             --output "${GITHUB_WORKSPACE}/.repolish/demo.svg"
 
       - name: Commit it

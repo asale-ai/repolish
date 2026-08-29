@@ -2,7 +2,7 @@
 //
 // 为什么要有这个包：repolish 检查的仓库绝大多数不是 Rust 项目，而
 // `cargo install repolish` 要求对方先装一套 Rust 工具链。对一个「跑一次看看
-// 分数」的工具来说，那是一道劝退的门槛。`npx repolish check .` 没有这道门槛。
+// 分数」的工具来说，那是一道劝退的门槛。`npx @asale/repolish` 没有这道门槛。
 //
 // 三条规矩：
 //

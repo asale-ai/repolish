@@ -13,10 +13,9 @@
 
 use std::process::Command;
 
-/// 所有子命令。漏掉一个，那个子命令的 help 就没人守。
-const COMMANDS: &[&str] = &[
-    "check", "badge", "report", "card", "demo", "skill", "init", "polish", "verify",
-];
+/// 流水线的每一段。子命令取消之后，`--stages` 的取值说明是唯一还会被 clap
+/// 渲染出来的一组文档注释，漏掉一个就没人守。
+const STAGES: &[&str] = &["check", "polish", "artifacts", "ci", "skill", "demo"];
 
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_repolish")
@@ -50,13 +49,10 @@ fn cjk(s: &str) -> Vec<String> {
 fn every_help_screen_is_english() {
     let mut offenders: Vec<(String, String)> = Vec::new();
 
+    // 子命令没了，`--help` 就是全部的 help。长格式才会渲染 value enum
+    // 的说明，所以这里必须用 `--help` 而不是 `-h`。
     for line in cjk(&help(&[])) {
         offenders.push(("repolish".into(), line));
-    }
-    for cmd in COMMANDS {
-        for line in cjk(&help(&[cmd])) {
-            offenders.push((format!("repolish {cmd}"), line));
-        }
     }
 
     assert!(
@@ -71,35 +67,38 @@ fn every_help_screen_is_english() {
     );
 }
 
-/// 每个子命令都要在这张表里。少一个，它的 help 就没人守。
+/// 每一段都要在 `--help` 里露面。少一个，它的说明就没人守。
 #[test]
-fn the_command_list_covers_every_subcommand() {
+fn help_documents_every_stage() {
     let top = help(&[]);
-    let listed: Vec<&str> = top
-        .lines()
-        .skip_while(|l| !l.starts_with("Commands:"))
-        .skip(1)
-        .take_while(|l| l.starts_with("  ") && !l.trim().is_empty())
-        .filter_map(|l| l.split_whitespace().next())
-        .filter(|c| *c != "help")
-        .collect();
-
-    for cmd in &listed {
+    for stage in STAGES {
         assert!(
-            COMMANDS.contains(cmd),
-            "`{cmd}` is a subcommand but is not in COMMANDS, so its --help is unchecked"
+            top.contains(stage),
+            "`{stage}` is a --stages value but does not appear in --help, so its \
+             documentation is unchecked"
         );
     }
-    assert_eq!(listed.len(), COMMANDS.len(), "listed: {listed:?}");
+}
+
+/// 子命令已经取消。留一个还能解析的子命令，等于同一件事有两种敲法。
+#[test]
+fn there_are_no_subcommands() {
+    for word in ["check", "polish", "badge", "report", "card", "demo", "skill", "init"] {
+        let out = Command::new(bin()).arg(word).output().expect("run");
+        assert!(
+            !out.status.success(),
+            "`repolish {word}` still parses; it should be rejected as a path"
+        );
+    }
 }
 
 /// 错误提示同样是工具输出。它们往往是最长、最容易顺手写成中文的一类文案。
 #[test]
 fn error_messages_are_english_too() {
     let cases: &[&[&str]] = &[
-        &["check", "/definitely/not/a/path"],
-        &["skill", "--target", "not-an-agent"],
-        &["polish", ".", "--profile", "nonsense"],
+        &["/definitely/not/a/path"],
+        &["--stages", "skill", "--target", "not-an-agent", "--apply"],
+        &[".", "--profile", "nonsense"],
     ];
     for args in cases {
         let out = Command::new(bin()).args(*args).output().expect("run");

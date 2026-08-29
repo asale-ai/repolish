@@ -16,45 +16,35 @@
 
 <img src=".repolish/overview.svg" alt="repolish at a glance" width="880">
 
-<sup>The overview card above is written by `repolish card .` and committed by CI — a
-plain file in this repository, no fonts, no scripts, nothing hosted by us. Our score for
-it is at the [bottom of the page](#polished-with-repolish), where it belongs.</sup>
+repolish reads a repository the way a stranger does, scores 22 concrete signals, and for
+every point it deducts it names the file, the line, and what to write instead. Then it
+fixes what can be fixed mechanically.
+
+Two rules keep the number worth trusting. **No model in the scoring path**, so the same
+commit always produces the same score. And **it says when it does not know**: a check it
+cannot decide is reported as *not verified* and excluded, never guessed at.
 
 ## Contents
 
-- [Why](#why)
 - [Install](#install)
-- [Quick start](#quick-start)
-- [Usage](#usage)
-- [Proving the README is true](#proving-the-readme-is-true)
-- [The cards, the tables and the recording](#the-cards-the-tables-and-the-recording)
+- [The one command](#the-one-command)
+- [What it does](#what-it-does) — the four stages
+- [Controlling it](#controlling-it)
+- [Configuration](#configuration)
+- [In CI](#in-ci)
+- [Cards and recordings](#cards-and-recordings)
 - [For coding agents](#for-coding-agents)
 - [What it checks](#what-it-checks)
 - [How scoring works](#how-scoring-works)
+- [Exit codes](#exit-codes)
 - [Status](#status)
 - [Contributing](#contributing)
 - [License](#license)
 
-## Why
-
-Two kinds of tools already exist: generators that write your README with an LLM, and
-linters that check whether a section is present. Neither answers the question an author
-actually has — *what is wrong with my repository right now, and what do I change first?*
-
-repolish reads a repository the way a stranger does, scores 22 concrete signals, and for
-every point it deducts names the file and line and what to write instead. Then it
-[runs the commands](#proving-the-readme-is-true) your README promises, to prove they
-still work.
-
-Two rules keep the number worth trusting. **No model in the scoring path** — the same
-commit always produces the same score; a model can suggest wording, but never moves a
-number. And **it says when it does not know** — a check that cannot be decided returns
-*inconclusive* and is excluded rather than guessed at, and every excluded check is named.
-
 ## Install
 
 ```bash
-npx @asale/repolish check .
+npx @asale/repolish
 ```
 
 Nothing to install, and it works wherever Node does. The package is a launcher, not a
@@ -77,15 +67,15 @@ it finds on the machine:
 curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
 ```
 
-Same download and `.sha256` check, into `~/.local/bin`. POSIX `sh`, about 200 lines —
-read it first if you would rather not pipe a script into a shell. `REPOLISH_VERSION`, `REPOLISH_BIN_DIR` and
-`REPOLISH_TARGET` override the defaults.
+Same download and `.sha256` check, into `~/.local/bin`. POSIX `sh`, about 200 lines — read
+it first if you would rather not pipe a script into a shell. `REPOLISH_VERSION`,
+`REPOLISH_BIN_DIR` and `REPOLISH_TARGET` override the defaults.
 
 **With cargo**, needing Rust 1.88 or newer:
 
 ```bash
 cargo install repolish
-cargo install --git https://github.com/asale-ai/repolish repolish   # unreleased main
+cargo install --git https://github.com/asale-ai/repolish repolish  # unreleased main
 ```
 
 **The archives themselves**, five targets each with a `.sha256`, are on the
@@ -94,27 +84,30 @@ cargo install --git https://github.com/asale-ai/repolish repolish   # unreleased
 </details>
 
 Linux builds are glibc-only. On musl the installers say so and stop rather than leaving a
-binary that cannot run; use `cargo install repolish` there. For the GitHub Action, see
-[action/README.md](action/README.md).
+binary that cannot run; use `cargo install repolish` there.
 
-## Quick start
+**Every command below uses `npx @asale/repolish`**, which needs nothing installed. Note
+that npx does not put `repolish` on your PATH — it downloads into a cache and runs it. If
+you did install it globally (npm, cargo, or the script above), drop the prefix and run
+`repolish` instead; the arguments are identical.
+
+## The one command
 
 ```bash
-repolish check .   # or: npx @asale/repolish check .
+npx @asale/repolish
 ```
 
-That is the whole thing. Here it is against `demo/sample`, written badly on purpose —
-check, fix, check again:
+**There are no subcommands, and nothing is written.** It scores the repository, then
+reports every file it would create or change:
 
 <img src=".repolish/demo.svg" alt="repolish scoring a rough repository, fixing it, and scoring it again" width="910">
 
-<sup>Recorded by repolish itself. The two scores in it are whatever that run actually
-produced; a tool whose job is checking that a README's promises are true has no business
-faking its own demo. Why it is re-recorded by hand rather than on every push:
-[demo/README.md](demo/README.md).</sup>
+<sup>Recorded by repolish itself against [demo/sample](demo/sample), a repository written
+badly on purpose; both scores in it are whatever that run actually produced. Why it is
+re-recorded by hand: [demo/README.md](demo/README.md).</sup>
 
 <details>
-<summary>The first of those three commands, as text</summary>
+<summary>What a run looks like, as text</summary>
 
 ```text
   acme/taskvault  · cli (detected) · local · 52d9d0e4
@@ -129,78 +122,134 @@ faking its own demo. Why it is re-recorded by hand rather than on every push:
 
   ── TO FIX ──────────────────────────────────────────────────────────────
 
-   P1  claim-consistency
-       1 of the 1 verifiable command claims in the README no longer work.
-       Typing the first command from a README and getting an error is the
-       fastest way to lose a user
-       └ README.md:8  `scripts/setup.sh` — does not exist in the repository
-
    P1  license
        Add a LICENSE file. No license means all rights reserved — legally,
        nobody may use your code
        └ .  no LICENSE file in the repository root
+
+  WOULD WRITE (6 files)
+    .github/ISSUE_TEMPLATE/bug_report.yml       new file
+    .github/ISSUE_TEMPLATE/feature_request.yml  new file
+    .github/pull_request_template.md            new file
+    CONTRIBUTING.md                             new file
+    .repolish/badge.json                        score badge
+    .github/workflows/repolish.yml              CI workflow
+
+  Nothing was written. Apply with: npx @asale/repolish --apply
 ```
 
 </details>
 
-Three things there are the point of the tool: **`README.md:8`** — every deduction names a
-file and, where there is one, a line; **`5 not verified`** — checks it could not decide are
-counted separately and never folded into the score as if they had passed; and **`local`** —
-the report always says which baseline produced it, because a local score and a `--remote`
-one are not comparable. Run `repolish check . -v` for the full finding list.
+Three things there are the point of the tool. **`README.md:8`** — every deduction names a
+file and, where there is one, a line. **`5 not verified`** — checks it could not decide are
+never folded into the score as if they had passed. And **`local`** — the report says which
+baseline produced it, because a local score and a `--remote` one are not comparable.
 
-## Usage
+When the plan looks right:
 
 ```bash
-repolish check .                    # local checks only, no network
-repolish check . --remote           # also read description / topics / homepage from GitHub
-repolish check . --format json      # machine-readable, schema frozen at version 1
-repolish check . --min-score 70     # exit 1 when below the threshold
-repolish check . --only license,ci-present
+npx @asale/repolish --apply
+```
+
+That is the whole workflow. `--apply` **only inserts**: the diff is new lines and nothing
+else, so your tabs, list markers, reference-style link definitions and line endings survive
+byte for byte. It refuses to run outside a git repository unless you pass `--force`,
+because `git checkout` is the undo button.
+
+## What it does
+
+Four stages, in order. The order matters: `polish` may insert a reference to a card, and
+`artifacts` is what draws it.
+
+| Stage | What it does |
+|---|---|
+| `check` | Score the repository and print the report |
+| `polish` | The fixes that follow mechanically: the badge, a table of contents built from your own headings, GitHub issue and PR templates, and a `CONTRIBUTING.md` whose commands come from your detected package manifest |
+| `artifacts` | Write `.repolish/badge.json`, and redraw every SVG the README already references |
+| `ci` | Write `.github/workflows/repolish.yml` |
+
+**Where it cannot know, it does not write.** No manifest means no `CONTRIBUTING.md`,
+because the alternative is `<your build command here>` — a file that turns the check green
+while the problem stays where it was. Existing files are left alone; `--force` regenerates
+them.
+
+Two more stages exist but are **not** in the default run, deliberately:
+
+| Stage | Why it is opt-in |
+|---|---|
+| `skill` | Writes `SKILL.md`, which only matters if you use coding agents |
+| `demo` | **Runs** the commands it records, which is not something a default should do |
+
+## Controlling it
+
+```bash
+npx @asale/repolish --stages check                 # score only, write nothing
+npx @asale/repolish --stages check,polish --apply  # fix, but no badge JSON and no CI workflow
+npx @asale/repolish --stages demo --apply          # record the animation
+npx @asale/repolish -v                             # P3 suggestions, passing checks, full file contents
+npx @asale/repolish --remote                       # also read description / topics / homepage from GitHub
 ```
 
 `--remote` reads `GITHUB_TOKEN` or `GH_TOKEN`; without one, the anonymous quota is 60
 requests per hour.
 
-### Fixing what can be fixed
-
 ```bash
-repolish polish .                   # print the changes it would make
-repolish polish . --apply           # write them
+npx @asale/repolish --format json              # schema frozen at version 1
+npx @asale/repolish --only license,ci-present  # run just these checks
+npx @asale/repolish --skip repo-topics         # run everything except this
 ```
 
-`polish` only makes changes that follow mechanically from the findings: the repolish
-badge, a table of contents built from your own headings, GitHub issue and PR templates,
-and a `CONTRIBUTING.md` whose commands come from your **detected package manifest**.
+`--format` accepts `text` (the default), `json`, `markdown`, `sarif` and `comment`. In
+every format but `text`, **stdout carries only the report** and everything procedural goes
+to stderr, so `npx @asale/repolish --format json | jq` works on a full run.
 
-**Where it cannot know, it does not write.** No manifest means no `CONTRIBUTING.md`,
-because the alternative is `<your build command here>` — a file that turns the check green
-while the problem stays exactly where it was.
-
-**It only inserts.** The diff is new lines and nothing else: your tabs, list markers,
-reference-style link definitions and line endings survive byte for byte. `--apply` refuses
-to run outside a git repository unless you pass `--force`, because `git checkout` is the
-undo button.
-
-Badge style, table of contents style, alignment, logo and the SVG visuals are flags, or
-`[readme]` keys in `.repolish.toml`. **None of them move a score**
-— [the full list](docs/04-usage.md).
-
-### The three things it cannot write for you
+Three findings are deliberately left for you: the tagline, the quick start and the usage
+example. No mechanical rule can satisfy them. A model can draft them, and only them:
 
 ```bash
-repolish polish . --suggest         # needs REPOLISH_LLM_API_KEY
+npx @asale/repolish --suggest  # needs REPOLISH_LLM_API_KEY, or ANTHROPIC_API_KEY
 ```
 
-The heaviest checks are the ones no mechanical rule can satisfy: the tagline (Critical),
-the quick start (Critical), the usage example (High). `--suggest` drafts those three, and
-only those three. It **never writes**, not even with `--apply`; it **only fills gaps**;
-and it **cannot invent** — told to leave a suggestion empty rather than make one up.
-[Why each, and why the scoring path is still model-free](docs/04-usage.md).
+`--suggest` **never writes**, not even with `--apply`; it **only fills gaps**; and it
+**cannot invent** — it is told to leave a suggestion empty rather than make one up. It does
+not move a score. [Why those three](docs/04-usage.md).
 
-### As a CI gate
+## Configuration
 
-On GitHub, the action takes the threshold directly:
+Anything you would otherwise repeat on the command line goes in `.repolish.toml` in the
+repository root. The command line always wins, and an unknown key is an error, not a
+silent no-op.
+
+```toml
+profile   = "cli"      # override the detected project type
+min_score = 70         # same as --min-score
+
+[checks]
+skip = ["repo-topics"]
+
+[readme]               # how the insertions look. None of this moves a score.
+toc-style = "fold"
+theme     = "porcelain"
+
+[suggest]              # which model drafts the suggestions. No API key here: this file is committed.
+model = "claude-sonnet-4-5"
+```
+
+Per-check thresholds are deliberately not configurable: letting every repository tune its
+own would make scores incomparable between repositories, which is the reason this tool
+exists. [The full key list](docs/04-usage.md).
+
+## In CI
+
+The `ci` stage writes a workflow with two jobs: one on pushes that records the score and
+commits the badge, one on pull requests that reports **what the change did** to the score,
+uploads SARIF so each finding lands on its own line in the diff, and posts a comment.
+
+```bash
+npx @asale/repolish --stages ci --min-score 70 --apply
+```
+
+To wire it up by hand, the action takes the threshold directly:
 
 ```yaml
 - uses: asale-ai/repolish@v0.3.1
@@ -210,116 +259,63 @@ On GitHub, the action takes the threshold directly:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-Anywhere else the exit code is the gate: `repolish check . --remote --min-score 70`.
+Anywhere else the exit code is the gate: `npx @asale/repolish --stages check --remote --min-score 70`.
 Exit 1 means the score was too low; exit 4 means the GitHub call failed — deliberately
-different, so a rate limit never reads as a regression.
-
-On a pull request the *change* is the story, not the absolute number:
+different, so a rate limit never reads as a regression. On a pull request the *change* is
+the story:
 
 ```bash
-repolish check . --base origin/main
-repolish check . --sarif repolish.sarif    # one annotation per finding, on its line
-repolish check . --comment comment.md      # the short form, for a PR comment
+npx @asale/repolish --stages check --base origin/main      # report the difference against a ref
+npx @asale/repolish --stages check --sarif repolish.sarif  # one annotation per finding, on its line
+npx @asale/repolish --stages check --comment comment.md    # the short form, for a PR comment
 ```
 
-`repolish init` writes a workflow wiring all three up —
-[how each behaves](docs/04-usage.md), [the Action's inputs](action/README.md).
+`--sarif` and `--comment` write even without `--apply`: you named the path, so that is the
+request, not a change to your repository.
 
-### Exit codes
+[How each behaves](docs/04-usage.md) · [the Action's inputs](action/README.md)
 
-Tool failure and "checks did not pass" are deliberately different codes.
-
-<img src=".repolish/tables/exit-codes.svg" alt="Exit codes" width="880">
-
-<details>
-<summary>Exit codes as a table</summary>
-
-| Code | Meaning |
-|---|---|
-| 0 | Success |
-| 1 | Score below `--min-score`, or a README command failed under `verify` |
-| 2 | Bad arguments |
-| 3 | Not a valid repository |
-| 4 | `--remote` failed (API error, rate limit, private repo) |
-| 5 | Fewer than half the checks could run — no total score is reported |
-| 6 | `verify --run` could not run: no container engine, or the container died |
-| 7 | `--base` could not be resolved: shallow clone, unknown ref, no git |
-
-</details>
-
-## Proving the README is true
-
-`claim-consistency` checks that the commands your README promises **exist**, which catches
-renames and deletions. It does not catch what a new user actually hits: the command is
-still there, but it needs a system package nobody wrote down, and step one fails on a
-machine that is not yours.
-
-`verify` closes that gap by **running them**.
+## Cards and recordings
 
 ```bash
-repolish verify .                   # print the plan; run nothing
-repolish verify . --run             # execute them in a clean container
-repolish verify . --run --image python:3.12 --section Install
-```
-
-Without `--run` it prints what it would execute and why it would skip the rest. With
-`--run` it executes them **in a container**, in one shell session — so a `cd` in step two
-still applies to step three, the way a reader following along experiences it.
-
-Three rules it does not bend. **Never on your machine**: with no container engine it stops
-at exit code 6 rather than falling back to your host. **Your repository is mounted
-read-only** and copied in. And **every skipped command is listed with its reason** — a
-report saying "12 passed" while quietly skipping nine is worse than no report.
-[What it skips, and why](docs/02-cli-design.md).
-
-In CI the exit code is the point: **1 when a command failed**, the same class of event as
-a score below the threshold; **6 when it could not run at all**, which is not a quality
-regression and must not read as one.
-
-
-## The cards, the tables and the recording
-
-```bash
-repolish card .                 # .repolish/overview.svg — what this project is
-repolish card . --kind score    # .repolish/card.svg     — what repolish scored it
-repolish card . --kind tables   # redraw the README's tables
-repolish demo .                 # run the CLI and record it as an animated SVG
-repolish polish . --apply --visuals   # insert all of the above into the README
+npx @asale/repolish --apply --visuals           # insert the cards and SVG tables, and draw them
+npx @asale/repolish --stages artifacts --apply  # redraw everything already referenced
+npx @asale/repolish --stages demo --apply       # record the CLI as an animated SVG
 ```
 
 Everything repolish draws is a **self-contained, deterministic SVG**, and a plain file in
 **your** repository — so it cannot go 404 on you, rate-limit you, or log who read your
-README.
+README. The overview card belongs at the top, under the badges; the report card belongs at
+the [end](#polished-with-repolish), because at the top the first thing a visitor sees would
+be our tool grading your project instead of your project.
 
-**Where each one goes is the point.** The overview card belongs at the top, under the
-badges. The report card belongs at the [end](#polished-with-repolish) — at the top, the
-first thing a visitor sees would be our tool grading your project instead of your project.
-
+`polish` inserts each reference once; `artifacts` redraws the file every run after that, so
+the image never goes stale. Pick a single one with `--artifact badge,report,overview,score,tables`.
 The rest — `--theme`, `--lang`, why `--stars` only works on repositories you administer,
 why `demo` really runs the commands it records — is in
 [docs/02-cli-design.md](docs/02-cli-design.md).
 
 ## For coding agents
 
-Ask an agent to "improve this README" and its first move is to rewrite the whole file —
-replacing the author's voice, layout and examples with something that reads like every
-other README. That is exactly the failure this tool exists to prevent.
+Ask an agent to "improve this README" and its first move is to rewrite the whole file,
+replacing the author's voice and examples with something that reads like every other
+README. That is exactly the failure this tool exists to prevent.
 
 ```bash
-repolish skill --list             # which agents are installed here
-repolish skill --target detect    # install into the ones that are
-repolish skill .                  # or write SKILL.md into a repository
+npx @asale/repolish --stages skill --list                   # which agents are installed here
+npx @asale/repolish --stages skill --target detect --apply  # install into the ones that are
+npx @asale/repolish --stages skill --apply                  # or write SKILL.md into a repository
 ```
 
 [skills/repolish/SKILL.md](skills/repolish/SKILL.md) is the file to hand to Claude Code,
 Codex, Gemini, OpenCode or anything reading `AGENTS.md`. Beyond the command surface it
 carries the order — **measure, apply what is mechanical, hand back what needs judgement,
-measure again** — and what a good fix looks like per finding.
+measure again**.
 
 ## What it checks
 
-22 checks in three categories. Full definitions and weights:
-[docs/03-scoring.md](docs/03-scoring.md).
+22 checks in three categories. Three of them need `--remote`. Full definitions and
+weights: [docs/03-scoring.md](docs/03-scoring.md).
 
 <img src=".repolish/tables/what-it-checks.svg" alt="What it checks" width="880">
 
@@ -334,25 +330,44 @@ measure again** — and what a good fix looks like per finding.
 
 </details>
 
-**Claim consistency** is the one no other tool does: it verifies that the commands your
-README promises actually exist. `npm run build` must be in `package.json`, `make test`
-must be a real target. A README that fails on its first command is where readers leave —
-and `repolish verify` takes those same commands and
-[actually runs them](#proving-the-readme-is-true).
+**Claim consistency** is the one no other tool does: `npm run build` must be in
+`package.json`, `make test` must be a real target. A README that fails on its first command
+is where readers leave. It catches renames and deletions — the command that quietly stopped
+existing.
 
 ## How scoring works
 
 Each check returns 0–10 and carries a risk weight; the total is the weighted average.
 Checks that end up *not applicable*, *inconclusive* or *skipped* are excluded from the
-denominator rather than counted as passes — and **if fewer than half the weights were
-scored, no total is reported at all**, because "we checked three things and they passed"
+denominator rather than counted as passes — and **if less than half the total weight could
+be scored, no total is reported at all**, because "we checked three things and they passed"
 must not read as 100/100. Weights, thresholds and the aggregation rules are in
 [docs/03-scoring.md](docs/03-scoring.md).
 
+## Exit codes
+
+Tool failure and "checks did not pass" are deliberately different codes.
+
+<img src=".repolish/tables/exit-codes.svg" alt="Exit codes" width="880">
+
+<details>
+<summary>Exit codes as a table</summary>
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Score below `--min-score` |
+| 2 | Bad arguments |
+| 3 | Not a valid repository |
+| 4 | `--remote` failed (API error, rate limit, private repo) |
+| 5 | Less than half the total weight could be scored — no total score is reported |
+| 7 | `--base` could not be resolved: shallow clone, unknown ref, no git |
+
+</details>
+
 ## Status
 
-Everything described above is shipped, `verify` and the wording suggestions included —
-with no model in the scoring path, the rule that has not moved.
+Everything described above is shipped, the wording suggestions included.
 
 The check set and the JSON schema are frozen for v1. Adding, removing or reweighting a
 check changes what a score means everywhere, so it is a versioned decision rather than
@@ -365,7 +380,6 @@ the project, the three rules that are not up for debate, how to add a check, and
 release runbook. Design notes are in [docs/](docs/README.md). By participating you agree
 to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-
 ## License
 
 Licensed under either of [Apache License 2.0](LICENSE-APACHE) or
@@ -375,5 +389,6 @@ Licensed under either of [Apache License 2.0](LICENSE-APACHE) or
 
 <img src=".repolish/card.svg" alt="repolish report card" width="880">
 
-This card is generated by [repolish](https://github.com/asale-ai/repolish) and is a plain file in this repository — no external fonts, no scripts, nothing hosted by a third party. To score your own: `cargo install repolish && repolish check .`.
-
+This card is generated by [repolish](https://github.com/asale-ai/repolish) and is a plain
+file in this repository — no external fonts, no scripts, nothing hosted by a third party.
+To score your own: `npx @asale/repolish`.

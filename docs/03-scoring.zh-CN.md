@@ -44,7 +44,7 @@
 
 - `badge.json` 增加 `mode` 字段（`"remote"` / `"local"`）
 - `mode = "local"` 时，徽章 label 降级为 `repolish (local)`，使读者一眼可辨
-- `repolish init` 生成的 workflow 默认带 `--remote`（Action 里 `GITHUB_TOKEN` 免费可得），因此正常路径产出的都是完整分
+- `ci` 阶段生成的 workflow 默认带 `--remote`（Action 里 `GITHUB_TOKEN` 免费可得），因此正常路径产出的都是完整分
 
 ---
 

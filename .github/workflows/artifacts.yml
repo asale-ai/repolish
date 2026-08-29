@@ -37,13 +37,13 @@ jobs:
         run: |
           # --stars 多花十几次 API 请求。这里划得来：CI 有 token，
           # 而卡片上那条曲线正是每次重画的理由之一。
-          cargo run --release -- check . --remote --stars --no-color \
-            --badge --report --card --overview
+          cargo run --release -- . --stages check,artifacts --apply \
+            --remote --stars --no-color --report --overview --footer-card
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 表格图跟着 README 走：作者改了一行表格，图就该跟着变。
-      # 用 card 而不是 polish 来重画——polish 从不覆盖任何文件，
+      # 用 artifacts 而不是 polish 来重画——polish 从不覆盖任何文件，
       # 第二次跑就是空操作，README 上会一直挂着第一次画的那张图。
       #
       # 中文 README 引的是另一套卡片与另一张横幅。这个仓库自己就是 --lang
@@ -51,14 +51,14 @@ jobs:
       # 是我们把自己的语言塞进了别人的门面。
       - name: Tables, the Chinese cards, and the brand assets
         run: |
-          # card 会重画主 README 与每一份译本的表格图。用它而不是 polish：
-          # polish 从不覆盖任何文件，第二次跑就是空操作，图会永远停在
+          # artifacts 阶段会重画主 README 与每一份译本的表格图。用它而不是
+          # polish：polish 从不覆盖任何文件，第二次跑就是空操作，图会永远停在
           # 第一次生成的样子。
-          cargo run --release -- card . --kind tables
-          cargo run --release -- card . --kind overview --lang zh-CN \
-            --output .repolish/overview.zh-CN.svg
-          cargo run --release -- card . --kind score --lang zh-CN \
-            --output .repolish/card.zh-CN.svg
+          cargo run --release -- . --stages artifacts --apply --artifact tables
+          cargo run --release -- . --stages artifacts --apply --artifact overview \
+            --lang zh-CN --output .repolish/overview.zh-CN.svg
+          cargo run --release -- . --stages artifacts --apply --artifact score \
+            --lang zh-CN --output .repolish/card.zh-CN.svg
           cargo run --release -p repolish-render --example logo
 
       - name: Commit

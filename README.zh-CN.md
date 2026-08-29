@@ -10,104 +10,97 @@
 [![repolish](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/asale-ai/repolish/main/.repolish/badge.json)](https://github.com/asale-ai/repolish)
 [![CI](https://github.com/asale-ai/repolish/actions/workflows/ci.yml/badge.svg)](https://github.com/asale-ai/repolish/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#许可证)
-[![Docs](https://img.shields.io/badge/docs-design%20notes-blue.svg)](docs/README.md)
+[![Docs](https://img.shields.io/badge/docs-design%20notes-blue.svg)](docs/README.zh-CN.md)
 
 [English](README.md) · [中文](README.zh-CN.md)
 
 <img src=".repolish/overview.zh-CN.svg" alt="repolish 项目概览" width="880">
 
-<sup>上面这张概览卡片由 `repolish card . --lang zh-CN` 生成，每次 push 由 CI 提交。它就是
-本仓库里的一个普通文件——没有字体、没有脚本，我们不托管任何东西。我们给这个仓库打的**分数**
-在[页面末尾](#用-repolish-打磨)，那才是它该待的地方。</sup>
+repolish 按陌生人的读法过一遍仓库，对 22 个具体信号打分，每扣一分都指出文件和行号，
+并告诉你该改成什么。然后把其中能机械落实的那部分直接改掉。
+
+有两条规则让这个分数值得信：**评分路径上没有模型**，同一个 commit 永远得到同一个分数；
+**判不了就说判不了**，无法确定的检查项报成「未验证」并被剔出分母，绝不猜一个。
 
 ## 目录
 
-- [为什么做这个](#为什么做这个)
 - [安装](#安装)
-- [快速开始](#快速开始)
-- [用法](#用法)
-- [证明 README 说的是真的](#证明-readme-说的是真的)
-- [卡片、表格与录屏](#卡片表格与录屏)
+- [一条命令](#一条命令)
+- [它做了什么](#它做了什么) —— 四个阶段
+- [怎么控制它](#怎么控制它)
+- [配置](#配置)
+- [在 CI 里](#在-ci-里)
+- [卡片与录屏](#卡片与录屏)
 - [给编码智能体用](#给编码智能体用)
 - [检查什么](#检查什么)
 - [分数怎么来的](#分数怎么来的)
+- [退出码](#退出码)
 - [当前状态](#当前状态)
 - [贡献](#贡献)
 - [许可证](#许可证)
 
-## 为什么做这个
-
-现有的工具分两类：用 LLM 替你写 README 的生成器，和检查「某个区块在不在」的检查器。
-两类都没有回答作者真正的问题——**我的仓库现在到底哪里不行，该先改哪一条？**
-
-repolish 按陌生人的读法过一遍仓库，对 22 个具体信号打分，每扣一分都指出文件和行号，
-并告诉你该改成什么。
-
-有两条规则让这个分数值得信：
-
-- **评分路径上没有模型。** 同一个 commit 永远得到同一个分数。LLM 可以在之后润色措辞，
-  但它不会改动任何一个数字。
-- **判不了就说判不了。** 无法确定的检查项返回「不确定」并被剔出分母，而不是猜一个。
-  被剔出去的每一项都会列在报告里。
-
 ## 安装
 
 ```bash
-npx @asale/repolish check .
+npx @asale/repolish
 ```
 
 不用装任何东西，有 Node 的地方就能跑。这个包是一层启动器，不是另一份实现：
 它下载对应平台的发布二进制、校验 `.sha256`、然后执行——不管走哪条路，
-检查本身都是同一个静态 Rust 二进制。
+真正做检查的都是同一个静态 Rust 二进制。
 
 <details>
 <summary>另外四种装法</summary>
 
-**用 npm 全局装**，让 `repolish` 直接在 PATH 上：
+**用 npm 全局装**，让 `repolish` 进 PATH：
 
 ```bash
 npm install -g @asale/repolish
 ```
 
-**一行装好**，它顺带把[智能体技能](#给编码智能体用)放进这台机器上装了的那几家智能体里：
+**一行装完**，顺带把[智能体技能](#给编码智能体用)装进这台机器上找得到的那些智能体：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
 ```
 
-同样是下载加 `.sha256` 校验，装进 `~/.local/bin`。POSIX `sh`，两百行左右——
-不想把脚本管道进 shell 的话，先读一遍。`REPOLISH_VERSION`、`REPOLISH_BIN_DIR`、
-`REPOLISH_TARGET` 可以覆盖默认值。
+同样的下载与 `.sha256` 校验，装到 `~/.local/bin`。POSIX `sh`，约 200 行——
+不想把脚本直接管道进 shell 的话，先读一遍。`REPOLISH_VERSION`、`REPOLISH_BIN_DIR`
+和 `REPOLISH_TARGET` 可以覆盖默认值。
 
-**用 cargo**，需要 Rust 1.88 或更新版本：
+**用 cargo 装**，需要 Rust 1.88 以上：
 
 ```bash
 cargo install repolish
-cargo install --git https://github.com/asale-ai/repolish repolish   # 未发布的 main
+cargo install --git https://github.com/asale-ai/repolish repolish  # 未发布的 main
 ```
 
-**归档本身**：五个平台，每个都带 `.sha256`，在[发布页](https://github.com/asale-ai/repolish/releases)。
+**直接下压缩包**，五个目标平台，每个都带 `.sha256`，在[发布页](https://github.com/asale-ai/repolish/releases)。
 
 </details>
 
-Linux 版只有 glibc 构建。在 musl（Alpine）上安装器会直说并停下，而不是留下一个根本跑不起来的
-二进制——那种情况请用 `cargo install repolish`。GitHub Action 的用法见
-[action/README.md](action/README.md)。
+Linux 构建只支持 glibc。在 musl 上安装脚本会明说并停下，而不是留一个跑不起来的二进制；
+那种环境请用 `cargo install repolish`。
 
-## 快速开始
+**下文的命令一律用 `npx @asale/repolish`**，不需要预先装任何东西。注意 npx 不会把
+`repolish` 放进你的 PATH——它下载到缓存里直接执行。如果你确实全局装过（npm、cargo，
+或上面那个脚本），把前缀去掉、直接敲 `repolish` 即可，参数完全一样。
+
+## 一条命令
 
 ```bash
-repolish check .   # 或者：npx @asale/repolish check .
+npx @asale/repolish
 ```
 
-就这一条。下面是它跑在 `demo/sample` 上的真实录屏——那是一个故意写得很糙的仓库：先 check，再把能改的改掉，然后重新 check。
+**没有子命令，而且一个字节都不写。** 它给仓库打分，然后列出它会创建或改动的每一个文件：
 
 <img src=".repolish/demo.svg" alt="repolish 给一个很糙的仓库打分、修复、再打分" width="910">
 
-<sup>由 repolish 自己录的，见[卡片、表格与录屏](#卡片表格与录屏)。里面那两个分数就是那一次真的跑出来的分数——一个专门检查「README 承诺的命令是否真的存在」的工具，自己的演示不能是编的。它是手动重录而不是每次 push 重录，理由值得一读：[demo/README.md](demo/README.md)。</sup>
+<sup>由 repolish 自己录制，对象是[demo/sample](demo/sample)——一个故意写得很糙的仓库；
+里面那两个分数就是那一次真的跑出来的。它为什么是手动重录：[demo/README.md](demo/README.md)。</sup>
 
 <details>
-<summary>上面三条命令里的第一条，文字版</summary>
+<summary>一次运行长什么样（文字版）</summary>
 
 ```text
   acme/taskvault  · cli (detected) · local · 52d9d0e4
@@ -122,72 +115,128 @@ repolish check .   # 或者：npx @asale/repolish check .
 
   ── TO FIX ──────────────────────────────────────────────────────────────
 
-   P1  claim-consistency
-       1 of the 1 verifiable command claims in the README no longer work.
-       Typing the first command from a README and getting an error is the
-       fastest way to lose a user
-       └ README.md:8  `scripts/setup.sh` — does not exist in the repository
-
    P1  license
        Add a LICENSE file. No license means all rights reserved — legally,
        nobody may use your code
        └ .  no LICENSE file in the repository root
+
+  WOULD WRITE (6 files)
+    .github/ISSUE_TEMPLATE/bug_report.yml       new file
+    .github/ISSUE_TEMPLATE/feature_request.yml  new file
+    .github/pull_request_template.md            new file
+    CONTRIBUTING.md                             new file
+    .repolish/badge.json                        score badge
+    .github/workflows/repolish.yml              CI workflow
+
+  Nothing was written. Apply with: npx @asale/repolish --apply
 ```
 
 </details>
 
-这段输出里有三处才是这个工具的意义所在：
+这段输出里有三处才是这个工具的意义所在：**`README.md:8`**——每一处扣分都指出文件，
+有行号的给行号；**`5 not verified`**——判不了的检查项绝不混进分数里当成通过；
+**`local`**——报告永远标明这个分数出自哪一种基准，本地分和 `--remote` 分不可横向比较。
 
-- **`README.md:8`** —— 每一处扣分都指出文件，有行号的给行号。
-- **`5 not verified`** —— 判不了的检查项单独计数并逐条列名，绝不混进分数里当成通过。
-- **`local`** —— 报告永远标明这个分数出自哪一种基准，见[分数怎么来的](#分数怎么来的)。
-
-想看横幅、配色和完整的发现列表，跑 `repolish check . -v`。
-
-## 用法
+计划看着没问题，就落盘：
 
 ```bash
-repolish check .                    # 只做本地检查，不联网
-repolish check . --remote           # 额外读取 GitHub 的 description / topics / homepage
-repolish check . --format json      # 机器可读，schema 已冻结在版本 1
-repolish check . --min-score 70     # 低于阈值时以退出码 1 结束
-repolish check . --only license,ci-present
+npx @asale/repolish --apply
+```
+
+整个流程就这样。`--apply` **只增量插入**：产出的 diff 全是新增行，你的制表符、列表标记、
+引用式链接定义和行尾逐字节保留。不在 git 仓库里时它会拒绝执行，除非加 `--force`——
+没有 `git checkout` 就没有撤销键。
+
+## 它做了什么
+
+四个阶段，按顺序跑。顺序是有意义的：`polish` 可能刚往 README 里插入了一张卡片的引用，
+`artifacts` 紧接着才画得出那张图。
+
+| 阶段 | 做什么 |
+|---|---|
+| `check` | 给仓库打分并打印报告 |
+| `polish` | 能机械落实的那些改动：徽章、用你自己的标题生成的目录、GitHub 的 issue 与 PR 模板，以及一份构建和测试命令来自探测到的包清单的 `CONTRIBUTING.md` |
+| `artifacts` | 写 `.repolish/badge.json`，并重画 README 已经引用的每一张 SVG |
+| `ci` | 写 `.github/workflows/repolish.yml` |
+
+**推不出来就不写。** 没有包清单就没有 `CONTRIBUTING.md`——另一条路是写一份
+`<your build command here>`，那种文件让检查变绿，问题却原地不动。已经存在的文件一律
+不动，`--force` 才重新生成。
+
+还有两个阶段，**刻意不在默认流程里**：
+
+| 阶段 | 为什么要显式点名 |
+|---|---|
+| `skill` | 写 `SKILL.md`，只有用编码智能体的人才需要 |
+| `demo` | 会**真的执行**它录下的命令，那不是一个默认动作该做的事 |
+
+## 怎么控制它
+
+```bash
+npx @asale/repolish --stages check                 # 只打分，什么都不写
+npx @asale/repolish --stages check,polish --apply  # 只修复，不写徽章 JSON、不写 CI workflow
+npx @asale/repolish --stages demo --apply          # 录制动画
+npx @asale/repolish -v                             # P3 建议、通过项、以及每个新文件的完整内容
+npx @asale/repolish --remote                       # 额外从 GitHub 读 description / topics / homepage
 ```
 
 `--remote` 从环境变量读取 `GITHUB_TOKEN` 或 `GH_TOKEN`。没有 token 时走匿名配额，
 每小时 60 次。
 
-### 把能改的直接改掉
-
 ```bash
-repolish polish .                   # 打印它会做的改动，不落盘
-repolish polish . --apply           # 真的写
+npx @asale/repolish --format json              # schema 已冻结在版本 1
+npx @asale/repolish --only license,ci-present  # 只跑这几项
+npx @asale/repolish --skip repo-topics         # 除了这项其余都跑
 ```
 
-`polish` 只做能从发现里机械推出来的改动：repolish 徽章、用你自己的标题生成的目录、GitHub 的 issue 与 PR 模板，以及一份构建和测试命令来自**探测到的包清单**的 `CONTRIBUTING.md`。
+`--format` 接受 `text`（默认）、`json`、`markdown`、`sarif` 和 `comment`。除 `text` 外的
+每一种格式下，**stdout 只有那份报告**，所有过程性输出走 stderr——所以
+`npx @asale/repolish --format json | jq` 在完整流水线下也是通的。
 
-**推不出来就不写。** 没有包清单就没有 `CONTRIBUTING.md`——另一条路是写一份 `<your build command here>`，那种文件让检查变绿，问题却原地不动。
-
-**它只增量插入。** 产出的 diff 全是新增行：你的制表符、列表标记、引用式链接定义和行尾逐字节保留。不在 git 仓库里时 `--apply` 会拒绝执行，除非加 `--force`——没有 `git checkout` 就没有撤销键。
-
-徽章样式、目录样式、对齐、logo 和那几张 SVG 都是开关，也可以写进 `.repolish.toml` 的
-`[readme]` 段。**它们都不影响分数**——[完整清单](docs/04-usage.zh-CN.md)。
-
-### 它替你写不了的那三段
+有三项发现是刻意留给你的：一句话简介、快速开始、用法示例。任何机械规则都满足不了它们。
+模型可以起草这三段，也只有这三段：
 
 ```bash
-repolish polish . --suggest         # 需要 REPOLISH_LLM_API_KEY
+npx @asale/repolish --suggest  # 需要 REPOLISH_LLM_API_KEY，或 ANTHROPIC_API_KEY
 ```
 
-权重最高的三项，恰好是任何机械规则都满足不了的：一句话简介（Critical）、
-快速开始（Critical）、用法示例（High）。`--suggest` 起草这三段，且只有这三段。
-它**从不落盘**，`--apply` 也不写；它**只补缺的那一段**；它还**编不出东西**——
-缺一个事实就把建议留空，绝不硬编一个。
-[每一条的理由，以及评分路径为什么仍然无模型](docs/04-usage.zh-CN.md)。
+`--suggest` **从不落盘**，`--apply` 也不写；它**只补缺的那一段**；它还**编不出东西**
+——缺一个事实就把建议留空。它不影响任何一个分数。[为什么是这三段](docs/04-usage.zh-CN.md)。
 
-### 用作 CI 门禁
+## 配置
 
-在 GitHub 上，action 直接收阈值：
+那些你本来要在命令行上反复敲的东西，写进仓库根目录的 `.repolish.toml`。命令行永远优先，
+写错一个键名会直接报错，而不是静默忽略。
+
+```toml
+profile   = "cli"      # 覆盖类型探测
+min_score = 70         # 等价于 --min-score
+
+[checks]
+skip = ["repo-topics"]
+
+[readme]               # 插入物的排版。这一段不影响任何一个分数。
+toc-style = "fold"
+theme     = "porcelain"
+
+[suggest]              # 哪个模型来起草建议。密钥不放这里：这个文件是要提交的。
+model = "claude-sonnet-4-5"
+```
+
+逐检查项的阈值刻意不开放：让每个仓库自己调阈值，等于让分数在仓库之间不可比，
+而那正是这个工具存在的理由。[完整键表](docs/04-usage.zh-CN.md)。
+
+## 在 CI 里
+
+`ci` 阶段写出的 workflow 里是两个 job：push 上那个记录分数并把徽章提交回来；PR 上那个
+报告**这次改动**让分数变成了什么样，上传 SARIF 让每条发现落在 diff 里它自己那一行，
+并发一条评论。
+
+```bash
+npx @asale/repolish --stages ci --min-score 70 --apply
+```
+
+想手工接的话，action 直接收阈值：
 
 ```yaml
 - uses: asale-ai/repolish@v0.3.1
@@ -197,27 +246,84 @@ repolish polish . --suggest         # 需要 REPOLISH_LLM_API_KEY
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-其他地方，退出码就是门禁：
+其他地方，退出码就是门禁：`npx @asale/repolish --stages check --remote --min-score 70`。退出码 1
+表示分数不达标，4 表示 GitHub 调用失败——两者刻意区分开，免得一次限流被读成质量退步。
+在 PR 上，重点是变化量：
 
 ```bash
-repolish check . --remote --min-score 70
+npx @asale/repolish --stages check --base origin/main      # 报告相对某个 ref 的变化量
+npx @asale/repolish --stages check --sarif repolish.sarif  # 每条发现一条注解，落在它自己那一行
+npx @asale/repolish --stages check --comment comment.md    # 短报告，给 PR 评论用
 ```
 
-退出码 1 表示分数不达标，4 表示 GitHub 调用失败——两者刻意区分开，
-免得一次限流被读成质量退步。
+`--sarif` 和 `--comment` 不受 `--apply` 约束：你明确点了输出路径，那本身就是请求，
+不是对仓库的改动。
 
-在 PR 上，重点是变化量，不是那个绝对数字：
+[每一个的行为](docs/04-usage.zh-CN.md) · [action 的输入项](action/README.md)
+
+## 卡片与录屏
 
 ```bash
-repolish check . --base origin/main
-repolish check . --sarif repolish.sarif    # 每条发现一条注解，落在它自己那一行
-repolish check . --comment comment.md      # 短报告，给 PR 评论用
+npx @asale/repolish --apply --visuals           # 插入卡片与 SVG 表格，并把图画出来
+npx @asale/repolish --stages artifacts --apply  # 重画所有已经被引用的图
+npx @asale/repolish --stages demo --apply       # 把 CLI 录成动画 SVG
 ```
 
-`repolish init` 会写一个把这三样都接上的 workflow——
-[每一个的行为](docs/04-usage.zh-CN.md)、[action 的输入项](action/README.md)。
+repolish 画出来的一切都是**自包含、确定性的 SVG**，而且是**你自己**仓库里的普通文件——
+它不会对你 404、不会限流、也不会记录谁读了你的 README。概览卡片该在顶部、徽章下面；
+分数卡片该在[末尾](#用-repolish-打磨)，因为放在顶部时访客第一眼看到的会是我们的工具在
+给你的项目打分，而不是你的项目。
 
-### 退出码
+`polish` 负责第一次把引用插进 README，此后每一次重画由 `artifacts` 负责，图就不会过期。
+要单独指定一张，用 `--artifact badge,report,overview,score,tables`。其余的——`--theme`、
+`--lang`、`--stars` 为什么只对你有管理权的仓库有用、`demo` 为什么真的会执行它录下的
+命令——都在 [docs/02-cli-design.zh-CN.md](docs/02-cli-design.zh-CN.md)。
+
+## 给编码智能体用
+
+叫智能体「改进一下这个 README」，它第一步就是把整个文件重写一遍，把作者的语气和例子换成
+一份读起来跟别人一模一样的 README。那恰好是这个工具要防的事。
+
+```bash
+npx @asale/repolish --stages skill --list                   # 这台机器上装了哪些智能体
+npx @asale/repolish --stages skill --target detect --apply  # 装进那些真的装了的
+npx @asale/repolish --stages skill --apply                  # 或者把 SKILL.md 写进某个仓库
+```
+
+[skills/repolish/SKILL.md](skills/repolish/SKILL.md) 就是交给 Claude Code、Codex、
+Gemini、OpenCode 或任何读 `AGENTS.md` 的工具的那个文件。除了命令表面，它还带着顺序——
+**先量，机械的先落实，需要判断的交回给人，再量一次**。
+
+## 检查什么
+
+22 个检查项，分三类，其中 3 项需要 `--remote`。完整定义与权重见
+[docs/03-scoring.zh-CN.md](docs/03-scoring.zh-CN.md)。
+
+<img src=".repolish/tables/zh-cn/t-0a861c.svg" alt="检查什么" width="880">
+
+<details>
+<summary>检查什么（表格原文）</summary>
+
+| 类别 | 检查项 |
+|---|---|
+| **可发现性** | README 标题与一句话简介、仓库描述、topics、homepage、徽章 |
+| **可理解性** | 快速开始、用法示例、安装命令一致性、链接健康、篇幅、docs 目录、目录、多语言 |
+| **可信度** | 许可证、**声明一致性**、CI、测试、活跃度、贡献指南、issue 与 PR 模板、发布卫生、行为准则 |
+
+</details>
+
+**声明一致性**是别的工具都不做的那一项：`npm run build` 必须在 `package.json` 里，
+`make test` 必须是一个真的 target。README 第一条命令就跑不通的地方，就是读者离开的地方。
+它抓的是改名和删除——那条悄悄不存在了的命令。
+
+## 分数怎么来的
+
+每个检查项返回 0–10，并带一个风险权重，总分是加权平均。判为**不适用**、**不确定**或
+**跳过**的项从分母里剔出去，而不是当成通过——并且**当能打分的权重不到总权重的一半时，
+根本不输出总分**，因为「我们检查了三项，都过了」不能读成 100/100。权重、阈值和聚合规则
+都在 [docs/03-scoring.zh-CN.md](docs/03-scoring.zh-CN.md)。
+
+## 退出码
 
 工具自身失败与「检查不通过」用的是不同的码，否则 CI 里分辨不出来。
 
@@ -229,128 +335,26 @@ repolish check . --comment comment.md      # 短报告，给 PR 评论用
 | 码 | 含义                            |
 | - | ----------------------------- |
 | 0 | 成功                            |
-| 1 | 分数低于 `--min-score`；`verify` 下表示有 README 命令跑失败了 |
+| 1 | 分数低于 `--min-score`             |
 | 2 | 参数错误                          |
 | 3 | 目标不是有效的仓库                     |
 | 4 | `--remote` 失败（API 错误、限流、私有仓库） |
-| 5 | 能跑的检查项不到一半，不输出总分              |
-| 6 | `verify --run` 跑不起来：没有容器引擎，或容器中途死了 |
+| 5 | 能打分的权重不到一半，不输出总分              |
 | 7 | `--base` 的基线取不到：浅克隆、ref 不存在、没有 git |
 
 </details>
 
-## 证明 README 说的是真的
-
-`claim-consistency` 核对的是 README 承诺的命令**存不存在**。这抓得住改名和删除，
-抓不住新用户真正会撞上的那一种——命令还在，但它需要一个没人写下来的系统依赖，
-于是在一台不是你的机器上，第一步就炸了。
-
-`verify` 把这个缺口补上：**真的跑一遍**。
-
-```bash
-repolish verify .                   # 打印计划，什么都不执行
-repolish verify . --run             # 在一个干净的容器里执行
-repolish verify . --run --image python:3.12 --section 安装
-```
-
-不加 `--run` 时它只打印会执行什么、其余的为什么会被跳过。加了 `--run`
-就在**容器里**执行，而且是**同一个 shell 会话**——第二步里的 `cd` 对第三步依然有效，
-跟着 README 一路敲下来的读者体验到的正是这样。
-
-三条不让步的规矩。**绝不在你的机器上跑**：这些命令会装东西、改配置，
-所以没有容器引擎时它以退出码 6 停下，而不是降级到宿主机。
-**仓库是只读挂载**并复制进去的，README 里的任何命令都碰不到你的工作区。
-**跳过的每一条都列出来，带理由**——一份写着「12 条通过」而其中 9 条被悄悄跳过的报告，
-比没有报告更糟。
-
-它会跳过任何发布的、需要 root 的、不会自己退出的、带着留给读者填的占位符的命令；
-完整清单见 [docs/02-cli-design.md](docs/02-cli-design.md)。
-镜像跟着包清单选，报告会说清是哪一个、为什么。`--offline` 断网跑。
-`--format json` 给出每条命令一条记录。
-
-退出码在 CI 里是重点：**有命令失败是 1**，与「分数低于阈值」同属一类事件；
-**压根跑不起来是 6**，那不是质量退步，也绝不该被读成质量退步。
-
-## 卡片、表格与录屏
-
-repolish 画出来的每一张图都是**自包含、确定性的 SVG**，全部是**你自己仓库里**的普通文件。
-
-```bash
-repolish card .                 # .repolish/overview.svg —— 这个项目是什么
-repolish card . --kind score    # .repolish/card.svg     —— repolish 给它打了几分
-repolish card . --kind tables   # 重画 README 里的表格
-repolish demo .                 # 真的跑一遍 CLI，录成会动的 SVG
-repolish polish . --apply --visuals   # 把以上全部插进 README
-
-repolish card . --theme porcelain   # 浅色板，给以浅色为主的 README
-repolish card . --lang ja           # en / zh-CN / ja；缺省跟着你的 README 走
-repolish card . --remote --stars    # 加上 star 增长曲线
-```
-
-`--stars` 画的是这个仓库的 star 是怎么涨起来的。GitHub 没有「历年 star 数」这样的接口，所以点取自 stargazer 列表——它按加星时间返回，于是第 *k* 页的第一个人，就是仓库第 *(k-1)×100+1* 颗星落下的那一刻。抽十几页就得到十几个**精确**的点，近似的只有点与点之间那几段直线。代价是十几次额外的 API 请求，所以默认不开。
-
-**它只对你有管理权或协作权的仓库有效。** 2026 年 7 月起 GitHub 把 stargazer 名单限制给了仓库的 admin 与 collaborator，所以拿 `--stars` 去看别人的仓库会取不到，并且会说清原因。这在实际使用中不太算限制——repolish 本来就是给**你自己的**仓库打分的——但值得先知道，免得对着一张没有曲线的卡片发愣。
-
-**哪张放哪儿才是重点。** 概览卡片在顶上、徽章下面：陌生人第一个问题是「这是什么、还活着吗」。分数卡片在[末尾](#用-repolish-打磨)——放顶上意味着访客第一眼看到的是我们的工具在给你的项目评级，而不是你的项目。
-
-`--tables svg` 把每张表画成图，并把原表格折进紧挨着的 `<details>`，仓库里有几种语言的 README 就各做一份。原文一定留着：图片没有文本层，读屏软件、`grep` 和下一个想改这张表的人，读的都是折起来的那份。
-
-`repolish demo` **真的会跑**那些命令再录制——本页顶上那段录屏里的两个分数，就是那一次跑出来的。`--dry-run` 可以先看它要跑什么。
-
-背后的取舍——为什么不做 `prefers-color-scheme`、为什么录屏第 0 帧是终态、为什么表格文件按 slug 而不是序号命名、为什么判语言时假名先于汉字占比——写在 [docs/02-cli-design.zh-CN.md](docs/02-cli-design.zh-CN.md)。
-
-## 给编码智能体用
-
-让一个智能体「把这个 README 改好」，它的第一个动作是把整个文件重写一遍。那会用一份读起来和其他所有 README 一模一样的东西，换掉作者的语气、排版和例子——而那正是这个工具存在的理由所要防的事。
-
-```bash
-repolish skill --list             # 这台机器上装了哪几家智能体
-repolish skill --target detect    # 装进探测到的那几家
-repolish skill .                  # 或者把 SKILL.md 写进一个仓库
-```
-
-[skills/repolish/SKILL.md](skills/repolish/SKILL.md) 可以直接交给 Claude Code、Codex、Gemini、OpenCode 或任何读 `AGENTS.md` 的东西。除了命令清单，它还写着那个顺序——**先量，再落实能机械落实的，把需要判断的交回给人，然后再量一次**——repolish 自己的把握到哪里为止，以及每一条发现「好的修法长什么样」。`claim-consistency` 的修法是把那条声明变成真的，**绝不是删掉那一行**——删掉只会让检查变绿，读者手里什么都不剩。
-
-## 检查什么
-
-22 个检查项，分三类。完整定义、权重与阈值见
-[docs/03-scoring.zh-CN.md](docs/03-scoring.zh-CN.md)。
-
-<img src=".repolish/tables/zh-cn/t-0a861c.svg" alt="检查什么" width="880">
-
-<details>
-<summary>检查什么（表格原文）</summary>
-
-| 类别       | 检查项                                                  |
-| -------- | ---------------------------------------------------- |
-| **可发现性** | README 标题与一句话说明、仓库 description、topics、homepage、徽章    |
-| **可理解性** | 快速开始、用法示例、安装命令一致性、链接有效性、长度、文档、目录、多语言                 |
-| **可信度**  | 许可证、**声明一致性**、CI、测试、活跃度、贡献指南、issue 与 PR 模板、发布规范、行为准则 |
-
-</details>
-
-**声明一致性**是别的工具都没做的一项：它核对 README 里承诺的命令是否真的存在。
-`npm run build` 必须在 `package.json` 里，`make test` 必须是真的目标，
-`./scripts/setup.sh` 必须是真的文件。README 的第一条命令就跑不通，读者就是在那里离开的。
-
-`repolish verify` 拿同一批命令[真的跑一遍](#证明-readme-说的是真的)。
-
-## 分数怎么来的
-
-每个检查项返回 0–10 分并带一个风险权重，总分是加权平均。判成*不适用*、*无法判定*或*被跳过*的项会被剔出分母，而不是当成通过——并且**当被评分的权重不足一半时，根本不输出总分**，因为「查了三项、三项都过」不能读成 100/100。
-
-权重、阈值与聚合规则见 [docs/03-scoring.zh-CN.md](docs/03-scoring.zh-CN.md)。
-
 ## 当前状态
 
-上面写到的都已经实现，`verify` 与 LLM 辅助润色措辞也在内——评分路径上依然没有模型，
-那条规矩一个字都没改。
+上面写到的都已经发布，措辞建议也在内。
 
-检查项清单与 JSON schema 在 v1 冻结。增删或调整一个检查项的权重，会改变「分数」这个词在所有地方的含义，所以那是一个需要版本号的决定，不是日常改动。
+检查项清单与 JSON schema 在 v1 冻结。增删或调整权重会改变分数在所有地方的含义，
+因此那是一个需要走版本的决定，不是日常改动。
 
 ## 贡献
 
-欢迎提 issue 与 PR，见 [CONTRIBUTING.md](CONTRIBUTING.md)。参与即表示你同意遵守
+欢迎 issue 和 PR。[CONTRIBUTING.md](CONTRIBUTING.md) 讲了怎么构建、三条不讨论的规则、
+怎么加一个检查项，以及发布流程。设计笔记在 [docs/](docs/README.zh-CN.md)。参与即表示你同意
 [行为准则](CODE_OF_CONDUCT.md)。
 
 ## 许可证
@@ -359,6 +363,8 @@ repolish skill .                  # 或者把 SKILL.md 写进一个仓库
 
 ## 用 repolish 打磨
 
-<img src=".repolish/card.zh-CN.svg" alt="repolish 报告卡片" width="880">
+<img src=".repolish/card.svg" alt="repolish 报告卡片" width="880">
 
-这张卡片由 [repolish](https://github.com/asale-ai/repolish) 生成，是仓库里的一个普通文件——没有外部字体、没有脚本、不由任何第三方托管。想给自己的仓库打一次分：`cargo install repolish && repolish check .`。
+这张卡片由 [repolish](https://github.com/asale-ai/repolish) 生成，是本仓库里的一个普通
+文件——没有外部字体、没有脚本，我们不托管任何东西。给你自己的仓库打分：
+`npx @asale/repolish`。

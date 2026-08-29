@@ -54,7 +54,7 @@ How that is handled:
 - `badge.json` carries a `mode` field (`"remote"` / `"local"`)
 - when `mode = "local"` the badge label degrades to `repolish (local)`, so a reader can
   tell at a glance
-- the workflow `repolish init` generates passes `--remote` by default, since `GITHUB_TOKEN`
+- the workflow the `ci` stage generates passes `--remote` by default, since `GITHUB_TOKEN`
   is free inside an Action — so the normal path produces a full score
 
 ---

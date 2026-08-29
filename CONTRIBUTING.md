@@ -20,7 +20,7 @@ To reproduce the manual acceptance run against real repositories:
 
 ```bash
 ./scripts/fetch-fixtures.sh
-./target/debug/repolish check target/fixtures/ripgrep
+./target/debug/repolish target/fixtures/ripgrep --stages check
 ```
 
 `fetch-fixtures.sh` clones the 12 real repositories used for manual acceptance; each entry
@@ -83,7 +83,7 @@ for the required checks, tag the commit that actually landed, watch
 each, because cargo rejects a crate whose path dependencies are not published
 yet. Last, it publishes the npm launcher — a separate package,
 `@asale/repolish`, wrapping those same binaries so that
-`npx @asale/repolish check .` needs no toolchain — and then **confirms it
+`npx @asale/repolish` needs no toolchain — and then **confirms it
 actually reached the registry** rather than assuming the job ran. A release that
 quietly did not reach npm is exactly the failure this script exists to prevent.
 
@@ -115,7 +115,7 @@ guess. Concretely: `ruff check path/to/code/file.py` in a usage example is about
 
 **3. Everything the tool emits is in English — except what gets embedded in someone
 else's README.** Check messages, terminal output, CLI help, `REPOLISH.md`, and the
-comments in the workflow `repolish init` generates are all English: their reader is an
+comments in the workflow the `ci` stage generates are all English: their reader is an
 author running an English CLI, and a report in two languages is one nobody keeps.
 `tests/checks.rs::all_messages_are_english` fails the build if a message slips through.
 
