@@ -9,10 +9,12 @@ A repository diagnosis and improvement CLI for open-source authors.
 | [01-architecture.md](01-architecture.md) | Rust workspace layout, crate choices, the three core designs |
 | [02-cli-design.md](02-cli-design.md) | Command surface, exit codes, output contracts (terminal colours and SVG cards), Action template |
 | [03-scoring.md](03-scoring.md) | The check list, weights, aggregation rules, and profile applicability |
+| [04-usage.md](04-usage.md) | Usage reference: polish styling, what `--suggest` may do, the pull-request flags |
 
-These three are the **external contract**: `03` defines how the score is computed, `02`
+`01`–`03` are the **external contract**: `03` defines how the score is computed, `02`
 defines the output shape and exit codes, and `01` explains why the trade-offs are what
-they are. Changing them changes what users are allowed to depend on.
+they are. Changing them changes what users are allowed to depend on. `04` is the usage
+reference the README links out to, and grows with the CLI rather than being frozen.
 
 ## Status
 

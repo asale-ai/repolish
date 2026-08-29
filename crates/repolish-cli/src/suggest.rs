@@ -439,10 +439,11 @@ pub fn render(suggestions: &[Suggestion], model: &str, level: ColorLevel) -> Str
     let _ = writeln!(
         s,
         "  {}",
-        dim(
-            "Re-run `repolish check .` after pasting: the score moves because the README \
-             changed,\n  not because a model was involved."
-        )
+        dim(&format!(
+            "Re-run `{} check .` after pasting: the score moves because the README \
+             changed,\n  not because a model was involved.",
+            crate::invocation()
+        ))
     );
     s
 }
