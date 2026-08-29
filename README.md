@@ -53,49 +53,44 @@ number. And **it says when it does not know** — a check that cannot be decided
 
 ## Install
 
-### One line
+```bash
+npx @asale/repolish check .
+```
+
+Nothing to install, and it works wherever Node does. The package is a launcher, not a
+reimplementation: it downloads the release binary for your platform, verifies its
+`.sha256`, and runs it — the checks are a single static Rust binary either way.
+
+<details>
+<summary>The other three ways</summary>
+
+**One line**, which also drops the [agent skill](#for-coding-agents) into whichever agents
+it finds on the machine:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
 ```
 
-Downloads the release binary for your platform, verifies its `.sha256`, installs it into
-`~/.local/bin`, and drops the [agent skill](#for-coding-agents) into whichever agents it
-finds. It is POSIX `sh`, about 200 lines, and does exactly those four things — read it first if
-you would rather not pipe a script into a shell. `REPOLISH_VERSION`, `REPOLISH_BIN_DIR`
-and `REPOLISH_TARGET` override the defaults.
+It downloads the binary, verifies its `.sha256`, and installs into `~/.local/bin`. POSIX
+`sh`, about 200 lines, doing exactly those four things — read it first if you would rather
+not pipe a script into a shell. `REPOLISH_VERSION`, `REPOLISH_BIN_DIR` and
+`REPOLISH_TARGET` override the defaults.
 
-### With npx
-
-```bash
-npx repolish check .
-```
-
-A launcher, not a reimplementation: it downloads the same release binary, verifies its
-`.sha256`, and runs it. It exists because most repositories worth checking are not Rust
-projects, and `cargo install` asks those authors to set up a toolchain before they can
-see a single number.
-
-Linux builds are glibc-only. On musl the installers say so and stop rather than leaving a
-binary that cannot run; use `cargo install repolish` there.
-
-### With cargo
-
-Requires Rust 1.88 or newer.
+**With cargo**, needing Rust 1.88 or newer:
 
 ```bash
 cargo install repolish
+cargo install --git https://github.com/asale-ai/repolish repolish   # unreleased main
 ```
 
-To build the unreleased `main` instead:
+**The archives themselves**, five targets each with a `.sha256`, are on the
+[releases page](https://github.com/asale-ai/repolish/releases).
 
-```bash
-cargo install --git https://github.com/asale-ai/repolish repolish
-```
+</details>
 
-Release archives for five targets, each with a `.sha256`, are on the
-[releases page](https://github.com/asale-ai/repolish/releases). For the GitHub Action,
-see [action/README.md](action/README.md).
+Linux builds are glibc-only. On musl the installers say so and stop rather than leaving a
+binary that cannot run; use `cargo install repolish` there. For the GitHub Action, see
+[action/README.md](action/README.md).
 
 ## Quick start
 

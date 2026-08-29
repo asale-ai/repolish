@@ -39,22 +39,38 @@ unambiguous, and say which finding you were acting on.
 
 ## Install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
-```
-
-That installs the binary into `~/.local/bin` and drops this skill into whichever
-agents it finds on the machine. `cargo install repolish` works too, as does a
-release binary from `https://github.com/asale-ai/repolish/releases` (five
-targets, each with a `.sha256`). The current version is 0.3.0.
-
-**Check the binary is reachable before you rely on it.** This skill calls
-`repolish` by name; if `~/.local/bin` is not on PATH, every command below fails
-with "command not found" rather than anything informative:
+**Check first, then install.** Every command below calls `repolish` by name, so
+start by finding out whether it is already there:
 
 ```bash
 repolish --version
 ```
+
+If that prints a version, use `repolish` as written throughout this document. If
+it says "command not found", reach for npx — it needs nothing installed and
+works wherever Node does:
+
+```bash
+npx -y @asale/repolish check .
+```
+
+Then read every `repolish …` below as `npx -y @asale/repolish …`. The `-y`
+matters: without it npx stops to ask, and you are not at a terminal to answer.
+
+That package is a launcher — it downloads the release binary, verifies its
+`.sha256` and execs it, forwarding the exit code, which is what `--min-score`
+and `verify` depend on. The current version is 0.3.0.
+
+If the user would rather have it on PATH permanently, this installs the binary
+into `~/.local/bin` and drops this skill into whichever agents it finds:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
+```
+
+`cargo install repolish` works too, as does a release binary from
+`https://github.com/asale-ai/repolish/releases` (five targets, each with a
+`.sha256`).
 
 ## Commands
 

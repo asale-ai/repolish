@@ -1017,8 +1017,10 @@ fn install_skill(requested: &[String], md: &str, force: bool) -> u8 {
     }
 
     println!(
-        "\nThe skill calls `repolish` by name, so it has to be on PATH.\n\
-         Check with: repolish --version"
+        "\nThe skill calls `repolish` by name. Check it is reachable with:\n    \
+         repolish --version\n\
+         If it is not on PATH, the skill falls back to `npx -y @asale/repolish`, \
+         which needs nothing installed."
     );
     exit::OK
 }

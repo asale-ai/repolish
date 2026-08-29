@@ -4,7 +4,7 @@ Score and improve what an open-source repository looks like to a first-time
 visitor — from the command line.
 
 ```bash
-npx repolish check .
+npx @asale/repolish check .
 ```
 
 This package is a thin launcher. On install it downloads the release binary for

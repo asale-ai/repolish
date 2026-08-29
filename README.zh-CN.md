@@ -52,41 +52,41 @@ repolish 按陌生人的读法过一遍仓库，对 22 个具体信号打分，�
 
 ## 安装
 
-### 一行装好
+```bash
+npx @asale/repolish check .
+```
+
+不用装任何东西，有 Node 的地方就能跑。这个包是一层启动器，不是另一份实现：
+它下载对应平台的发布二进制、校验 `.sha256`、然后执行——不管走哪条路，
+检查本身都是同一个静态 Rust 二进制。
+
+<details>
+<summary>另外三种装法</summary>
+
+**一行装好**，它顺带把[智能体技能](#给编码智能体用)放进这台机器上装了的那几家智能体里：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
 ```
 
-它下载对应平台的发布二进制、核对 `.sha256`、装进 `~/.local/bin`，再把[智能体技能](#给编码智能体用)放进这台机器上装了的那几家智能体里。POSIX `sh`，两百行左右，就干这四件事——不想把脚本管道进 shell 的话，先读一遍。`REPOLISH_VERSION`、`REPOLISH_BIN_DIR`、`REPOLISH_TARGET` 可以覆盖默认值。
+它下载二进制、核对 `.sha256`、装进 `~/.local/bin`。POSIX `sh`，两百行左右，就干这四件事——
+不想把脚本管道进 shell 的话，先读一遍。`REPOLISH_VERSION`、`REPOLISH_BIN_DIR`、
+`REPOLISH_TARGET` 可以覆盖默认值。
 
-Linux 版只有 glibc 构建。在 musl（Alpine）上安装脚本会直说并停下，而不是装一个根本跑不起来的二进制——那种情况请用 `cargo install repolish`。
-
-### 用 npx
-
-```bash
-npx repolish check .
-```
-
-npm 包是一层启动器，不是另一份实现：它下载同一份发布二进制，校验 `.sha256`，然后执行。
-它存在的理由是——值得检查的仓库绝大多数不是 Rust 项目，而 `cargo install`
-要求那些作者先装好一整套工具链，才能看到第一个数字。
-
-### 用 cargo 安装
-
-需要 Rust 1.88 或更新版本。
+**用 cargo**，需要 Rust 1.88 或更新版本：
 
 ```bash
 cargo install repolish
+cargo install --git https://github.com/asale-ai/repolish repolish   # 未发布的 main
 ```
 
-想装未发布的 `main`：
+**归档本身**：五个平台，每个都带 `.sha256`，在[发布页](https://github.com/asale-ai/repolish/releases)。
 
-```bash
-cargo install --git https://github.com/asale-ai/repolish repolish
-```
+</details>
 
-五个平台的发布归档（每个都带 `.sha256`）在[发布页](https://github.com/asale-ai/repolish/releases)。GitHub Action 的用法——`repolish init` 会替你生成 workflow——见 [action/README.md](action/README.md)。
+Linux 版只有 glibc 构建。在 musl（Alpine）上安装器会直说并停下，而不是留下一个根本跑不起来的
+二进制——那种情况请用 `cargo install repolish`。GitHub Action 的用法见
+[action/README.md](action/README.md)。
 
 ## 快速开始
 

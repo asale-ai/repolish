@@ -11,7 +11,13 @@
 #   ./publish.sh --minor "add the overview card"
 #   ./publish.sh --version 1.0.0 "first stable release"
 #   ./publish.sh --clawhub "publish the skill to ClawHub too"
+#   ./publish.sh --no-npm "skip the npm package this time"
 #   ./publish.sh --dry-run "see what would happen"
+#
+# npm is published from here rather than from CI, because the token lives in
+# .env on this machine. It runs after the release workflow, not before: the
+# package is a launcher that downloads the release binary, so publishing it
+# ahead of the binaries would ship a version that cannot install.
 #
 # There is no interactive confirmation anywhere. Everything that could need a
 # decision is a flag with a documented default.
@@ -26,7 +32,12 @@ DRY_RUN=0
 WITH_CLAWHUB=0
 SKIP_TESTS=0
 LOCAL_CRATES=0
+WITH_NPM=1
 MESSAGE=""
+
+# The npm package is scoped; the binary it installs is still called `repolish`.
+NPM_PKG="@asale/repolish"
+NPM_DIR="npm"
 
 # Publish order is the dependency order. cargo will not accept a crate whose
 # path dependencies are not on crates.io yet, so this list is not cosmetic.
@@ -44,7 +55,11 @@ warn() { printf '%swarning:%s %s\n' "$YELLOW" "$RESET" "$*" >&2; }
 die()  { printf '%serror:%s %s\n' "$RED" "$RESET" "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'
+  # The header block is the help text. Taking it up to the first blank line
+  # rather than a hard-coded range: a line number in a sed script is a claim
+  # about the file above it, and adding a paragraph silently truncated the help
+  # once already.
+  sed -n '3,/^$/p' "$0" | sed 's/^# \{0,1\}//'
   cat <<'EOF'
 
 Flags:
@@ -54,6 +69,7 @@ Flags:
   --skip-tests                  Skip the local cargo test (CI still gates the PR)
   --local-crates                Publish to crates.io from here instead of letting
                                 the release workflow do it. Needs a local token
+  --no-npm                      Skip publishing the npm package
   --dry-run                     Print what would happen; change nothing
   -h, --help                    This text
 EOF
@@ -68,6 +84,7 @@ while [ $# -gt 0 ]; do
     --clawhub) WITH_CLAWHUB=1; shift ;;
     --skip-tests) SKIP_TESTS=1; shift ;;
     --local-crates) LOCAL_CRATES=1; shift ;;
+    --no-npm) WITH_NPM=0; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) die "unknown flag: $1 (try --help)" ;;
@@ -96,6 +113,27 @@ command -v gh    > /dev/null || die "gh is not installed (brew install gh)"
 gh auth status > /dev/null 2>&1 || die "gh is not authenticated; run: gh auth login"
 git rev-parse --git-dir > /dev/null 2>&1 || die "not a git repository"
 git remote get-url origin > /dev/null 2>&1 || die "no 'origin' remote configured"
+
+# The npm token lives in .env, not in the environment, so read it here rather
+# than asking whoever runs this to remember an export. Only this one variable is
+# taken: sourcing the whole file would drop CARGO_API_KEY and GITHUB_TOKEN into
+# the shell that is about to run cargo and gh, which is a surprise nobody asked
+# for.
+NPM_TOKEN=""
+if [ "$WITH_NPM" = "1" ] && [ -f .env ]; then
+  NPM_TOKEN=$(sed -n 's/^NPM_ACCESS_TOKEN=//p' .env | tr -d '"\r\n' | head -1)
+fi
+[ -n "${NPM_TOKEN:-}" ] || NPM_TOKEN="${NPM_ACCESS_TOKEN:-}"
+
+if [ "$WITH_NPM" = "1" ] && [ "$DRY_RUN" = "0" ]; then
+  # Finding out the token is missing after the tag is pushed is the worst
+  # possible moment — the tag is immutable, so the release cannot be redone.
+  command -v node > /dev/null || die "node is not installed, and the npm package needs it.
+Install node, or pass --no-npm."
+  command -v npm  > /dev/null || die "npm is not installed. Install it, or pass --no-npm."
+  [ -n "$NPM_TOKEN" ] || die "no NPM_ACCESS_TOKEN in .env and none in the environment.
+Add it to .env, export NPM_ACCESS_TOKEN, or pass --no-npm."
+fi
 
 if [ "$LOCAL_CRATES" = "1" ] && [ "$DRY_RUN" = "0" ]; then
   # Only matters on the --local-crates path. Finding out the token is missing
@@ -211,6 +249,15 @@ Publishing would then resolve to the previous release."
   cargo run --quiet --release -p repolish -- skill . \
     --output skills/repolish/SKILL.md --force > /dev/null \
     || warn "could not regenerate skills/repolish/SKILL.md"
+
+  # The npm package version is part of the URL it downloads the binary from, so
+  # a stale one installs a release whose number says A and whose binary is B.
+  # npm/test.js asserts the two match; this is what keeps that test passing.
+  if [ -f "$NPM_DIR/package.json" ]; then
+    perl -pi -e "s/^(\s*\"version\": \")\Q$CURRENT\E(\",)\$/\${1}$NEW\${2}/" "$NPM_DIR/package.json"
+    NPM_WROTE=$(node -p "require('./$NPM_DIR/package.json').version")
+    [ "$NPM_WROTE" = "$NEW" ] || die "$NPM_DIR/package.json still reads $NPM_WROTE after the bump"
+  fi
 
   # The action pins a version in the workflow template it generates, and the
   # README documents an install command with the version in it. Both go stale
@@ -394,6 +441,52 @@ else
   info "crates.io: published by the release workflow (--local-crates to do it here)"
 fi
 
+# ------------------------------------------------------------ npm
+
+# After the release workflow, never before it. The package is a launcher: its
+# postinstall downloads repolish-v$NEW-<target> from the GitHub release and
+# verifies the .sha256 next to it. Published first, every `npx` would 404 until
+# the binaries caught up.
+if [ "$WITH_NPM" = "1" ]; then
+  step "Publishing $NPM_PKG to npm"
+  if [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] npm publish $NPM_DIR ($NPM_PKG@$NEW)"
+  elif npm view "$NPM_PKG@$NEW" version > /dev/null 2>&1; then
+    # The release workflow publishes this too when NPM_TOKEN is set as a
+    # repository secret. Both paths skip a version that is already up, so
+    # whichever runs second is a no-op rather than an error.
+    info "$NPM_PKG@$NEW is already on npm — skipping"
+  else
+    # The token goes in a file scoped to this directory, not in ~/.npmrc and
+    # not on the command line: ~/.npmrc outlives this script, and a command
+    # line is visible to every other process on the machine.
+    NPMRC="$NPM_DIR/.npmrc"
+    cleanup_npmrc() { rm -f "$NPMRC"; }
+    trap cleanup_npmrc EXIT
+    printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$NPMRC"
+    chmod 600 "$NPMRC"
+
+    # The shim parses tar and zip itself rather than take a dependency, and the
+    # exit code it forwards is what --min-score gates ride on. Both are covered
+    # by these tests, and this is the last moment they are free to run.
+    node "$NPM_DIR/test.js" || { cleanup_npmrc; die "npm shim tests failed; nothing was published"; }
+
+    # --provenance signs a statement of where this was built. It needs a CI
+    # OIDC token, which a laptop does not have, so it is deliberately absent
+    # here; the release workflow adds it when it is the one publishing.
+    (cd "$NPM_DIR" && npm publish) \
+      || { cleanup_npmrc; die "npm publish failed for $NPM_PKG@$NEW.
+The tag and the binaries are already out. Re-run just this part with:
+    cd $NPM_DIR && npm publish"; }
+
+    cleanup_npmrc
+    trap - EXIT
+    info "${GREEN}https://www.npmjs.com/package/$NPM_PKG/v/$NEW${RESET}"
+  fi
+else
+  info "npm: skipped (--no-npm)"
+fi
+
 # ------------------------------------------------------------ clawhub
 
 if [ "$WITH_CLAWHUB" = "1" ]; then
@@ -406,3 +499,5 @@ if [ "$WITH_CLAWHUB" = "1" ]; then
 fi
 
 printf '\n%sv%s%s\n' "$GREEN" "$NEW" "$RESET"
+info "cargo install repolish"
+[ "$WITH_NPM" = "1" ] && info "npx $NPM_PKG check ."

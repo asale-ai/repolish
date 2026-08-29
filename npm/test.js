@@ -27,6 +27,22 @@ const mod = require('./install.js');
   );
 }
 
+// ── 包名与发布可见性 ──────────────────────────────────────────────────
+//
+// 作用域包默认是 restricted。忘了 public，`npm publish` 会成功，而所有人
+// `npx` 得到 404 —— 一个看起来发出去了、实际没人装得上的版本。
+{
+  const pkg = require('./package.json');
+  assert.strictEqual(pkg.name, '@asale/repolish');
+  assert.strictEqual(
+    pkg.publishConfig && pkg.publishConfig.access,
+    'public',
+    'a scoped package without publishConfig.access = public publishes as restricted'
+  );
+  // bin 名不带作用域：使用者敲的是 `repolish`，不是 `@asale/repolish`
+  assert.deepStrictEqual(Object.keys(pkg.bin), ['repolish']);
+}
+
 // ── tar 解包 ──────────────────────────────────────────────────────────
 //
 // 自己读 tar 头是为了不引依赖。代价是这段代码没有上游在维护，

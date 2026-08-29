@@ -1,5 +1,5 @@
 {
-  "name": "repolish",
+  "name": "@asale/repolish",
   "version": "0.3.0",
   "description": "Scores what your open-source repo looks like to a first-time visitor, and checks that the commands your README promises actually exist.",
   "keywords": ["readme", "documentation", "lint", "cli", "open-source", "repository"],
@@ -17,6 +17,7 @@
     "postinstall": "node install.js",
     "test": "node test.js"
   },
+  "publishConfig": { "access": "public" },
   "engines": { "node": ">=18" },
   "os": ["darwin", "linux", "win32"],
   "cpu": ["x64", "arm64"]
