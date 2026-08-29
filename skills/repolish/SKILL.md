@@ -67,7 +67,7 @@ bare `repolish` unless `repolish --version` worked above.
 
 That package is a launcher — it downloads the release binary, verifies its
 `.sha256` and execs it, forwarding the exit code, which is what `--min-score`
-depends on. The current version is 0.4.2.
+depends on. The current version is 0.4.3.
 
 If the user would rather have it on PATH permanently:
 
@@ -171,6 +171,11 @@ That is the point — the output in the recording is real — but it means the d
 run is also the consent. Show the user the command list before you pass
 `--apply`, and never pass `--cmd` with anything destructive.
 
+**Its default records only `<binary> --help`, which is almost never the demo the
+project deserves.** Picking the commands that show the project doing its actual
+work is your call, not the tool's — see
+[the demo stage](#the-demo-stage--and-why-you-must-pass---cmd) before you run it.
+
 ### Report the aftermath honestly
 
 `--apply` prints `WROTE (N files)`. Tell the user how to see it and how to undo
@@ -200,7 +205,7 @@ verified*, and an unbuilt binary is why there is no recording.
 | a CI workflow | `repolish --stages ci --min-score 70 --apply` |
 | the badge only | `repolish --stages artifacts --artifact badge --apply` |
 | the cards redrawn | `repolish --stages artifacts --apply` |
-| a terminal recording | `repolish --stages demo` → show the commands → `--apply` |
+| a terminal recording | pick the project's real commands, then `repolish --stages demo --cmd … --cmd …` → show the list → `--apply`. **Do not take the `--help` default** |
 | to know what a PR did to the score | `repolish --stages check --base origin/main` |
 | findings on the PR diff | `repolish --stages check --sarif repolish.sarif` |
 | this skill installed for their agents | `npx skills add asale-ai/repolish` |
@@ -289,24 +294,98 @@ None of these move a score. `--badge-style` (`flat`, `flat-square`, `plastic`,
 repolish --apply --logo assets/hero.svg --logo-width full --align center
 ```
 
-### The demo stage
+### The demo stage — and why you must pass `--cmd`
 
 ```bash
 repolish --stages demo                  # list what it would run, run nothing
 repolish --stages demo --apply          # run them, and write .repolish/demo.svg
-repolish --stages demo --apply --cmd "tool build" --cmd "tool run"
+repolish --stages demo --apply --cmd "tool init" --cmd "tool build" --cmd "tool ship"
 repolish --stages demo --apply --tape   # also write .repolish/demo.tape, for a GIF via VHS
 repolish --stages demo --apply --type-ms 30
 ```
 
-Without `--cmd` it records the detected binary's `--help`. If it cannot find a
-binary it says so under `NEEDS INPUT` and moves on — most repositories are not
-CLIs, and that is not an error. If the binary is not on PATH the run does not
-fail either; the message tells you to build first and put the build directory on
-PATH for one invocation.
+**The default is `<binary> --help`, and it is a floor, not a recommendation.**
+`--help` is the only command that is true of *every* CLI, so it is all the tool
+can safely guess on its own — one more guess at a subcommand and half the time
+it records a screenful of `unknown subcommand`. A README whose only animation is
+a help screen has shown the reader a wall of flags and nothing the project
+actually does.
+
+**Closing that gap is your job, and it is one of the clearest wins you have
+here.** You have read the codebase; the tool has not. So: **do not run the demo
+stage on its defaults. Choose the project's real commands and pass them with
+`--cmd`.**
+
+`--cmd` **replaces** the default entirely; it does not append to it. Repeat the
+flag, once per command, in the order they should play.
+
+#### Finding the right commands
+
+Look in this order, and prefer what is already proven to work:
+
+1. **The README's quickstart and usage sections.** If the author already decided
+   which command a newcomer should type first, record that one — and you have
+   just made the animation and the prose agree.
+2. **The manifest.** `bin` in `package.json` or `Cargo.toml`, the npm `scripts`,
+   the `Makefile` targets.
+3. **`examples/`, and the integration tests.** These are commands someone has
+   already checked actually run.
+4. **The tool's own `--help`.** Run it, read the subcommand list, and pick the
+   one or two that are the point of the project.
+
+#### What to record
+
+**The smallest real task, from start to finish** — not a feature tour. Three to
+five commands. The strongest shape is an arc a reader can follow: a starting
+state, the command that changes it, and the result.
+
+repolish records its own README that way, and it is the example to copy:
+
+```bash
+repolish "$sample" --stages demo --apply \
+  --cmd "repolish" \
+  --cmd "repolish --apply" \
+  --cmd "repolish" \
+  --output .repolish/demo.svg
+```
+
+Score, fix, score again — the second number is visibly higher than the first,
+and nothing about it is staged.
+
+#### Rules the recording imposes
+
+- **The commands really run.** Verify each one exits 0 *yourself* before you
+  pass `--apply`. A command that fails is still recorded, with only a warning on
+  stderr — a demo that quietly ships an error screen is worse than no demo.
+- **There is no shell.** The string is split on whitespace (quotes respected)
+  and executed directly. `|`, `>`, `&&`, `$(…)`, globs and `VAR=x` prefixes are
+  passed through as literal arguments, and will appear in the recording as text.
+  If you need a pipeline, record a script that contains it.
+- **The binary must be on PATH.** Build first, then put the build directory on
+  PATH for that one invocation — the failure message names the two commands for
+  cargo, npm and go projects. Do not edit the user's shell configuration.
+- **Nothing destructive, nothing slow, nothing that needs a secret.** These run
+  on someone else's machine, and the output goes into a public README. No
+  network calls that could hang, no `rm`, no anything that writes outside the
+  repository.
+- **Beware output that changes every run.** Commit hashes, timestamps, elapsed
+  times and "N days ago" all churn the SVG on every re-record, and the diff will
+  never settle. Prefer commands whose output is stable.
+- **Commands share a working directory and run in sequence**, so state carries
+  from one to the next. Terminal width is fixed at 100 columns.
+- **Show the list, then apply.** Without `--apply` the stage only prints what it
+  would execute — that print-out is the user's consent to running it. Never skip
+  straight to `--apply` on a repository whose commands you have not read.
+
+If no binary is detected the stage says so under `NEEDS INPUT` and moves on —
+most repositories are not CLIs, and that is not an error. If the project *is* a
+CLI and detection missed it, that is exactly the case `--cmd` is for.
 
 The output is an animated SVG with a real, selectable text layer, not a GIF, and
-it needs no external tools.
+it needs no external tools. `--tape` additionally writes a VHS script for
+anyone who needs a GIF instead — npm and PyPI sanitise README HTML more
+aggressively than GitHub does, so check the package page before committing to
+SVG as the only format.
 
 ### The skill stage — installing this document
 
@@ -392,7 +471,7 @@ line) and the fixes.
 
 ```json
 {
-  "repolishVersion": "0.4.2",
+  "repolishVersion": "0.4.3",
   "schemaVersion": 1,
   "repository": { "owner": "acme", "name": "taskvault", "commit": "796160e…" },
   "profile": { "detected": "cli", "overridden": false },

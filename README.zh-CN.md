@@ -300,7 +300,7 @@ npx @asale/repolish --stages ci --min-score 70 --apply
 想手工接的话，action 直接收阈值：
 
 ```yaml
-- uses: asale-ai/repolish@v0.4.2
+- uses: asale-ai/repolish@v0.4.3
   with:
     min-score: 70
   env:
