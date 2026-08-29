@@ -356,7 +356,7 @@ npx @asale/repolish --stages ci --min-score 70 --apply
 To wire it up by hand:
 
 ```yaml
-- uses: asale-ai/repolish@v0.4.3
+- uses: asale-ai/repolish@v0.5.0
   with:
     min-score: 70
   env:

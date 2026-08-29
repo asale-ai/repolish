@@ -67,7 +67,7 @@ bare `repolish` unless `repolish --version` worked above.
 
 That package is a launcher — it downloads the release binary, verifies its
 `.sha256` and execs it, forwarding the exit code, which is what `--min-score`
-depends on. The current version is 0.4.3.
+depends on. The current version is 0.5.0.
 
 If the user would rather have it on PATH permanently:
 
@@ -264,6 +264,7 @@ repolish --stages artifacts --apply                     # badge + redraw what th
 repolish --stages artifacts --apply --artifact overview # just .repolish/overview.svg
 repolish --stages artifacts --apply --artifact score    # just .repolish/card.svg
 repolish --stages artifacts --apply --theme porcelain   # light palette, for a light README
+repolish --stages artifacts --apply --theme slate        # 14 palettes; see docs/themes/
 repolish --stages artifacts --apply --lang zh-CN        # en / zh-CN / ja; follows the README by default
 repolish --stages artifacts --apply --remote --stars    # with the star history curve
 ```
@@ -287,7 +288,10 @@ file.
 None of these move a score. `--badge-style` (`flat`, `flat-square`, `plastic`,
 `for-the-badge`, `social`), `--align` (`left`, `center`), `--toc-style`
 (`bullet`, `number`, `roman`, `fold`), `--logo <path>`, `--logo-width <px|full>`,
-`--tree-depth <n>`, `--theme` (`dark`, `porcelain`), `--lang`
+`--tree-depth <n>`, `--theme` (`dark`, `porcelain`, `slate`, `nord`, `ember`,
+`solar`, `phosphor`, `blueprint`, `okabe`, `newsprint`, `sakura`, `glacier`,
+and `carbon` / `paper` for black and white with no gradient — all fourteen
+rendered side by side in `docs/themes/`), `--lang`
 (`auto`, `en`, `zh-CN`, `ja`), `--branch <name>` for the badge URL.
 
 ```bash
@@ -471,7 +475,7 @@ line) and the fixes.
 
 ```json
 {
-  "repolishVersion": "0.4.3",
+  "repolishVersion": "0.5.0",
   "schemaVersion": 1,
   "repository": { "owner": "acme", "name": "taskvault", "commit": "796160e…" },
   "profile": { "detected": "cli", "overridden": false },
