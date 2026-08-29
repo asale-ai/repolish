@@ -17,6 +17,7 @@ pub fn markdown(report: &Report) -> String {
 
     let _ = writeln!(out, "# Repository health\n");
     write_summary(&mut out, report);
+    write_delta(&mut out, report, "##");
     write_findings(&mut out, report);
     write_verified(&mut out, report);
     write_limits(&mut out, report);
@@ -77,6 +78,149 @@ fn write_summary(out: &mut String, report: &Report) {
              It is not comparable with a score produced by `--remote`.\n"
         );
     }
+}
+
+/// 一个 PR 评论里能容下的全部内容。
+///
+/// 与 `markdown()` 分开，是因为两者的读者不同：`REPOLISH.md` 是提交进仓库的
+/// 存档，读它的人想看全貌；PR 评论是给正在评审的人看的，他只想知道
+/// **这次改动动了什么**。把整份报告贴进 PR，结果是没人读。
+///
+/// 第一行是一个 HTML 注释标记，让 CI 能找到上一条评论**改写**它，
+/// 而不是每次推送都新增一条。
+pub const COMMENT_MARKER: &str = "<!-- repolish-report -->";
+
+pub fn comment(report: &Report) -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "{COMMENT_MARKER}");
+
+    match (&report.delta, report.score) {
+        (Some(d), Some(score)) => {
+            let points = d.points.unwrap_or(0);
+            let arrow = if points > 0 {
+                "▲"
+            } else if points < 0 {
+                "▼"
+            } else {
+                "="
+            };
+            let _ = writeln!(
+                out,
+                "### repolish {score} / 100 &nbsp; {arrow} {points:+} vs `{}`\n",
+                d.base_ref
+            );
+        }
+        (_, Some(score)) => {
+            let _ = writeln!(out, "### repolish {score} / 100\n");
+        }
+        _ => {
+            let _ = writeln!(
+                out,
+                "### repolish — no total score\n\nOnly {:.0}% of the registered check \
+                 weight could be scored, below the 50% floor.\n",
+                report.coverage * 100.0
+            );
+        }
+    }
+
+    write_delta(&mut out, report, "####");
+
+    // P1 与 P2 就够了。评论里塞满 P3「锦上添花」,读者会学会忽略整条评论。
+    let mut findings: Vec<(Severity, &str, &str)> = Vec::new();
+    for r in &report.checks {
+        for f in r.outcome.fixes() {
+            if f.severity != Severity::P3 {
+                findings.push((f.severity, r.id, f.message.as_str()));
+            }
+        }
+    }
+    findings.sort_by_key(|(s, id, _)| (*s, *id));
+
+    if findings.is_empty() {
+        let _ = writeln!(out, "Nothing at P1 or P2.\n");
+    } else {
+        let _ = writeln!(out, "**To fix**\n");
+        for (sev, id, msg) in findings.iter().take(8) {
+            let _ = writeln!(out, "- `{}` **{id}** — {msg}", sev.as_str());
+            if let Some(r) = report.checks.iter().find(|r| r.id == *id) {
+                for e in r.outcome.evidence().iter().take(3) {
+                    let _ = writeln!(out, "  - `{}` — {}", location(e), e.note);
+                }
+            }
+        }
+        if findings.len() > 8 {
+            let _ = writeln!(out, "- … and {} more", findings.len() - 8);
+        }
+        out.push('\n');
+    }
+
+    let _ = writeln!(
+        out,
+        "<sub>{} mode · commit `{}` · <a href=\"{REPOLISH_URL}\">repolish</a> v{}</sub>",
+        report.mode.as_str(),
+        report
+            .repository
+            .commit
+            .as_deref()
+            .map(|c| &c[..c.len().min(8)])
+            .unwrap_or("—"),
+        report.repolish_version
+    );
+    out
+}
+
+/// 与基线的差异。
+///
+/// **只列动了的那几项。** 22 项全列出来,读者要自己找哪一行变了,
+/// 那正是这一段本来想省掉的功夫。
+fn write_delta(out: &mut String, report: &Report, heading: &str) {
+    let Some(d) = &report.delta else {
+        return;
+    };
+
+    let _ = writeln!(out, "{heading} Since `{}`\n", d.base_ref);
+
+    match (d.base_score, report.score, d.points) {
+        (Some(b), Some(h), Some(p)) => {
+            let verdict = if p < 0 {
+                " — this change lowers the score"
+            } else if p > 0 {
+                ""
+            } else {
+                " — unchanged"
+            };
+            let _ = writeln!(out, "**{b} → {h}** ({p:+}){verdict}\n");
+        }
+        _ => {
+            let _ = writeln!(
+                out,
+                "No comparable total: one of the two sides did not produce a score.\n"
+            );
+        }
+    }
+
+    if d.checks.is_empty() {
+        let _ = writeln!(out, "No check changed state.\n");
+        return;
+    }
+
+    let _ = writeln!(out, "| Check | Before | After |");
+    let _ = writeln!(out, "| --- | ---: | ---: |");
+    for c in &d.checks {
+        let cell = |v: Option<u8>, status: &str| match v {
+            Some(n) => format!("{n}/10"),
+            None => status.replace('_', " "),
+        };
+        let mark = if c.is_regression() { "⚠️ " } else { "" };
+        let _ = writeln!(
+            out,
+            "| {mark}`{}` | {} | {} |",
+            c.id,
+            cell(c.before, c.before_status),
+            cell(c.after, c.after_status)
+        );
+    }
+    out.push('\n');
 }
 
 fn write_findings(out: &mut String, report: &Report) {

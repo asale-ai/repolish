@@ -6,8 +6,13 @@
 //! 模板里有两个默认值是踩出来的，不要改：
 //!
 //! - `fetch-depth: 0`：`actions/checkout` 默认只拉一个 commit，一个 tag 都没有，
-//!   `release-hygiene` 会因此对每个项目判「无法判断」
+//!   `release-hygiene` 会因此对每个项目判「无法判断」；`--base` 更是直接
+//!   找不到基线那个 commit
 //! - `--remote`：Action 里 `GITHUB_TOKEN` 免费可得，没有理由产出基准更窄的本地分
+//!
+//! 生成两个 job 而不是一个。push 上跑的那个回答「现在几分」，PR 上跑的那个
+//! 回答「**这次改动**让它变成什么样」——后者才是每周都有话说的那个。22 项里有
+//! 18 项配好就永远绿，一个只会重复报 100 分的 job，第二周就会被人注释掉。
 
 pub const WORKFLOW_PATH: &str = ".github/workflows/repolish.yml";
 
@@ -34,6 +39,7 @@ pub fn workflow(branch: &str, min_score: Option<u8>) -> String {
 on:
   push:
     branches: [{branch}]
+  pull_request:
   schedule:
     # Weekly: activity and link rot get worse on their own, with no commits involved
     - cron: '0 0 * * 1'
@@ -43,7 +49,11 @@ permissions:
   contents: write
 
 jobs:
+  # The badge only makes sense on the default branch: this job commits it back,
+  # and a fork's pull request has neither the permission nor any business
+  # pushing to your repository.
   score:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,6 +74,40 @@ jobs:
           git add {artifacts}
           git diff --staged --quiet || git commit -m "chore: update repolish score"
           git push
+
+  # What this pull request did to the score, rather than what the score is.
+  # An absolute number tells a reviewer nothing; "this dropped it 4 points,
+  # because the link on line 42 stopped resolving" tells them what to do.
+  review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write     # to post the comment
+      security-events: write   # to upload the SARIF
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Must be 0 here too: the baseline commit is not in a shallow clone,
+          # so there would be nothing to compare against
+          fetch-depth: 0
+
+      - uses: {action}
+        with:
+          base: ${{{{ github.event.pull_request.base.sha }}}}
+          sarif: repolish.sarif
+          comment: true
+          badge: false
+        env:
+          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
+
+      # Puts every finding on its own line in the diff. always(), so the
+      # annotations still show up on the run that failed the gate — which is
+      # the run where they matter most.
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: repolish.sarif
 "#,
         action = action_ref(),
         artifacts = artifacts_dir(),
@@ -152,6 +196,42 @@ mod tests {
                 .any(|l| l.trim_start().starts_with("min-score:")),
             "with: 底下必须有 min-score"
         );
+    }
+
+    /// PR 上的 job 是这个模板存在的一半理由:一个只会重复报「100 分」的
+    /// workflow,第二周就会被人注释掉
+    #[test]
+    fn the_pull_request_job_reports_the_change_not_the_number() {
+        let w = workflow("main", Some(60));
+        assert!(w.contains("pull_request:"), "on: 里要有 pull_request");
+        assert!(w.contains("base: ${{ github.event.pull_request.base.sha }}"));
+        assert!(w.contains("comment: true"));
+        assert!(w.contains("sarif: repolish.sarif"));
+        assert!(w.contains("upload-sarif"));
+        // 权限要显式给,少一个就只会在日志里留一句警告
+        assert!(w.contains("pull-requests: write"));
+        assert!(w.contains("security-events: write"));
+    }
+
+    /// 提交徽章的那个 job 绝不能在 PR 上跑:fork 来的 PR 既没有权限,
+    /// 也没有任何理由往你的仓库里推 commit
+    #[test]
+    fn the_badge_job_never_runs_on_a_pull_request() {
+        let w = workflow("main", None);
+        let score_at = w.find("  score:").expect("应有 score job");
+        let guard = w[score_at..]
+            .lines()
+            .take(3)
+            .any(|l| l.contains("github.event_name != 'pull_request'"));
+        assert!(guard, "score job 缺少 pull_request 的守卫:\n{w}");
+    }
+
+    /// 两个 job 都要 fetch-depth: 0 —— PR 那个更需要,
+    /// 浅克隆里压根没有基线那个 commit
+    #[test]
+    fn both_jobs_fetch_the_full_history() {
+        let w = workflow("main", None);
+        assert_eq!(w.matches("fetch-depth: 0").count(), 2, "{w}");
     }
 
     #[test]

@@ -12,28 +12,41 @@ use clap::{Parser, Subcommand, ValueEnum};
 use repolish_render::RenderOptions;
 
 mod analyze;
+mod base;
 mod config;
 mod demo;
 mod init;
 mod polish;
 mod record;
+mod sarif;
 mod scaffold;
 mod skill;
 mod style;
+mod suggest;
 mod tables;
 mod tree;
+mod verify;
 
 use analyze::{analyze, write_file, Analysis, Common};
 use repolish_md::Readme;
 
 /// 退出码。工具自身失败与「检查不通过」必须区分，否则 CI 无法判断。
+///
+/// 新增的两个都在「环境没跑起来」那一侧,与 4 同类:一个拉不到的镜像、一个
+/// 浅克隆里不存在的基线,都不是质量回归。把它们报成 1,CI 上就分不出
+/// 「这个 PR 变差了」和「今天 docker 挂了」。
 mod exit {
     pub const OK: u8 = 0;
+    /// 分数低于 `--min-score`；`verify` 下是「有 README 命令跑失败了」
     pub const BELOW_MIN_SCORE: u8 = 1;
     pub const BAD_USAGE: u8 = 2;
     pub const NOT_A_REPO: u8 = 3;
     pub const REMOTE_FAILED: u8 = 4;
     pub const LOW_COVERAGE: u8 = 5;
+    /// `verify --run` 跑不起来：没有容器引擎、镜像拉不下来、容器超时
+    pub const RUNNER_FAILED: u8 = 6;
+    /// `--base` 的基线取不到：浅克隆、ref 不存在、没有 git
+    pub const BASE_FAILED: u8 = 7;
 }
 
 #[derive(Parser)]
@@ -65,6 +78,8 @@ enum Command {
     Init(InitArgs),
     /// Apply the fixes that can be made mechanically, and print the rest
     Polish(PolishArgs),
+    /// Run the commands the README promises, in a clean container, and report what broke
+    Verify(VerifyArgs),
 }
 
 #[derive(Parser)]
@@ -125,6 +140,13 @@ struct PolishArgs {
     /// Shorthand for --overview --footer-card --tables svg
     #[arg(long)]
     visuals: bool,
+
+    /// Also ask a model to draft the three pieces polish cannot write mechanically:
+    /// the tagline, the quick start and the usage example. Needs
+    /// REPOLISH_LLM_API_KEY (or ANTHROPIC_API_KEY). It PRINTS them — nothing is
+    /// written, not even with --apply — and no score is affected
+    #[arg(long)]
+    suggest: bool,
 }
 
 #[derive(Parser)]
@@ -158,6 +180,22 @@ struct CheckArgs {
     /// Show P3 suggestions and passing checks as well
     #[arg(short, long)]
     verbose: bool,
+
+    /// Also score this git ref and report the difference, e.g. `origin/main`.
+    /// The baseline is checked out into a temporary worktree; your working tree is
+    /// never touched
+    #[arg(long, value_name = "REF")]
+    base: Option<String>,
+
+    /// Also write a SARIF file. GitHub renders each finding on its own line in the
+    /// pull request diff
+    #[arg(long, value_name = "PATH")]
+    sarif: Option<PathBuf>,
+
+    /// Also write the short form meant for a pull request comment. With --base it
+    /// leads with what this change did to the score
+    #[arg(long, value_name = "PATH")]
+    comment: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -310,11 +348,62 @@ struct InitArgs {
     force: bool,
 }
 
+#[derive(Parser)]
+#[command(after_help = "\
+Without --run this only prints the plan: which commands it would execute, and why it \
+would skip the rest. With --run it executes them inside a container, with your \
+repository mounted READ-ONLY and copied in — nothing a README command does can reach \
+your working tree.
+
+It never runs anything that publishes, needs root, or does not exit on its own. Every \
+skipped command is listed with its reason: a report that says \"12 passed\" while \
+quietly skipping nine of them is worse than no report.")]
+struct VerifyArgs {
+    #[command(flatten)]
+    common: Common,
+
+    /// Actually execute the commands. Without it, nothing runs
+    #[arg(long)]
+    run: bool,
+
+    /// Container image to run them in. Defaults to one picked from the package manifest
+    #[arg(long)]
+    image: Option<String>,
+
+    /// Container engine. Defaults to docker, then podman
+    #[arg(long)]
+    engine: Option<String>,
+
+    /// Only take commands from README sections whose heading contains this.
+    /// Comma-separated; repeatable
+    #[arg(long, value_delimiter = ',')]
+    section: Vec<String>,
+
+    /// Run with no network, to check what the README promises works offline
+    #[arg(long)]
+    offline: bool,
+
+    /// Give up after this many seconds
+    #[arg(long, default_value = "600")]
+    timeout: u64,
+
+    #[arg(long, value_enum, default_value_t = Format::Text)]
+    format: Format,
+
+    /// Print the output of the commands that passed, too
+    #[arg(short, long)]
+    verbose: bool,
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
 enum Format {
     Text,
     Json,
     Markdown,
+    /// SARIF 2.1.0. GitHub renders each finding on its own line in the pull request diff
+    Sarif,
+    /// What fits in a pull request comment: the score, the difference from --base, P1 and P2
+    Comment,
 }
 
 fn main() -> ExitCode {
@@ -330,6 +419,7 @@ fn main() -> ExitCode {
         Command::Skill(args) => run_skill(args),
         Command::Init(args) => run_init(args),
         Command::Polish(args) => run_polish(args),
+        Command::Verify(args) => run_verify(args),
     };
     ExitCode::from(code)
 }
@@ -337,12 +427,26 @@ fn main() -> ExitCode {
 fn run_check(args: CheckArgs) -> u8 {
     let Analysis {
         ctx,
-        report,
+        mut report,
         min_score,
+        opts,
     } = match analyze(&args.common) {
         Ok(a) => a,
         Err(code) => return code,
     };
+
+    // 差值必须在渲染之前算出来：四种格式都要能看到它,分开算等于四份代码
+    if let Some(base_ref) = &args.base {
+        match base::compare(&ctx.root, base_ref, &ctx, &report, &opts) {
+            Ok(b) => report.delta = Some(b.delta),
+            Err(e) => {
+                eprintln!("error: {e}");
+                // 基线取不到不是质量回归。报成 1 的话,CI 上分不出
+                // 「这个 PR 变差了」和「浅克隆里没有那个 commit」
+                return exit::BASE_FAILED;
+            }
+        }
+    }
 
     match args.format {
         Format::Text => print!(
@@ -363,6 +467,23 @@ fn run_check(args: CheckArgs) -> u8 {
             }
         },
         Format::Markdown => print!("{}", repolish_render::markdown(&report)),
+        Format::Sarif => print!("{}", sarif::sarif(&report)),
+        Format::Comment => print!("{}", repolish_render::comment(&report)),
+    }
+
+    // `--format text` 之后再单独落一份 SARIF：CI 里通常两者都要——
+    // 人看日志,GitHub 读文件
+    if let Some(path) = &args.sarif {
+        if let Err(code) = write_file(path, &sarif::sarif(&report)) {
+            return code;
+        }
+        eprintln!("wrote {}", path.display());
+    }
+    if let Some(path) = &args.comment {
+        if let Err(code) = write_file(path, &repolish_render::comment(&report)) {
+            return code;
+        }
+        eprintln!("wrote {}", path.display());
     }
 
     // 副产物在一次运行里全部写出。分开跑意味着多打几次 GitHub API，
@@ -944,6 +1065,128 @@ fn run_init(args: InitArgs) -> u8 {
     exit::OK
 }
 
+fn run_verify(args: VerifyArgs) -> u8 {
+    let root = match dunce::canonicalize(&args.common.path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: cannot access {}: {e}", args.common.path.display());
+            return exit::NOT_A_REPO;
+        }
+    };
+    let ctx = match repolish_ingest::RepoContext::load(&root, None) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("error: {e:#}");
+            return exit::NOT_A_REPO;
+        }
+    };
+
+    let mut plan = match verify::plan(&ctx, args.image.as_deref(), &args.section) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return exit::NOT_A_REPO;
+        }
+    };
+
+    if plan.steps.is_empty() {
+        println!(
+            "No commands found in {}.{}",
+            plan.readme,
+            if args.section.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    " (looking only in sections matching: {})",
+                    args.section.join(", ")
+                )
+            }
+        );
+        return exit::OK;
+    }
+
+    let mut runner_failed = false;
+    if args.run {
+        let opts = verify::RunOptions {
+            engine: args.engine.as_deref(),
+            offline: args.offline,
+            timeout: std::time::Duration::from_secs(args.timeout),
+        };
+        // 引擎先解析出来再宣布。先说「即将执行 26 条命令」、再说跑不了,
+        // 读的人会以为跑了一半。
+        let engine = match verify::engine(&opts) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("error: {e}");
+                eprintln!(
+                    "note: verify runs README commands in a container on purpose. \
+                     Running them on your own machine is not a fallback we are willing \
+                     to take without being asked.\n      \
+                     Name one explicitly with --engine if yours is called something else."
+                );
+                return exit::RUNNER_FAILED;
+            }
+        };
+
+        // 在别人的机器上执行别人 README 里的命令,必须让使用者看得见——
+        // 与 `demo` 是同一条规矩。
+        //
+        // 走 stderr 而不是 stdout：`--format json` 的 stdout 必须只有 JSON,
+        // 否则下游第一个 `jq` 就会炸。进度是进度,不是数据。
+        eprintln!(
+            "Running {} command(s) from {} in {} ({}):",
+            plan.runnable(),
+            plan.readme,
+            plan.image,
+            engine
+        );
+        if let Err(e) = verify::run(&mut plan, &root, &engine, &opts, |c| eprintln!("  $ {c}")) {
+            eprintln!("error: {e}");
+            // 超时之类：部分结果是有价值的,照常报出来,但退出码要说这次没跑完
+            runner_failed = true;
+        }
+    }
+
+    match args.format {
+        Format::Text => print!(
+            "{}",
+            verify::render(&plan, args.common.level(), args.verbose)
+        ),
+        Format::Json => match serde_json::to_string_pretty(&plan) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                eprintln!("error: serialization failed: {e}");
+                return exit::BAD_USAGE;
+            }
+        },
+        Format::Markdown | Format::Comment | Format::Sarif => {
+            eprintln!(
+                "error: verify supports --format text and json. \
+                 {} describes a score, and verify does not produce one",
+                match args.format {
+                    Format::Sarif => "sarif",
+                    Format::Comment => "comment",
+                    _ => "markdown",
+                }
+            );
+            return exit::BAD_USAGE;
+        }
+    }
+
+    if runner_failed {
+        return exit::RUNNER_FAILED;
+    }
+    if !args.run {
+        return exit::OK;
+    }
+    // 一条命令失败,与「分数低于门槛」是同一类事件:检查没通过
+    if plan.failed() > 0 || plan.not_run() > 0 {
+        exit::BELOW_MIN_SCORE
+    } else {
+        exit::OK
+    }
+}
+
 fn write_badge(
     ctx: &repolish_ingest::RepoContext,
     report: &repolish_core::Report,
@@ -1015,8 +1258,11 @@ fn run_polish(args: PolishArgs) -> u8 {
     let plan = polish::plan(&ctx, &report, &style);
     if plan.is_empty() {
         println!("Nothing to apply — everything polish can fix mechanically is already in place.");
-        println!("Run `repolish check .` for the findings that still need a human.");
-        return exit::OK;
+        if !args.suggest {
+            println!("Run `repolish check .` for the findings that still need a human.");
+            return exit::OK;
+        }
+        // --suggest 要的正是「机械修不了的那部分」,没有机械改动恰恰是它该上场的时候
     }
 
     let rel = |p: &std::path::Path| {
@@ -1068,11 +1314,13 @@ fn run_polish(args: PolishArgs) -> u8 {
     }
 
     if !args.apply {
-        if !plan.side_files.is_empty() && !args.verbose {
-            println!("  Run with -v to print what each new file would contain.");
+        if !plan.is_empty() {
+            if !plan.side_files.is_empty() && !args.verbose {
+                println!("  Run with -v to print what each new file would contain.");
+            }
+            println!("\n  Dry run — nothing written. Re-run with --apply to write it.");
         }
-        println!("\n  Dry run — nothing written. Re-run with --apply to write it.");
-        return exit::OK;
+        return run_suggest(args.suggest, &args.common, &ctx, &report);
     }
 
     // 没有 git 就没有撤销键。`polish --apply` 改的是别人的 README，
@@ -1117,5 +1365,85 @@ fn run_polish(args: PolishArgs) -> u8 {
              Undo with `git checkout -- . && git clean -fd`"
         );
     }
+    run_suggest(args.suggest, &args.common, &ctx, &report)
+}
+
+/// `--suggest`：请模型写那三段机械方法写不出来的文字。
+///
+/// **一个字都不落盘**,`--apply` 也不例外。理由写在 [`suggest`] 的模块文档里:
+/// 一段模型写的文字进了别人的 README 而他没有逐字看过,是不能接受的。
+fn run_suggest(
+    wanted: bool,
+    common: &Common,
+    ctx: &repolish_ingest::RepoContext,
+    report: &repolish_core::Report,
+) -> u8 {
+    if !wanted {
+        return exit::OK;
+    }
+
+    let kinds = suggest::wanted(report);
+    if kinds.is_empty() {
+        println!(
+            "\n  No wording to suggest — the title, quick start and usage example all \
+             score full marks.\n  Those are the only three things --suggest writes for."
+        );
+        return exit::OK;
+    }
+
+    let cfg = match crate::config::load(common.config.as_deref(), &ctx.root) {
+        Ok(c) => c.suggest,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return exit::BAD_USAGE;
+        }
+    };
+    let model = match suggest::Model::resolve(&cfg) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("\nerror: {e}");
+            return exit::BAD_USAGE;
+        }
+    };
+
+    let facts = suggest::Facts::from_ctx(ctx);
+    let prompt = suggest::prompt(&facts, &kinds);
+    eprintln!(
+        "\n  asking {} for: {}",
+        model.model,
+        kinds
+            .iter()
+            .map(|k| k.label())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+
+    let answer = match suggest::ask(&model, &prompt) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return exit::BAD_USAGE;
+        }
+    };
+    let suggestions = match suggest::parse(&answer) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return exit::BAD_USAGE;
+        }
+    };
+    if suggestions.is_empty() {
+        println!(
+            "\n  The model had nothing to add. That usually means the repository does not \
+             carry\n  the facts it would need — an install command it can point at, \
+             a binary name.\n  Making one of those true is the fix; inventing one is not."
+        );
+        return exit::OK;
+    }
+
+    print!(
+        "{}",
+        suggest::render(&suggestions, &model.model, common.level())
+    );
     exit::OK
 }

@@ -66,6 +66,28 @@ inputs:
     description: Append the report to the job summary
     required: false
     default: "true"
+  base:
+    description: >
+      Also score this git ref and report the difference — "origin/main", or
+      ${{ github.event.pull_request.base.sha }} on a pull request. Needs
+      actions/checkout with fetch-depth: 0, because the baseline commit has to
+      exist locally.
+    required: false
+    default: ""
+  sarif:
+    description: >
+      Write SARIF 2.1.0 to this path. Feed it to github/codeql-action/upload-sarif
+      and every finding lands on its own line in the pull request diff.
+      Needs `security-events: write` on the job.
+    required: false
+    default: ""
+  comment:
+    description: >
+      Post the short report as a pull request comment, editing the previous one
+      in place rather than adding another. Needs `pull-requests: write` on the
+      job, and only does anything on a pull_request event.
+    required: false
+    default: "false"
   args:
     description: Raw arguments; when given, they override every switch above
     required: false
@@ -75,6 +97,11 @@ outputs:
   score:
     description: Total score (0-100); empty when coverage was too low to produce one
     value: ${{ steps.run.outputs.score }}
+  points:
+    description: >
+      Change against `base`, e.g. -4. Empty when no base was given, or when
+      either side produced no total score.
+    value: ${{ steps.run.outputs.points }}
 
 runs:
   using: composite
@@ -130,7 +157,14 @@ runs:
         IN_THEME: ${{ inputs.theme }}
         IN_LANG: ${{ inputs.lang }}
         IN_SUMMARY: ${{ inputs.summary }}
+        IN_BASE: ${{ inputs.base }}
+        IN_SARIF: ${{ inputs.sarif }}
+        IN_COMMENT: ${{ inputs.comment }}
+        # PR 号从事件上下文里取，不去解析 event payload：
+        # 非 PR 事件下它就是空串，正好是「没什么可评论的」
+        IN_PR: ${{ github.event.pull_request.number }}
         IN_ARGS: ${{ inputs.args }}
+        GH_TOKEN: ${{ github.token }}
       run: |
         set -uo pipefail
 
@@ -172,18 +206,54 @@ runs:
           fi
           [ "$want_md" = "true" ] && set -- "$@" --report
           [ -n "$IN_MIN_SCORE" ] && set -- "$@" --min-score "$IN_MIN_SCORE"
+          [ -n "$IN_BASE" ] && set -- "$@" --base "$IN_BASE"
+          [ -n "$IN_SARIF" ] && set -- "$@" --sarif "$IN_SARIF"
+          # 评论体作为副产物写出来，而不是再跑一次 repolish：跑两次是
+          # 两倍的 GitHub API 调用，更要命的是两次的分数可能不一样。
+          [ "$IN_COMMENT" = "true" ] && set -- "$@" --comment "${RUNNER_TEMP}/repolish-comment.md"
         fi
 
         repolish "$@" | tee "$json"
         code=${PIPESTATUS[0]}
 
-        # 顶层 score 是 JSON 里第一个 "score" 键；覆盖不足时它是 null，
-        # 取出来就是空串，正合适。
-        score="$(grep -m1 '"score":' "$json" 2>/dev/null | tr -dc '0-9' || true)"
+        # 用 jq 而不是 grep：报告里 "score" 出现在顶层、每个类别里、
+        # 还有 delta 的两侧，靠第一个匹配取值是碰运气。jq 在每一台
+        # GitHub runner 上都预装了。
+        # 覆盖不足时 score 是 null，`// empty` 把它变成空串，正合适。
+        # `args` 逃生舱下输出未必是 JSON，所以两个都容忍失败。
+        score="$(jq -r '.score // empty' "$json" 2>/dev/null || true)"
         echo "score=${score}" >> "$GITHUB_OUTPUT"
+
+        points="$(jq -r '.delta.points // empty' "$json" 2>/dev/null || true)"
+        echo "points=${points}" >> "$GITHUB_OUTPUT"
 
         if [ "$want_md" = "true" ] && [ "$IN_SUMMARY" = "true" ] && [ -f "$md" ]; then
           cat "$md" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        # PR 评论：**改写上一条，而不是再加一条**。一个每次 push 都新增一条
+        # 评论的机器人，三次之后就会被所有人折叠,连带把真正变红的那一次
+        # 一起埋掉。
+        body="${RUNNER_TEMP}/repolish-comment.md"
+        if [ "$IN_COMMENT" = "true" ] && [ -f "$body" ]; then
+          pr="$IN_PR"
+          if [ -z "$pr" ]; then
+            echo "::notice::comment: not a pull request event, nothing posted"
+          else
+            api="repos/${GITHUB_REPOSITORY}/issues"
+            existing="$(gh api "${api}/${pr}/comments" --paginate \
+              --jq 'map(select(.body | startswith("<!-- repolish-report -->"))) | .[-1].id // empty' 2>/dev/null || true)"
+            if [ -n "$existing" ]; then
+              gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" \
+                -F body=@"$body" >/dev/null \
+                && echo "updated the repolish comment on #${pr}" \
+                || echo "::warning::could not update the comment — does the job have pull-requests: write?"
+            else
+              gh api -X POST "${api}/${pr}/comments" -F body=@"$body" >/dev/null \
+                && echo "commented on #${pr}" \
+                || echo "::warning::could not comment — does the job have pull-requests: write?"
+            fi
+          fi
         fi
 
         # 只是为了 summary 才生成的，别留在工作区里被顺手提交

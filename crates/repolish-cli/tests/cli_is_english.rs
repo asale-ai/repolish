@@ -15,7 +15,7 @@ use std::process::Command;
 
 /// 所有子命令。漏掉一个，那个子命令的 help 就没人守。
 const COMMANDS: &[&str] = &[
-    "check", "badge", "report", "card", "demo", "skill", "init", "polish",
+    "check", "badge", "report", "card", "demo", "skill", "init", "polish", "verify",
 ];
 
 fn bin() -> &'static str {

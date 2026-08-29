@@ -28,6 +28,21 @@ pub struct Config {
     pub checks: Checks,
     #[serde(default)]
     pub readme: Readme,
+    #[serde(default)]
+    pub suggest: Suggest,
+}
+
+/// `polish --suggest` 用哪个模型。
+///
+/// **这一段与评分毫无关系。** 它只决定那几段建议文字由谁写出来；
+/// 换一个模型、或者根本不配这一段，`check` 给出的分数一个字节都不会变。
+/// 密钥不放在这里——配置文件是要提交进仓库的。
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct Suggest {
+    pub model: Option<String>,
+    /// 自建网关或代理的地址。缺省是 Anthropic 的 Messages API
+    pub base_url: Option<String>,
 }
 
 /// `polish` 插入物的排版。**不影响任何一个分数**——检查项清单与权重在 v1
@@ -157,6 +172,15 @@ mod tests {
 
         let err = parse("[checks]\nskipp = []\n").unwrap_err();
         assert!(err.contains("skipp"), "{err}");
+    }
+
+    /// 建议用哪个模型是可以写进仓库的；密钥不是。
+    /// 一个把 API key 收进 `.repolish.toml` 的设计，迟早会有人提交上去。
+    #[test]
+    fn the_suggest_section_takes_a_model_but_never_a_key() {
+        let c = parse("[suggest]\nmodel = \"claude-opus-5\"\n").unwrap();
+        assert_eq!(c.suggest.model.as_deref(), Some("claude-opus-5"));
+        assert!(parse("[suggest]\napi-key = \"sk-…\"\n").is_err());
     }
 
     /// 逐检查项的阈值不开放——允许每个仓库自己调，分数就不可横向比较了

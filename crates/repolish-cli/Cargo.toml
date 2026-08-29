@@ -28,3 +28,6 @@ serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
 dunce.workspace = true
+# `polish --suggest` 那一条路要发一次 HTTPS。与 ingest 用同一个客户端,
+# 不为一个可选功能再拖一套 TLS 进来。
+ureq.workspace = true

@@ -30,7 +30,7 @@ mod repo_description;
 mod repo_homepage;
 mod repo_topics;
 mod tests;
-mod util;
+pub mod util;
 
 /// 注册表。顺序即报告中的展示顺序：按三大类分组，类内按权重从高到低。
 pub fn registry() -> Registry {

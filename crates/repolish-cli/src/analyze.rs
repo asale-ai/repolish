@@ -85,6 +85,10 @@ pub struct Analysis {
     pub report: Report,
     /// 配置文件里的 `min_score`。命令行给了就用命令行的。
     pub min_score: Option<u8>,
+    /// 产出这份报告用的那一套选项。`--base` 必须用**同一套**去跑基线：
+    /// 两侧的 mode、`--only`、`--skip` 有任何一处不同,差值就是拿两把不同的
+    /// 尺子相减。
+    pub opts: RunOptions,
 }
 
 /// 失败时已经打印过错误，直接返回退出码。
@@ -190,6 +194,7 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
         ctx,
         report,
         min_score: config.min_score,
+        opts,
     })
 }
 

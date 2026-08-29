@@ -22,7 +22,7 @@ pub use badge::{
 pub use cast::{cast, Line, Screen, Span, Step, Timing};
 pub use draw::Options;
 pub use i18n::Lang;
-pub use markdown::markdown;
+pub use markdown::{comment, markdown, COMMENT_MARKER};
 pub use overview::{overview, Facts, OVERVIEW_PATH};
 pub use svg::{card, CARD_PATH};
 pub use table::table;
@@ -98,6 +98,7 @@ pub fn terminal(report: &Report, opts: &RenderOptions) -> String {
     banner(&mut out, &pen);
     headline(&mut out, &pen, report);
     score_block(&mut out, &pen, report);
+    delta_block(&mut out, &pen, report);
     check_grid(&mut out, &pen, report, opts.verbose);
     findings(&mut out, &pen, report, opts.verbose);
     if opts.verbose {
@@ -219,6 +220,73 @@ fn score_block(out: &mut String, pen: &Pen, report: &Report) {
                 "only {:.0}% of the registered checks produced a score, below the 50% floor",
                 report.coverage * 100.0
             ))
+        );
+    }
+}
+
+/// 与 `--base` 那个 commit 的差异。没给 `--base` 就整块不出现。
+///
+/// 摆在分数正下方，是因为**变化量比绝对值更该先被读到**：一个正在评审 PR
+/// 的人要判断的是「这次改动让它变好还是变坏」，不是「它现在几分」。
+fn delta_block(out: &mut String, pen: &Pen, report: &Report) {
+    let Some(d) = &report.delta else {
+        return;
+    };
+
+    let _ = writeln!(out);
+    let (word, colour) = match d.points {
+        Some(p) if p < 0 => (format!("{p}"), theme::RED),
+        Some(p) if p > 0 => (format!("+{p}"), theme::LIME),
+        Some(_) => ("no change".to_string(), theme::MUTED),
+        None => ("not comparable".to_string(), theme::AMBER),
+    };
+    let base = match d.base_score {
+        Some(b) => format!(
+            "{b} → {}",
+            report
+                .score
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "—".into())
+        ),
+        None => "the baseline produced no total score".to_string(),
+    };
+    let _ = writeln!(
+        out,
+        "{INDENT}{}   {}   {}",
+        pen.dim("SINCE"),
+        pen.strong(&pad(&d.base_ref, 9), theme::TEXT),
+        format_args!("{}  {}", pen.strong(&word, colour), pen.dim(&base)),
+    );
+
+    if d.checks.is_empty() {
+        let _ = writeln!(out, "{INDENT}        {}", pen.dim("no check changed state"));
+        return;
+    }
+    // 只列动了的。22 项全列出来，读者要自己找哪一行变了——那正是这一段
+    // 本来想替他省掉的功夫。
+    for c in &d.checks {
+        let cell = |v: Option<u8>, status: &str| match v {
+            Some(n) => format!("{n}"),
+            None => status.replace('_', " "),
+        };
+        let colour = if c.is_regression() {
+            theme::RED
+        } else {
+            theme::LIME
+        };
+        let _ = writeln!(
+            out,
+            "{INDENT}        {} {}  {}",
+            pen.ink(if c.is_regression() { "▼" } else { "▲" }, colour),
+            pen.dim(&pad(c.id, 28)),
+            pen.ink(
+                &format!(
+                    "{} → {}",
+                    cell(c.before, c.before_status),
+                    cell(c.after, c.after_status)
+                ),
+                colour
+            ),
         );
     }
 }

@@ -98,6 +98,124 @@ pub struct Report {
     pub checks: Vec<CheckResult>,
     /// `Inconclusive` 与 `Skipped` 的合并列表，强制消费方看到「哪些没验证」
     pub coverage_limits: Vec<String>,
+    /// 与某个基线 commit 的差异。只有 `--base` 给了才有。
+    ///
+    /// 字段只增不改：不给 `--base` 时这个键根本不出现，v1 的消费方看到的
+    /// JSON 与从前逐字节一致。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delta: Option<Delta>,
+}
+
+/// 与一个基线 commit 的差异。
+///
+/// **变化量比绝对值更有行动力。** 「78 分」对一个正在评审 PR 的人没有意义，
+/// 「这个 PR 让分数掉了 4 分，因为 README.md:42 的链接失效了」才有。
+/// 这也是让那些「配好就永远绿」的检查项重新产生价值的唯一方式——
+/// 它们平时不说话,回归的那一次会说。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Delta {
+    /// 用户给的那个 ref，原样保留：报告里要说清基线是什么
+    pub base_ref: String,
+    pub base_commit: String,
+    pub base_score: Option<u8>,
+    /// 总分变化。任一侧没有总分时为 None——不能拿 0 去减
+    pub points: Option<i16>,
+    pub categories: Vec<CategoryDelta>,
+    /// **只列变了的。** 22 项里通常只有一两项动过，全列出来等于没列
+    pub checks: Vec<CheckDelta>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CategoryDelta {
+    pub category: Category,
+    pub before: Option<u8>,
+    pub after: Option<u8>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckDelta {
+    pub id: &'static str,
+    /// 0-10。基线上不是 `Scored` 时为 None
+    pub before: Option<u8>,
+    pub after: Option<u8>,
+    pub before_status: &'static str,
+    pub after_status: &'static str,
+}
+
+impl CheckDelta {
+    /// 分数掉了，或者从「打过分」变成了「没验证」。
+    ///
+    /// 后半句不能漏：一个检查项从 10 分变成 `Inconclusive`，总分可能纹丝不动
+    /// （它退出了分母），但仓库确实少了一份证据。
+    pub fn is_regression(&self) -> bool {
+        match (self.before, self.after) {
+            (Some(b), Some(a)) => a < b,
+            (Some(_), None) => true,
+            _ => false,
+        }
+    }
+}
+
+fn status_of(outcome: &Outcome) -> &'static str {
+    match outcome {
+        Outcome::Scored { .. } => "scored",
+        Outcome::NotApplicable { .. } => "not_applicable",
+        Outcome::Inconclusive { .. } => "inconclusive",
+        Outcome::Skipped { .. } => "skipped",
+    }
+}
+
+/// `head` 相对 `base` 的差异。
+///
+/// **两侧必须用同一个 mode 跑出来。** 本地分与远程分的分母不同，拿它们相减
+/// 得到的数字没有任何含义——调用方负责保证这一点，见 `docs/03-scoring.md`。
+pub fn diff(base: &Report, head: &Report, base_ref: &str, base_commit: &str) -> Delta {
+    let points = match (base.score, head.score) {
+        (Some(b), Some(h)) => Some(h as i16 - b as i16),
+        _ => None,
+    };
+
+    let categories = Category::ALL
+        .iter()
+        .map(|c| CategoryDelta {
+            category: *c,
+            before: base.category_score(*c),
+            after: head.category_score(*c),
+        })
+        .collect();
+
+    let mut checks = Vec::new();
+    for h in &head.checks {
+        let Some(b) = base.checks.iter().find(|b| b.id == h.id) else {
+            continue;
+        };
+        let before = b.outcome.score();
+        let after = h.outcome.score();
+        let before_status = status_of(&b.outcome);
+        let after_status = status_of(&h.outcome);
+        if before == after && before_status == after_status {
+            continue;
+        }
+        checks.push(CheckDelta {
+            id: h.id,
+            before,
+            after,
+            before_status,
+            after_status,
+        });
+    }
+
+    Delta {
+        base_ref: base_ref.to_string(),
+        base_commit: base_commit.to_string(),
+        base_score: base.score,
+        points,
+        categories,
+        checks,
+    }
 }
 
 /// 分数落在第几档，0 最好、4 最差。
@@ -161,6 +279,7 @@ impl Report {
             categories,
             checks,
             coverage_limits,
+            delta: None,
         }
     }
 
@@ -300,6 +419,71 @@ mod tests {
         let rep = build(checks, Profile::Unknown);
         assert!(rep.score.is_none());
         assert_eq!(rep.coverage_limits.len(), 1);
+    }
+
+    /// 只列变了的那几项：22 项里通常只有一两项动过
+    #[test]
+    fn a_diff_reports_only_the_checks_that_moved() {
+        let base = build(
+            vec![
+                r("a", Risk::Critical, Outcome::perfect(vec![])),
+                r("b", Risk::Critical, Outcome::perfect(vec![])),
+            ],
+            Profile::Cli,
+        );
+        let head = build(
+            vec![
+                r("a", Risk::Critical, Outcome::perfect(vec![])),
+                r(
+                    "b",
+                    Risk::Critical,
+                    Outcome::Scored {
+                        score: 4,
+                        evidence: vec![],
+                        fixes: vec![],
+                    },
+                ),
+            ],
+            Profile::Cli,
+        );
+        let d = diff(&base, &head, "origin/main", "deadbeef");
+        assert_eq!(d.base_score, Some(100));
+        assert_eq!(d.points, Some(-30));
+        assert_eq!(d.checks.len(), 1);
+        assert_eq!(d.checks[0].id, "b");
+        assert!(d.checks[0].is_regression());
+    }
+
+    /// 从「打过分」掉到「没验证」，总分可能纹丝不动（它退出了分母），
+    /// 但仓库确实少了一份证据——那也是回归
+    #[test]
+    fn losing_a_scored_check_counts_as_a_regression() {
+        let base = build(
+            vec![r("a", Risk::Critical, Outcome::perfect(vec![]))],
+            Profile::Cli,
+        );
+        let head = build(
+            vec![r("a", Risk::Critical, Outcome::inconclusive("no README"))],
+            Profile::Cli,
+        );
+        let d = diff(&base, &head, "main", "cafe");
+        assert_eq!(d.checks[0].after_status, "inconclusive");
+        assert!(d.checks[0].is_regression());
+    }
+
+    /// 不给 `--base` 时 `delta` 键根本不出现，v1 的消费方看到的 JSON 不变
+    #[test]
+    fn the_delta_key_is_absent_unless_a_base_was_given() {
+        let mut rep = build(
+            vec![r("a", Risk::Critical, Outcome::perfect(vec![]))],
+            Profile::Cli,
+        );
+        let v = serde_json::to_value(&rep).unwrap();
+        assert!(v.as_object().unwrap().get("delta").is_none());
+
+        rep.delta = Some(diff(&rep.clone(), &rep.clone(), "main", "cafe"));
+        let v = serde_json::to_value(&rep).unwrap();
+        assert_eq!(v["delta"]["baseRef"], "main");
     }
 
     /// schema 一旦发出去就有人在解析。字段名变动必须是显式决定，
