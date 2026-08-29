@@ -1186,10 +1186,33 @@ fn stage_demo(cli: &Cli, root: &Path, ledger: &mut Ledger, gaps: &mut Gaps) -> u
             // 命令跑不起来同样不该中止:录屏是产出里最不关键的一件,
             // 而它失败的常见原因只是「这个项目还没构建」。
             eprintln!("warning: the recording could not run: {e}");
+            let inv = invocation();
+            let fix = match demo::how_to_build(&ctx) {
+                // 两条可以直接粘贴的命令。第二条把构建目录塞进这一次调用的
+                // PATH 里,不动使用者的 shell 配置——录一次屏不该要求他改
+                // 自己的环境。
+                Some((build, dir)) => format!(
+                    "build it, then put the build directory on PATH for one run:\n      \
+                     {build}\n      PATH=\"$PWD/{dir}:$PATH\" {inv} --stages demo --apply"
+                ),
+                None => format!(
+                    "`{}` has to be on PATH. Build the project, then:\n      \
+                     PATH=\"$PWD/<build-dir>:$PATH\" {inv} --stages demo --apply",
+                    commands
+                        .first()
+                        .map(|c| c.split_whitespace().next().unwrap_or("the binary"))
+                        .unwrap_or("the binary")
+                ),
+            };
             gaps.note(
-                "no terminal recording — the commands could not run",
-                "the binary has to be on PATH. Build the project first and put the build \
-                 directory on PATH, then re-run with --stages demo --apply",
+                format!(
+                    "no terminal recording — `{}` is not on PATH",
+                    commands
+                        .first()
+                        .map(|c| c.split_whitespace().next().unwrap_or("the binary"))
+                        .unwrap_or("the binary")
+                ),
+                fix,
             );
             return exit::OK;
         }

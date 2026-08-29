@@ -47,6 +47,24 @@ pub fn binary(ctx: &RepoContext) -> Option<String> {
         .filter(|n| !n.is_empty())
 }
 
+/// 把这个项目构建出来、并让它的可执行文件出现在 PATH 上的那两条命令。
+///
+/// 「binary has to be on PATH」是一句正确但没用的提示——照着它，使用者还得
+/// 自己查这个生态的构建命令、再自己猜产物落在哪个目录。既然清单已经解析
+/// 过了，这两件事我们都知道，就该直接给出可粘贴的命令。
+///
+/// 只覆盖答案唯一的那几种。Python 的入口取决于有没有 venv、装没装成
+/// editable，猜一条给出去还不如不给。
+pub fn how_to_build(ctx: &RepoContext) -> Option<(&'static str, &'static str)> {
+    use repolish_ingest::Ecosystem;
+    match ctx.manifests.first()?.ecosystem {
+        Ecosystem::Cargo => Some(("cargo build --release", "target/release")),
+        Ecosystem::Npm => Some(("npm install", "node_modules/.bin")),
+        Ecosystem::Go => Some(("go build -o bin/ ./...", "bin")),
+        _ => None,
+    }
+}
+
 /// 默认录哪几条命令。
 ///
 /// `--help` 是唯一一条**对任何 CLI 都成立**的命令，所以它是默认值的全部。
