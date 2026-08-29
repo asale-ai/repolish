@@ -41,10 +41,14 @@ pub struct Common {
     #[arg(long, global = true, value_delimiter = ',')]
     pub skip: Vec<String>,
 
-    /// Also fetch the star history curve for the overview card.
-    /// Costs about a dozen extra API calls, so it is off by default
+    /// Fetch the star history curve for the overview card. Under --remote it is
+    /// on by default whenever a token is set; this asks for it either way
     #[arg(long, global = true)]
     pub stars: bool,
+
+    /// Skip the star history curve. It costs about a dozen extra API calls
+    #[arg(long, global = true, conflicts_with = "stars")]
+    pub no_stars: bool,
 
     #[arg(long, global = true)]
     pub no_color: bool,
@@ -80,6 +84,13 @@ impl Common {
     }
 }
 
+/// 这次运行会用到 star 曲线吗。
+#[derive(Copy, Clone)]
+pub struct StarsWanted {
+    /// 概览卡会被画出来——那是曲线唯一的去处
+    pub overview: bool,
+}
+
 pub struct Analysis {
     pub ctx: RepoContext,
     pub report: Report,
@@ -92,7 +103,11 @@ pub struct Analysis {
 }
 
 /// 失败时已经打印过错误，直接返回退出码。
-pub fn analyze(common: &Common) -> Result<Analysis, u8> {
+/// `wanted` 说的是「这次运行会不会真的画那张概览卡」。
+///
+/// star 曲线**只**出现在概览卡上。不画那张卡还去拉曲线，就是十几次白花的
+/// API 请求——Action 的 `overview` 默认是 false，那正是最常见的一种运行。
+pub fn analyze(common: &Common, wanted: StarsWanted) -> Result<Analysis, u8> {
     let root = dunce::canonicalize(&common.path).map_err(|e| {
         eprintln!("error: cannot access {}: {e}", common.path.display());
         let _ = e;
@@ -133,13 +148,25 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
 
     // 拉不到就退出，不静默降级：本地分与远程分基准不同，
     // 悄悄换基准会让用户拿到一个看不出差异的错分数。
+    //
+    // 只在**显式**要了曲线时才提醒。默认是开的，本地模式下每跑一次都提醒
+    // 一遍「你要的东西没发生」，那是纯噪音。
     if common.stars && !common.remote {
         eprintln!("warning: --stars needs --remote; no star history was fetched");
     }
     if common.remote {
         let token = repolish_ingest::remote::token_from_env();
-        // 曲线要十几次请求。匿名配额一小时只有 60 次，用掉五分之一还没提示，
-        // 使用者只会看到下一条命令莫名其妙地 429。
+
+        // 曲线默认要，**但匿名时自动让路**。它要十几次请求，而匿名配额一小时
+        // 只有 60 次——把五分之一花在一段装饰上，代价是真正的评分调用 429。
+        // 显式给了 `--stars` 就照办：那是使用者自己的取舍。
+        let stars = if common.stars {
+            true
+        } else if common.no_stars || !wanted.overview {
+            false
+        } else {
+            token.is_some()
+        };
         if common.stars && token.is_none() {
             eprintln!(
                 "warning: --stars costs about a dozen API calls and no token is set; \
@@ -148,12 +175,14 @@ pub fn analyze(common: &Common) -> Result<Analysis, u8> {
         }
         if token.is_none() {
             eprintln!("warning: GITHUB_TOKEN is not set; falling back to the anonymous quota of 60 requests per hour");
+            if !common.no_stars && !common.stars && wanted.overview {
+                eprintln!("note: the star history curve was skipped to protect that quota; pass --stars to fetch it anyway");
+            }
         }
-        ctx.fetch_remote(token.as_deref(), common.stars)
-            .map_err(|e| {
-                eprintln!("error: {e}");
-                exit::REMOTE_FAILED
-            })?;
+        ctx.fetch_remote(token.as_deref(), stars).map_err(|e| {
+            eprintln!("error: {e}");
+            exit::REMOTE_FAILED
+        })?;
     }
 
     // 曲线取不到不是错误，但也不能不吭声：使用者对着一张没有曲线的卡片

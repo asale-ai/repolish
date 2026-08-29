@@ -84,7 +84,7 @@ exactly one thing is being produced: one `--stages`, and — for `artifacts` —
 | `--only <ids>` / `--skip <ids>` | Filter by check id (filtered checks become `Skipped`) |
 | `--theme <dark\|porcelain>` | Palette for the SVG output |
 | `--lang <auto\|en\|zh-CN\|ja>` | Language of the text inside the SVG output |
-| `--stars` | Also fetch the star history curve. Needs `--remote`; costs ~12 API calls |
+| `--stars` / `--no-stars` | The star history curve. Under `--remote` it is fetched by default when a token is set **and** the overview card is being drawn — the curve has nowhere else to go, and anonymously it would spend a fifth of the 60/hour quota on a decoration |
 | `--no-color` | For CI |
 | `-v` | Expand every check, the passing list, and the full contents of every new file |
 | `--apply` | Write. Without it nothing is written except `--sarif` / `--comment` |
@@ -208,8 +208,12 @@ render them inside the pull request diff instead of in a log nobody expands.
 
 ### The star history curve
 
-`--stars` adds a star-growth curve to the overview card. Off by default, because it is the
-only part of repolish that costs more than one API call.
+`--stars` adds a star-growth curve to the overview card. It is the only part of repolish
+that costs more than one API call, so it is fetched **only when it will be seen and only
+when it is cheap**: under `--remote`, with a token, and when this run is actually drawing
+the overview card. Anonymously it would spend a fifth of the 60-per-hour quota on a
+decoration, and the Action draws no overview card by default — either way those dozen
+requests would buy nothing. `--stars` overrides both conditions; `--no-stars` opts out.
 
 **GitHub has no "stars over time" endpoint.** What it does have is `/stargazers`, which
 with `Accept: application/vnd.github.star+json` returns stargazers **in the order they

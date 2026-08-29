@@ -35,8 +35,8 @@ jobs:
       # 更要命的是几份产物可能来自不同次的评分结果。
       - name: Badge, report and cards
         run: |
-          # --stars 多花十几次 API 请求。这里划得来：CI 有 token，
-          # 而卡片上那条曲线正是每次重画的理由之一。
+          # --stars 现在默认就拉：有 token、且这次会画概览卡时。这里两个
+          # 条件都满足，留着这个参数只是把意图写明。
           cargo run --release -- . --stages check,artifacts --apply \
             --remote --stars --no-color --report --overview --footer-card
         env:

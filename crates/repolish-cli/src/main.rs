@@ -31,7 +31,7 @@ mod suggest;
 mod tables;
 mod tree;
 
-use analyze::{analyze, write_file, Analysis, Common};
+use analyze::{analyze, write_file, Analysis, Common, StarsWanted};
 use repolish_md::Readme;
 
 /// 退出码。工具自身失败与「检查不通过」必须区分，否则 CI 无法判断。
@@ -418,6 +418,14 @@ fn run(cli: Cli) -> u8 {
         return list_skill_targets();
     }
 
+    let root = match dunce::canonicalize(&cli.common.path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: cannot access {}: {e}", cli.common.path.display());
+            return exit::NOT_A_REPO;
+        }
+    };
+
     let needs_analysis = stages
         .iter()
         .any(|s| matches!(s, Stage::Check | Stage::Polish | Stage::Artifacts));
@@ -425,23 +433,26 @@ fn run(cli: Cli) -> u8 {
     // **分析只做一次。** 四个阶段共用同一份 ctx 与 report:分开跑意味着多打
     // 几次 GitHub API,也意味着几份产物有可能来自不同的评分结果。
     let mut analysis = if needs_analysis {
-        match analyze(&cli.common) {
+        // star 曲线只画在概览卡上。这次到底会不会画那张卡,取决于视觉产物的
+        // 开关和文件在不在——两处在这里就算得出来,而 analyze 必须在阶段跑
+        // 起来之前就知道该不该多花那十几次请求。Action 的 `overview` 默认
+        // 是 false,那正是最常见的一种运行。
+        let cfg = crate::config::load(cli.common.config.as_deref(), &root)
+            .map(|c| c.readme)
+            .unwrap_or_default();
+        let v = visuals(&cli, &cfg);
+        let wanted = StarsWanted {
+            overview: (stages.contains(&Stage::Polish) && v.overview)
+                || (stages.contains(&Stage::Artifacts)
+                    && (cli.artifact.contains(&Artifact::Overview)
+                        || root.join(repolish_render::OVERVIEW_PATH).exists())),
+        };
+        match analyze(&cli.common, wanted) {
             Ok(a) => Some(a),
             Err(code) => return code,
         }
     } else {
         None
-    };
-
-    let root = match analysis.as_ref().map(|a| a.ctx.root.clone()) {
-        Some(r) => r,
-        None => match dunce::canonicalize(&cli.common.path) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("error: cannot access {}: {e}", cli.common.path.display());
-                return exit::NOT_A_REPO;
-            }
-        },
     };
 
     let mut ledger = Ledger::new(cli.apply);
@@ -929,7 +940,7 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
         // 正要用一张没有曲线的卡覆盖一张有曲线的。这不是错误——本地不带
         // token 重画是很正常的事——但静默覆盖就意味着提交进仓库的卡片会
         // 悄悄退化,而 diff 里只是一大片 SVG 变化,没人看得出少了什么。
-        if !repolish_render::has_star_history(&svg) {
+        if !repolish_render::has_star_history(&svg) && !cli.common.no_stars {
             let path = ctx.root.join(repolish_render::OVERVIEW_PATH);
             if std::fs::read_to_string(&path)
                 .map(|old| repolish_render::has_star_history(&old))
