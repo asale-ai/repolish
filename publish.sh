@@ -248,8 +248,8 @@ Publishing would then resolve to the previous release."
   # generated from a source file compiled into the binary. Bumping without
   # regenerating leaves the published skill telling agents to install the
   # previous release — caught by publish-clawhub.sh, but far too late.
-  cargo run --quiet --release -p repolish -- skill . \
-    --output skills/repolish/SKILL.md --force > /dev/null \
+  cargo run --quiet --release -p repolish -- . --stages skill \
+    --output skills/repolish/SKILL.md --force --apply > /dev/null \
     || warn "could not regenerate skills/repolish/SKILL.md"
 
   # The npm package version is part of the URL it downloads the binary from, so

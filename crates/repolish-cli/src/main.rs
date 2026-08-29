@@ -119,7 +119,7 @@ struct Cli {
     force: bool,
 
     /// Which parts of the pipeline to run. Comma-separated.
-    /// Defaults to check,polish,artifacts,ci
+    /// Defaults to check,polish,artifacts,ci,demo
     #[arg(long, value_enum, value_delimiter = ',')]
     stages: Vec<Stage>,
 
@@ -1342,8 +1342,10 @@ fn list_skill_targets() -> u8 {
     }
     println!("\n  · = detected on this machine");
     let inv = invocation();
-    println!("\n  {inv} skill --target detect     install into the ones marked above");
-    println!("  {inv} skill --target all        install into every one of them");
+    println!(
+        "\n  {inv} --stages skill --target detect --apply   install into the ones marked above"
+    );
+    println!("  {inv} --stages skill --target all --apply      install into every one of them");
     exit::OK
 }
 
@@ -1383,8 +1385,8 @@ fn install_skill(requested: &[String], md: &str, force: bool) -> u8 {
     if targets.is_empty() {
         println!("No agent detected on this machine, so nothing was installed.");
         let inv = invocation();
-        println!("Run `{inv} skill --list` to see what is supported, or name one:");
-        println!("    {inv} skill --target claude");
+        println!("Run `{inv} --list` to see what is supported, or name one:");
+        println!("    {inv} --stages skill --target claude --apply");
         // 一台机器上没装任何智能体不是错误，只是没事可做
         return exit::OK;
     }
