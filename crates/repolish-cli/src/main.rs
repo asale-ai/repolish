@@ -683,7 +683,10 @@ fn stage_polish(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
         }
     }
     if !plan.side_files.is_empty() && !cli.verbose {
-        say!(cli, "  Run with -v to print what each new file would contain.");
+        say!(
+            cli,
+            "  Run with -v to print what each new file would contain."
+        );
     }
 
     run_suggest(cli.suggest, &cli.common, ctx, &a.report)
@@ -715,10 +718,14 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
                 Artifact::Badge => !cli.no_badge,
                 Artifact::Report => cli.report,
                 Artifact::Overview => {
-                    cli.overview || cli.visuals || ctx.root.join(repolish_render::OVERVIEW_PATH).exists()
+                    cli.overview
+                        || cli.visuals
+                        || ctx.root.join(repolish_render::OVERVIEW_PATH).exists()
                 }
                 Artifact::Score => {
-                    cli.footer_card || cli.visuals || ctx.root.join(repolish_render::CARD_PATH).exists()
+                    cli.footer_card
+                        || cli.visuals
+                        || ctx.root.join(repolish_render::CARD_PATH).exists()
                 }
                 Artifact::Tables => true,
             }
@@ -768,7 +775,11 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
                     }
                 };
                 say!(cli, "\n  Paste this into your README:\n");
-                say!(cli, "    {}", repolish_render::snippet(owner, name, &branch));
+                say!(
+                    cli,
+                    "    {}",
+                    repolish_render::snippet(owner, name, &branch)
+                );
                 say!(
                     cli,
                     "\n  shields.io renders it by reading {} out of your own repository. \
@@ -979,7 +990,11 @@ fn stage_demo(cli: &Cli, root: &Path, ledger: &mut Ledger) -> u8 {
 
     // 执行别人机器上的程序这件事，必须让使用者看得见——干跑时更是唯一的输出
     if !cli.apply {
-        say!(cli, "\n  Would RUN these in {}, and record them:\n", root.display());
+        say!(
+            cli,
+            "\n  Would RUN these in {}, and record them:\n",
+            root.display()
+        );
         for c in &commands {
             say!(cli, "    $ {c}");
         }

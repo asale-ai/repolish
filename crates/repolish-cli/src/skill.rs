@@ -226,7 +226,10 @@ mod tests {
         assert!(md.contains("without `--apply`"));
         // 每一段都要有名有姓，否则智能体只会跑默认那四段
         for stage in ["check", "polish", "artifacts", "ci", "skill", "demo"] {
-            assert!(md.contains(stage), "skill.md never mentions the `{stage}` stage");
+            assert!(
+                md.contains(stage),
+                "skill.md never mentions the `{stage}` stage"
+            );
         }
         assert!(
             !md.contains("repolish check ."),

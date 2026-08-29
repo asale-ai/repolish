@@ -83,7 +83,9 @@ fn help_documents_every_stage() {
 /// 子命令已经取消。留一个还能解析的子命令，等于同一件事有两种敲法。
 #[test]
 fn there_are_no_subcommands() {
-    for word in ["check", "polish", "badge", "report", "card", "demo", "skill", "init"] {
+    for word in [
+        "check", "polish", "badge", "report", "card", "demo", "skill", "init",
+    ] {
         let out = Command::new(bin()).arg(word).output().expect("run");
         assert!(
             !out.status.success(),
