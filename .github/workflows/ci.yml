@@ -57,6 +57,20 @@ jobs:
       # rust-version 是对使用者的承诺，只有 CI 会替我们守住它
       - run: cargo check --workspace
 
+  # npm 壳自己解 tar 和 zip（为了不引依赖），那段代码没有上游在维护，
+  # 所以它自己要有测试。这个 job 也守着「package.json 的版本 == workspace 的
+  # 版本」——版本号是下载 URL 的一部分,漂了就会装到一个版本号说 A、
+  # 二进制是 B 的东西。
+  npm-shim:
+    name: npm shim
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node npm/test.js
+
   self:
     name: repolish check .
     runs-on: ubuntu-latest

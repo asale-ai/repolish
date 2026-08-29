@@ -1,0 +1,23 @@
+{
+  "name": "repolish",
+  "version": "0.3.0",
+  "description": "Scores what your open-source repo looks like to a first-time visitor, and checks that the commands your README promises actually exist.",
+  "keywords": ["readme", "documentation", "lint", "cli", "open-source", "repository"],
+  "homepage": "https://github.com/asale-ai/repolish#readme",
+  "bugs": "https://github.com/asale-ai/repolish/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asale-ai/repolish.git",
+    "directory": "npm"
+  },
+  "license": "MIT OR Apache-2.0",
+  "bin": { "repolish": "bin/repolish.js" },
+  "files": ["bin/repolish.js", "install.js", "README.md"],
+  "scripts": {
+    "postinstall": "node install.js",
+    "test": "node test.js"
+  },
+  "engines": { "node": ">=18" },
+  "os": ["darwin", "linux", "win32"],
+  "cpu": ["x64", "arm64"]
+}
