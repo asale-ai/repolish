@@ -33,6 +33,16 @@ repolish init                    # 生成 .github/workflows/repolish.yml
 repolish polish .                # 打印能机械落实的改动，不落盘
 repolish polish . --apply        # 直接改文件，用户自行 commit
 repolish polish . --apply --visuals   # 再加上概览卡片、末尾分数卡片、SVG 表格
+repolish polish . --suggest      # 请模型写它写不了的那三段；从不落盘
+
+repolish verify .                # 打印 README 命令的执行计划，什么都不跑
+repolish verify . --run          # 在容器里执行
+repolish verify . --run --offline           # 断网，用来验证「离线可用」的承诺
+repolish verify . --section 安装             # 只取那一节的命令
+
+repolish check . --base origin/main         # 也评一遍那个 ref，报出差值
+repolish check . --sarif out.sarif          # 每条发现一条注解，落在它自己那一行
+repolish check . --comment out.md           # 短报告，给 PR 评论用
 ```
 
 **`card` 覆盖，`polish` 不覆盖。** 这个分工是有意的，也是这两条命令之间唯一需要记住的事：
@@ -46,7 +56,7 @@ repolish polish . --apply --visuals   # 再加上概览卡片、末尾分数卡�
 
 | 参数 | 说明 |
 |---|---|
-| `--format <text\|json\|markdown>` | 默认 `text` |
+| `--format <text\|json\|markdown\|sarif\|comment>` | 默认 `text`；`verify` 只收 `text` 和 `json` |
 | `--config <path>` | 默认读 `.repolish.toml` |
 | `--profile <auto\|library\|app\|cli\|docs\|collection\|meta>` | 默认 `auto`，覆盖类型探测结果 |
 | `--only <ids>` / `--skip <ids>` | 按 check id 过滤（被过滤项状态为 `Skipped`） |
@@ -63,8 +73,152 @@ repolish polish . --apply --visuals   # 再加上概览卡片、末尾分数卡�
 | 3 | 目标不是有效的 git 仓库 |
 | 4 | 远程调用失败（`--remote` 时 API 错误或配额耗尽） |
 | 5 | 有效检查项覆盖不足 50%，无法给出总分 |
+| 6 | `verify --run` 跑不起来：没有容器引擎、镜像拉不下来、容器中途死了 |
+| 7 | `--base` 的基线取不到：浅克隆、ref 不存在、PATH 上没有 git |
 
 工具自身的运行失败与「检查不通过」必须用不同退出码区分，否则 CI 里无法判断。
+
+1 是「检查没通过」那一档，`verify` 刻意复用它：一条不再能用的 README 命令，
+与分数低于阈值是同一类事件。6 和 7 与 4 一起站在这条线的另一侧——
+一台没装 docker 的机器、一个从未 fetch 过基线的浅克隆，都不是质量退步，
+也绝不能被报成质量退步。
+
+---
+
+## `verify`
+
+`claim-consistency` 核对 README 的命令**在不在**，`verify` 核对它们**能不能用**。
+这两者之间的缝隙，正是新用户真正卡住的地方：命令还在 `package.json` 里，
+但它需要一个没人写下来的系统依赖。
+
+### 什么跑、什么不跑
+
+命令来自 `claim-consistency` 用的同一个提取器（`repolish_checks::util::command_lines`）——
+「README 里什么算一条命令」只能有一份定义，两份迟早会互相打架。
+反斜杠续行先合并：分开跑的话第二行以 `--flag` 开头，会报出一条子虚乌有的「命令不存在」。
+
+随后逐条分类，方向是**宁可多跳过，不可乱跑**。漏掉一条本可验证的命令，
+代价是报告少一行；跑了一条不该跑的，代价是别人的仓库被发布了一个版本。
+
+| 跳过 | 理由 |
+|---|---|
+| `npm publish`、`git push`、`gh release create`、`aws …` | 容器隔离的是文件系统，不是网络那一头 |
+| `sudo …` | 需要 root |
+| `rm -rf /`、`mkfs`、`dd if=` | 破坏性；跑过一次这种命令的报告，没人敢跑第二次 |
+| `npm run dev`、`cargo watch`、`mkdocs serve` | 不会自己退出，报出来的「失败」是我们的超时，不是它的 bug |
+| `docker …`、`kubectl …` | 需要一个容器**里面**没有的运行时。照跑得到 `docker: not found`，那是我们的限制被报成了它的 bug |
+| `vim`、`less`、`man` | 交互式，没有 TTY |
+| `<YOUR_TOKEN>`、`path/to/config`、`example.com` | 留给读者填的占位符 |
+| 任何带 `$VAR` 的 | 我们展开不出来，跑的就不是 README 承诺的那条命令 |
+| `cat <<EOF` | heredoc 跨行，而我们是逐行取的 |
+
+每一条跳过都带理由打印出来。一份写着「12 条通过」而其中 9 条被悄悄跳过的报告，
+比没有报告更糟。
+
+### 怎么执行
+
+一次 `docker run`、一个 `sh` 会话、命令之间用哨兵行隔开：
+
+```sh
+exec 2>&1
+mkdir -p /work && cp -a /repo/. /work/ 2>/dev/null; cd /work || exit 1
+printf '%s %d\n' '__REPOLISH_STEP__' 0
+<命令 0>
+printf '%s %d %d\n' '__REPOLISH_EXIT__' 0 "$?"
+…
+```
+
+一个会话而不是一条命令一个容器，因为 README 的命令序列几乎总是依赖这一点——
+`cd docs` 然后 `make html`。哨兵行是仍然能**逐条**归因的原因。
+
+开头的 `exec 2>&1` 把 stderr 并进 stdout：一条报错和它上一行的上下文，分开看没有意义。
+
+仓库以**只读**挂载在 `/repo` 再复制到 `/work`。README 里的任何命令都碰不到使用者的工作区——
+正是这条性质，让「降级到宿主机跑」不能作为一个选项存在。
+
+计划里要跑却没有 `__REPOLISH_EXIT__` 标记的，一律报 `not_run`，绝不报 `passed`。
+反过来默认会把一次超时变成一份满分报告，而那正是这个工具存在的理由的反面。
+
+超时按容器名杀（`docker rm -f`），不是杀客户端进程——那只杀掉 CLI，容器会继续跑。
+已产出的部分输出保留：半份日志远好过没有日志。
+
+### 镜像
+
+跟着包清单选，且报告总要说清是哪一个、为什么：`Cargo.toml` → `rust:slim`，
+`package.json` → `node:lts`，以及 `python:3-slim`、`golang:latest`、`ruby:slim`、
+`composer:latest`、`maven:eclipse-temurin`；什么都探测不到时用 `debian:stable-slim`，
+并提示可以用 `--image` 指定。
+
+标签**刻意不钉到补丁版本**。README 的承诺是「在这个生态的当前版本上能跑」，
+钉死会让结论随着标签过期而漂移，而且是悄悄地漂。
+
+---
+
+## `--base`
+
+基线检出到一个**临时 `git worktree`** 里再评一次。不用 `git stash` 或 `git checkout`：
+可能正有人在改那份 README，为了算一个数字去动他的文件是不可接受的。
+
+也不去读基线上那份提交进仓库的 `.repolish/badge.json`。那个文件只有一个总分，
+答不出「哪一项动了」——而那是评审的人唯一需要的信息。它还是个提交进仓库的产物：
+一份忘了更新的 badge.json 会让差值凭空出现。
+
+基线用**与 head 相同的 `RunOptions`** 跑，并把 head 已经取到的 `RemoteFacts` 复制过去。
+描述、topics、homepage 是**仓库**的属性而不是 commit 的属性，重新拉一次是花配额买同一个答案；
+更要紧的是不复制过去的话，基线会悄悄退化成 local 模式——两个不同的分母相减。
+
+目标是子目录时（`repolish check demo/sample --base …`），子路径要在检出里接回去。
+不接的话评的就是仓库根：一份看起来完全正常、内容全错的差值。
+
+`delta` 以 `skip_serializing_if` 加进 JSON，所以不给 `--base` 时这个键根本不出现，
+v1 的消费方看到的是逐字节相同的文档。**加字段是允许的**，改含义和删字段才需要
+递增 `schemaVersion`。
+
+---
+
+## `polish --suggest`
+
+repolish 里唯一会跟模型说话的地方，而它不在评分路径上。
+
+「评分路径无模型」是一条关于**评分**的规矩（见 [01-architecture](01-architecture.zh-CN.md)）：
+同一个 commit 必须永远得到同一个数字。把它延伸到**修复**上是个错误，
+那等于把这个工具最有价值的一半让了出去——权重最高的三项
+（`readme-title-tagline` Critical、`readme-quickstart` Critical、`readme-usage-example` High）
+恰好全是机械规则满足不了的。
+
+所以边界画在别处，而且更死：
+
+- **从不落盘。** 连 `--apply` 都不写。它打印，作者自己贴。
+- **只有那三项。** 把其余 19 项交给模型产出的是噪声：它们要么是机械的（`polish` 已经在做），
+  要么是「去做一件事」而不是「写一句话」。
+- **只问没拿满分的。** 给一个已经满分的 tagline 再生成一个「更好的」，
+  是这条功能最先会走偏的地方。
+- **编不出东西。** 提示词里带着真实的包清单、真实的可执行文件名、真实的脚本名，
+  并要求缺事实就留空并说明，绝不硬编。一条编造的安装命令正是 `claim-consistency` 要抓的。
+
+提示词的构造与回答的解析都是纯函数，各自带单元测试——那段文字决定了产出有没有用，
+它值得像代码一样被盯着。
+
+模型默认 `claude-opus-5`，可用 `.repolish.toml` 的 `[suggest] model` 改。
+密钥取自 `REPOLISH_LLM_API_KEY` 或 `ANTHROPIC_API_KEY`——**绝不**从配置文件读，
+那是一个会被提交进仓库的文件。
+
+---
+
+## SARIF
+
+`--format sarif` / `--sarif <path>`，SARIF 2.1.0。
+
+每一条扣分本来就带着文件和行号。SARIF 只是让 GitHub 把它们渲染进 PR 的 diff 里，
+而不是留在一段没人展开的日志中。
+
+- **不产生时间戳。** 同一个 commit 逐字节相同，与其余所有产物一个规矩。
+  SARIF 允许 `invocation.startTimeUtc`，我们不写。
+- **只有扣分才成为 result。** 把通过项也放进去，PR 上就会出现 22 条注解，其中 19 条说一切正常。
+- **所有检查项都声明为 rule**，这样即使通过的项，Security 标签页里也有元数据可看。
+- 仓库级证据（`file: "."`）锚在 `README.md`，并带 `region.properties.wholeFile`——
+  指向仓库根的 location，GitHub 不会渲染。
+- `partialFingerprints` 让一条发现在文件被编辑后仍被认作同一条，而不是「关掉一条、新开一条」。
 
 ---
 

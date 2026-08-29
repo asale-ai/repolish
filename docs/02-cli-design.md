@@ -33,6 +33,16 @@ repolish init                    # generate .github/workflows/repolish.yml
 repolish polish .                # print the mechanical changes, write nothing
 repolish polish . --apply        # write them; the user commits
 repolish polish . --apply --visuals   # plus overview card, footer score card, SVG tables
+repolish polish . --suggest      # ask a model for the three it cannot write; never writes
+
+repolish verify .                # print the plan for the README's commands, run nothing
+repolish verify . --run          # execute them in a container
+repolish verify . --run --offline           # no network, to test an offline promise
+repolish verify . --section Install         # only that heading's commands
+
+repolish check . --base origin/main         # also score that ref, report the difference
+repolish check . --sarif out.sarif          # one annotation per finding, on its line
+repolish check . --comment out.md           # the short form, for a pull request comment
 ```
 
 **`card` overwrites; `polish` does not.** That division is deliberate and is the only
@@ -45,7 +55,7 @@ the README keeps showing the image generated the first time forever. CI runs `ca
 
 | Flag | Meaning |
 |---|---|
-| `--format <text\|json\|markdown>` | Default `text` |
+| `--format <text\|json\|markdown\|sarif\|comment>` | Default `text`. `verify` takes `text` and `json` only |
 | `--config <path>` | Defaults to `.repolish.toml` |
 | `--profile <auto\|library\|app\|cli\|docs\|collection\|meta>` | Default `auto`, overrides detection |
 | `--only <ids>` / `--skip <ids>` | Filter by check id (filtered checks become `Skipped`) |
@@ -65,9 +75,175 @@ the README keeps showing the image generated the first time forever. CI runs `ca
 | 3 | The target is not a valid git repository |
 | 4 | Remote call failed (API error or rate limit under `--remote`) |
 | 5 | Under 50% coverage, so no total is reported |
+| 6 | `verify --run` could not run: no container engine, image pull failed, container died |
+| 7 | `--base` could not be resolved: shallow clone, unknown ref, no git on PATH |
 
 The tool failing and the checks failing must be different exit codes, or CI cannot tell
 them apart.
+
+1 is the "checks did not pass" code, and `verify` reuses it deliberately: a README command
+that no longer works is the same class of event as a score under the threshold. 6 and 7
+sit on the other side of that line with 4 — a machine with no docker on it, and a shallow
+clone that never fetched the baseline, are not quality regressions and must not be
+reported as one.
+
+---
+
+## `verify`
+
+`claim-consistency` checks that the README's commands **exist**. `verify` checks that they
+**work**. The gap between those two is where new users actually get stuck: the command is
+still in `package.json`, but it needs a system package nobody wrote down.
+
+### What runs, and what does not
+
+Commands come from the same extractor `claim-consistency` uses
+(`repolish_checks::util::command_lines`) — one source of truth for "what counts as a
+command in a README", because two extractors would eventually disagree with each other.
+Backslash continuations are joined first: run separately, the second line starts with
+`--flag` and reports a bogus "command not found".
+
+Each command is then classified, and the bias is **skip rather than run**. Missing a
+verifiable command costs one line of the report; running one that should not have run
+costs somebody a published release.
+
+| Skipped | Reason |
+|---|---|
+| `npm publish`, `git push`, `gh release create`, `aws …` | The container isolates the filesystem, not the far end of the network |
+| `sudo …` | Needs root |
+| `rm -rf /`, `mkfs`, `dd if=` | Destructive; nobody runs a report twice that did this once |
+| `npm run dev`, `cargo watch`, `mkdocs serve` | Does not exit on its own; the "failure" would be our timeout, not their bug |
+| `docker …`, `kubectl …` | Needs a runtime we do not provide *inside* the container. Running it yields `docker: not found`, which is our limitation reported as their bug |
+| `vim`, `less`, `man` | Interactive; no TTY |
+| `<YOUR_TOKEN>`, `path/to/config`, `example.com` | A placeholder for the reader to fill in |
+| Anything with `$VAR` | We cannot resolve it, so what runs is not the command the README promised |
+| `cat <<EOF` | A heredoc spans lines we take one at a time |
+
+Every skip is printed with its reason. A report that says "12 passed" while quietly
+skipping nine is worse than no report.
+
+### How it executes
+
+One `docker run`, one `sh` session, sentinel lines between commands:
+
+```sh
+exec 2>&1
+mkdir -p /work && cp -a /repo/. /work/ 2>/dev/null; cd /work || exit 1
+printf '%s %d\n' '__REPOLISH_STEP__' 0
+<command 0>
+printf '%s %d %d\n' '__REPOLISH_EXIT__' 0 "$?"
+…
+```
+
+One session rather than one container per command, because README command sequences almost
+always depend on it — `cd docs` then `make html`. The sentinels are what still allow
+per-command attribution.
+
+`exec 2>&1` merges stderr into stdout at the top: an error and the line of context above
+it are useless read separately.
+
+The repository is mounted **read-only** at `/repo` and copied to `/work`. Nothing a README
+command does can reach the user's working tree — that property is why running on the host
+is not offered as a fallback.
+
+A command in the plan with no `__REPOLISH_EXIT__` marker is reported `not_run`, never
+`passed`. Defaulting the other way would turn one timeout into a perfect report, which is
+the exact failure this tool exists to prevent.
+
+Timeouts kill the container by name (`docker rm -f`), not by killing the client process —
+that only kills the CLI and leaves the container running. The partial output is kept: half
+a log beats no log.
+
+### The image
+
+Picked from the package manifest, and the report always says which and why: `rust:slim`
+for a `Cargo.toml`, `node:lts` for `package.json`, `python:3-slim`, `golang:latest`,
+`ruby:slim`, `composer:latest`, `maven:eclipse-temurin`; `debian:stable-slim` when nothing
+is detected, with a note to pass `--image`.
+
+Tags are deliberately **not pinned to a patch version**. The README's promise is "this
+works on the current version of this ecosystem"; pinning would make the result drift as
+the tag goes stale, and silently.
+
+---
+
+## `--base`
+
+The baseline is checked out into a **temporary `git worktree`** and scored again. Not
+`git stash` or `git checkout`: somebody may be editing that README right now, and moving
+their files to compute a number is not acceptable.
+
+Not read from the baseline's committed `.repolish/badge.json` either. That file carries
+only a total, so it cannot answer "which check moved" — the one thing a reviewer needs.
+And it is a committed artifact: one that was forgotten makes a difference appear out of
+nowhere.
+
+The baseline runs with the **same `RunOptions`** as the head, and the head's fetched
+`RemoteFacts` are copied across. Description, topics and homepage are properties of the
+*repository*, not of the commit; refetching them costs quota for the same answer, and
+*not* copying them would silently demote the baseline to local mode — two different
+denominators, subtracted from each other.
+
+When the target is a subdirectory (`repolish check demo/sample --base …`) the subpath is
+rejoined inside the checkout. Without that it would score the repository root: a
+difference that looks perfectly normal and is entirely wrong.
+
+`delta` is added to the JSON under `skip_serializing_if`, so the key is simply absent
+without `--base` and a v1 consumer sees a byte-identical document. Adding fields is
+allowed; changing or removing them is what requires a `schemaVersion` bump.
+
+---
+
+## `polish --suggest`
+
+The only place in repolish that talks to a model, and it is not in the scoring path.
+
+"No model in the scoring path" is a rule about **scoring** (see
+[01-architecture](01-architecture.md)): the same commit must always produce the same
+number. Extending it to **fixing** was a mistake that gave away the most valuable half of
+the tool — the three heaviest checks (`readme-title-tagline` Critical,
+`readme-quickstart` Critical, `readme-usage-example` High) are precisely the ones no
+mechanical rule can satisfy.
+
+The boundary therefore sits elsewhere, and is stricter:
+
+- **Never writes.** Not even under `--apply`. It prints; the author pastes.
+- **Only the three.** A model given the other 19 produces noise: they are either
+  mechanical (`polish` already does them) or "go do a thing" rather than "write a
+  sentence".
+- **Only asks about checks below 10.** Regenerating a tagline that already scores full
+  marks is where this feature would go wrong first.
+- **Cannot invent.** The prompt carries the real manifest, real binaries, real scripts,
+  and instructs the model to leave a suggestion empty and say why rather than fabricate.
+  A made-up install command is what `claim-consistency` exists to catch.
+
+Prompt construction and response parsing are pure functions with unit tests; the text of
+that prompt decides whether the output is worth anything, so it is watched like code.
+
+Model: `claude-opus-5` by default, `[suggest] model` in `.repolish.toml` to change it.
+The key comes from `REPOLISH_LLM_API_KEY` or `ANTHROPIC_API_KEY` — **never** from the
+config file, which is a file people commit.
+
+---
+
+## SARIF
+
+`--format sarif` / `--sarif <path>`, SARIF 2.1.0.
+
+Every deduction already carries a file and a line. SARIF is the encoding that makes GitHub
+render them inside the pull request diff instead of in a log nobody expands.
+
+- **No timestamps.** Byte-identical output for the same commit, like every other artifact.
+  SARIF permits `invocation.startTimeUtc`; we do not write it.
+- **Only deductions become results.** Including passing checks would put 22 annotations on
+  a pull request, 19 of them saying nothing is wrong.
+- **All checks become rules**, so the Security tab has metadata even for the ones that
+  passed.
+- Repo-level evidence (`file: "."`) is anchored at `README.md` with
+  `region.properties.wholeFile`. GitHub will not render a location that points at the
+  repository root.
+- `partialFingerprints` keeps a finding identified as the same one after the file is
+  edited, instead of closing one and opening another.
 
 ---
 

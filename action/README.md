@@ -45,6 +45,63 @@ regression.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+## On a pull request
+
+The three inputs that make a review readable. An absolute score tells a reviewer nothing;
+*this pull request dropped it four points, because the link on line 42 stopped resolving*
+tells them what to do.
+
+```yaml
+name: repolish
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write      # for `comment: true`
+  security-events: write    # for uploading the SARIF
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # required: the baseline commit has to exist locally
+
+      - uses: asale-ai/repolish@v0.3.0
+        with:
+          base: ${{ github.event.pull_request.base.sha }}
+          sarif: repolish.sarif
+          comment: true
+          min-score: 70
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Puts every finding on its own line in the diff. `if: always()` so the
+      # annotations still appear on the run that failed the gate — that is the
+      # run where they matter most.
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: repolish.sarif
+```
+
+Each of the three needs something from you:
+
+- **`base`** needs `fetch-depth: 0`. The baseline is checked out into a temporary git
+  worktree and scored with the identical options; on a shallow clone that commit was never
+  fetched, and repolish says so rather than reporting a mystery. Your working tree is never
+  touched.
+- **`sarif`** needs `security-events: write` on the job, and the upload step above.
+- **`comment`** needs `pull-requests: write`. It edits the previous repolish comment in
+  place instead of adding another — a bot that posts a fresh comment on every push gets
+  collapsed by the third one, taking the run that actually went red down with it. On
+  anything other than a `pull_request` event it does nothing and says so.
+
+`outputs.points` carries the difference, e.g. `-4`, for a step that wants to act on the
+direction rather than the absolute number. It is empty without `base`, and empty when
+either side produced no total score.
+
 ## Commit the badge back
 
 The badge is served from your own repository — shields.io reads
@@ -92,8 +149,20 @@ directory rather than naming files one by one.
 | `badge` | `true` | write `.repolish/badge.json` |
 | `card` | `false` | write `.repolish/card.svg`, a self-contained report card to embed in the README |
 | `report` | `false` | write `REPOLISH.md` |
+| `overview` | `false` | write `.repolish/overview.svg`, the project overview card |
+| `theme` / `lang` | `dark` / `auto` | palette and language for the SVG cards |
 | `summary` | `true` | append the report to the job summary |
+| `base` | *(none)* | also score this ref and report the difference; needs `fetch-depth: 0` |
+| `sarif` | *(none)* | write SARIF to this path; needs `security-events: write` to upload |
+| `comment` | `false` | post/update the short report as a PR comment; needs `pull-requests: write` |
 | `args` | *(none)* | raw arguments; a full escape hatch — see below |
+
+## Outputs
+
+| Output | Notes |
+|---|---|
+| `score` | 0–100. **Empty** when coverage was too low to produce a total — treat empty as "unknown", never as zero |
+| `points` | Change against `base`, e.g. `-4`. Empty without `base`, or when either side produced no total |
 
 ## `args` takes over completely
 
@@ -118,3 +187,13 @@ tags the `release-hygiene` check cannot tell "this project has never tagged a re
 from "the tags were simply not fetched", so it reports *inconclusive* rather than
 guessing — and you lose the check. Fetching the full history costs a few seconds and
 gets it back.
+
+`base` needs it for a second reason: the baseline commit itself is not in a shallow clone,
+so there is nothing to check out and compare against.
+
+## Pinning
+
+The examples pin an exact release. From the next one onwards a floating `@v0` will also
+exist, moved by the release workflow on every non-prerelease tag — the usual Actions
+convention, and the only way a patch release ever reaches the people who copied a snippet
+a year ago. Keep the exact pin if you would rather review every upgrade yourself.

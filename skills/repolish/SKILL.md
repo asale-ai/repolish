@@ -31,7 +31,8 @@ examples, and usually their accuracy. Instead:
 3. **Hand back what needs judgement.** A missing quickstart, a vague tagline, a
    README claim whose command no longer exists — those need the author's
    knowledge, or a targeted edit you can justify from evidence.
-4. **Measure again** and report the delta.
+4. **Measure again** and report the delta — `repolish check . --base <ref>` does
+   the arithmetic for you and lists only the checks that moved.
 
 Only edit prose directly when a finding names a specific line and the fix is
 unambiguous, and say which finding you were acting on.
@@ -64,6 +65,8 @@ repolish check .                    # local checks only, no network
 repolish check . --remote           # also read description / topics / homepage from GitHub
 repolish check . --format json      # machine-readable, schema frozen at version 1
 repolish check . --min-score 70     # exit 1 below the threshold, for CI
+repolish check . --base origin/main # also score that ref, report only what moved
+repolish check . --sarif out.sarif  # SARIF 2.1.0, for GitHub code scanning
 ```
 
 `--remote` reads `GITHUB_TOKEN` or `GH_TOKEN`. Without a token it falls back to
@@ -125,6 +128,54 @@ does not write.
 because `git checkout` is the undo button. Never pass `--force` on the user's
 behalf without saying so.
 
+### Prove the README's commands actually work
+
+```bash
+repolish verify .                   # print the plan; runs nothing
+repolish verify . --run             # execute them in a container
+repolish verify . --run --format json
+```
+
+`claim-consistency` checks the README's commands **exist**. `verify` checks they
+**work** — the same commands, executed from scratch in a container, in one shell
+session.
+
+**Reach for it when a `claim-consistency` finding is not obvious**, or when the
+user asks whether their quick start still works. It is the only thing in the
+toolbox that can tell "the command is missing" apart from "the command is there
+and fails".
+
+Safe by construction, and you should still say what you are doing:
+
+- It **never runs on the host.** With no container engine it exits 6 rather than
+  falling back. Do not work around that.
+- The repository is mounted **read-only** and copied in. Nothing it runs can
+  touch the working tree.
+- It refuses anything that publishes, needs root, never exits, or contains a
+  placeholder — and prints the reason next to each skipped command.
+
+Run it without `--run` first and show the user the plan, the same courtesy
+`demo --dry-run` gets.
+
+Exit 1 means a command failed — a real finding, report it with the README line
+number. Exit 6 means it could not run at all; that is an environment problem,
+**never** report it as a quality result.
+
+### Wording you are allowed to suggest
+
+```bash
+repolish polish . --suggest         # needs REPOLISH_LLM_API_KEY
+```
+
+This asks a model for the three pieces no mechanical rule can write: the
+tagline, the quick start, the usage example. It **prints and never writes**, not
+even with `--apply`.
+
+You usually do not need it — you are a model, and you are already here. It
+exists for the author running the CLI without you. If you are drafting those
+sections yourself, hold to the same three rules it does: fill the gap, never
+rewrite what is there, and never invent a command that is not in the manifest.
+
 ### The visuals
 
 ```bash
@@ -182,9 +233,13 @@ file the author is expected to edit.
 | 3 | Not a valid repository |
 | 4 | `--remote` failed (API error, rate limit, private repo) |
 | 5 | Fewer than half the checks could run — no total score is reported |
+| 6 | `verify --run` could not run: no container engine, or the container died |
+| 7 | `--base` could not be resolved: shallow clone, unknown ref, no git |
 
-Code 4 is deliberately distinct from code 1: a rate limit is not a quality
-regression, and must never be reported as one.
+Codes 4, 6 and 7 are deliberately distinct from code 1. A rate limit, a machine
+with no docker on it, and a shallow clone are not quality regressions, and must
+never be reported as one. **Say which happened**; do not summarise any of them as
+"the check failed".
 
 ## Making the calls repolish cannot
 
@@ -199,6 +254,8 @@ repolish decides three different ways, and only two of them are strong:
    checks them against the manifest and the filesystem. `readme-install-consistency`
    checks that the install command installs *this* package. These are joins between two
    sources of truth, not opinions — and they are the checks worth acting on first.
+   `repolish verify --run` is the strongest form of this: it stops cross-referencing and
+   executes them.
 3. **Graded heuristics.** `readme-quickstart` scores 0/4/6/8/10 from hand-curated
    substring lists. Most of the README checks have a list like that somewhere.
 
@@ -257,6 +314,7 @@ improved by moving it into the other.
   `package.json`, `make test` as a real target, `./scripts/setup.sh` as a real
   file. A README that fails on its first command is where readers leave. Fix
   those first, and fix them by making the claim true or by correcting it — never
-  by deleting the line to make the check pass.
+  by deleting the line to make the check pass. When it is unclear which of those
+  the command needs, `repolish verify . --run` settles it by executing them.
 - **Report the numbers the tool gave you.** If it says `not scored`, say
   `not scored`.
