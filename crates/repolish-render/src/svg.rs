@@ -127,26 +127,44 @@ pub fn wordmark(mark_size: i32) -> String {
 /// 横穿页面的巨型字，而这张图按比例缩放后仍然是一个居中的标志。
 ///
 /// 背景同样透明：亮暗两种主题共用一个文件。
-pub fn hero(tagline: &str, lang: crate::i18n::Lang) -> String {
+pub fn hero(name: &str, tagline: &str, lang: crate::i18n::Lang) -> String {
     let p = &crate::theme::DARK;
     let (w, h) = (1200, 260);
     let mark_size = 76;
     let cell = 8;
-
-    let text_w = crate::glyph::blocks_width("REPOLISH") as i32 * cell;
     let gap = 28;
-    let block_w = mark_size + gap + text_w;
-    let x0 = (w - block_w) / 2;
     let top = 62;
 
+    // 横幅上的名字是**这个项目的**。这张图挂在别人 README 的最顶上；
+    // 印我们的名字，就是把整个页面第一眼的位置拿去做自我推销。
+    let blocks = draw::as_blocks(name, cell, w - 240 - mark_size - gap);
+    let text_w = match &blocks {
+        Some(b) => crate::glyph::blocks_width(b) as i32 * cell,
+        // 退回文字时按字号估一个宽度，只为把整块居中——差几像素不影响观感
+        None => (name.chars().count() as i32 * 30).min(w - 240 - mark_size - gap),
+    };
+    let block_w = mark_size + gap + text_w;
+    let x0 = (w - block_w) / 2;
+
     let mut body = draw::mark(x0, top, mark_size, p);
-    body.push_str(&draw::blocks(
-        "REPOLISH",
-        x0 + mark_size + gap,
-        top + (mark_size - cell * crate::glyph::H as i32) / 2,
-        cell,
-        p,
-    ));
+    match &blocks {
+        Some(b) => body.push_str(&draw::blocks(
+            b,
+            x0 + mark_size + gap,
+            top + (mark_size - cell * crate::glyph::H as i32) / 2,
+            cell,
+            p,
+        )),
+        None => body.push_str(&draw::text(
+            &draw::fit(name, text_w as f32, 52.0),
+            x0 + mark_size + gap,
+            top + mark_size / 2 + 18,
+            52,
+            p.text,
+            Anchor::Start,
+            true,
+        )),
+    }
     if !tagline.is_empty() {
         body.push_str(&draw::text(
             &draw::fit(tagline, w as f32 - 120.0, 19.0),
@@ -161,8 +179,9 @@ pub fn hero(tagline: &str, lang: crate::i18n::Lang) -> String {
 
     format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w}\" height=\"{h}\" \
-         viewBox=\"0 0 {w} {h}\" lang=\"{}\" role=\"img\" aria-label=\"repolish\">\n{}{}{}</svg>\n",
+         viewBox=\"0 0 {w} {h}\" lang=\"{}\" role=\"img\" aria-label=\"{}\">\n{}{}{}</svg>\n",
         lang.tag(),
+        draw::esc(name),
         draw::brand_defs(p),
         format_args!(
             "  <style>\n    .t {{ font-family: {}; }}\n  </style>\n",
@@ -455,6 +474,32 @@ fn footer(out: &mut String, report: &Report, p: &Palette, s: &'static Strings, y
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 横幅上的名字是**这个项目的**，不是 repolish 的。这张图挂在别人 README
+    /// 的最顶上，印我们的名字就是把整个页面第一眼的位置拿去做自我推销。
+    #[test]
+    fn the_banner_carries_the_project_name() {
+        let svg = hero("taskvault", "a thing for tasks", crate::i18n::Lang::En);
+        assert!(svg.contains(r#"aria-label="taskvault""#));
+        assert!(!svg.to_lowercase().contains(">repolish<"));
+        // 点阵字标：一堆方块，名字不该再出现一份文字
+        assert!(svg.contains("<rect"));
+    }
+
+    /// 点阵字体画不出的名字要退回文字，而不是留下一片空白的横幅。
+    #[test]
+    fn a_banner_name_the_block_font_cannot_draw_falls_back_to_text() {
+        let svg = hero("中文项目", "", crate::i18n::Lang::ZhCn);
+        assert!(svg.contains("中文项目"), "expected the text fallback");
+    }
+
+    /// 同一份输入必须逐字节一致，否则 CI 每次都提交一张只有噪声在变的图。
+    #[test]
+    fn the_same_banner_renders_byte_identical() {
+        let a = hero("taskvault", "x", crate::i18n::Lang::En);
+        let b = hero("taskvault", "x", crate::i18n::Lang::En);
+        assert_eq!(a, b);
+    }
     use crate::i18n::Lang;
     use crate::theme::{DARK, PORCELAIN};
     use repolish_core::{CheckResult, Evidence, Fix, Mode, Profile, ProfileInfo, Repository, Risk};
@@ -571,7 +616,11 @@ mod tests {
     /// 否则 README 顶上会出现一条横穿页面的巨型字
     #[test]
     fn the_hero_banner_is_wide_and_centred() {
-        let svg = hero("score and improve your repository", crate::i18n::Lang::En);
+        let svg = hero(
+            "repolish",
+            "score and improve your repository",
+            crate::i18n::Lang::En,
+        );
         assert!(svg.contains(r#"viewBox="0 0 1200 260""#));
         assert!(svg.contains(r#"text-anchor="middle""#));
         // 亮暗两种主题共用一个文件，所以不能画底
@@ -580,8 +629,9 @@ mod tests {
 
     #[test]
     fn the_hero_survives_an_empty_tagline() {
-        let svg = hero("", crate::i18n::Lang::En);
+        let svg = hero("repolish", "", crate::i18n::Lang::En);
         assert!(svg.trim_end().ends_with("</svg>"));
+        // 名字走点阵，副标题为空 —— 整张图里不该有任何文字
         assert!(!svg.contains("<text"));
     }
 }

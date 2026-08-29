@@ -63,6 +63,8 @@ pub struct Readme {
     pub theme: Option<crate::style::Theme>,
     /// SVG 里那些字的语言。缺省跟着 README 走。
     pub lang: Option<crate::style::CardLang>,
+    /// README 顶上那张通栏横幅
+    pub hero: Option<bool>,
     /// 插入项目概览卡片
     pub overview: Option<bool>,
     /// 在末尾插分数卡片与「用 repolish 打磨过」一节

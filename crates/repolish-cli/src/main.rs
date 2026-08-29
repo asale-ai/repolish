@@ -31,7 +31,7 @@ mod suggest;
 mod tables;
 mod tree;
 
-use analyze::{analyze, write_file, Analysis, Common};
+use analyze::{analyze, write_file, Analysis, Common, StarsWanted};
 use repolish_md::Readme;
 
 /// 退出码。工具自身失败与「检查不通过」必须区分，否则 CI 无法判断。
@@ -203,6 +203,10 @@ struct Cli {
     #[arg(long)]
     tree_depth: Option<usize>,
 
+    /// Draw a banner carrying this project's name, and put it above the title
+    #[arg(long)]
+    hero: bool,
+
     /// Insert a project overview card below the badges, and draw it
     #[arg(long)]
     overview: bool,
@@ -215,9 +219,15 @@ struct Cli {
     #[arg(long, value_enum)]
     tables: Option<style::TableStyle>,
 
-    /// Shorthand for --overview --footer-card --tables svg
+    /// Shorthand for --overview --footer-card --tables svg. On by default;
+    /// this only reasserts it after --no-visuals
     #[arg(long)]
     visuals: bool,
+
+    /// Leave the README's visuals alone: no overview card, no report card, and
+    /// tables stay as markdown
+    #[arg(long)]
+    no_visuals: bool,
 
     /// Also ask a model to draft the three pieces repolish cannot write
     /// mechanically: the tagline, the quick start and the usage example. Needs
@@ -288,6 +298,8 @@ const DEFAULT_STAGES: &[Stage] = &[Stage::Check, Stage::Polish, Stage::Artifacts
 enum Artifact {
     /// .repolish/badge.json, read by shields.io out of your own repository
     Badge,
+    /// .repolish/hero.svg — the banner above the README's title
+    Hero,
     /// REPOLISH.md, the full report as markdown
     Report,
     /// .repolish/overview.svg — what this project is
@@ -334,6 +346,12 @@ impl Ledger {
     }
 
     /// 记一笔,`--apply` 时同时落盘。
+    ///
+    /// **同一个路径只占一行。** 两个阶段写同一个文件是正常的:`--visuals` 下
+    /// `polish` 要把卡片画出来,否则它刚插进 README 的 `<img>` 指向一个不存在
+    /// 的文件;`artifacts` 随后又会重画同一张——它才是重画的归属方。内容一致,
+    /// 但报成两行就等于告诉使用者「9 个文件」而实际只有 7 个,而这份清单唯一
+    /// 的价值就是它说的和落盘的是同一件事。后写的赢:`artifacts` 是权威。
     fn write(
         &mut self,
         root: &Path,
@@ -341,11 +359,19 @@ impl Ledger {
         contents: &str,
         note: impl Into<String>,
     ) -> Result<(), u8> {
+        let rel = relative(root, path);
+        if let Some(e) = self.entries.iter_mut().find(|e| e.rel == rel) {
+            if self.apply {
+                write_file(path, contents)?;
+            }
+            e.note = note.into();
+            return Ok(());
+        }
         if self.apply {
             write_file(path, contents)?;
         }
         self.entries.push(Entry {
-            rel: relative(root, path),
+            rel,
             note: note.into(),
         });
         Ok(())
@@ -392,6 +418,14 @@ fn run(cli: Cli) -> u8 {
         return list_skill_targets();
     }
 
+    let root = match dunce::canonicalize(&cli.common.path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: cannot access {}: {e}", cli.common.path.display());
+            return exit::NOT_A_REPO;
+        }
+    };
+
     let needs_analysis = stages
         .iter()
         .any(|s| matches!(s, Stage::Check | Stage::Polish | Stage::Artifacts));
@@ -399,23 +433,26 @@ fn run(cli: Cli) -> u8 {
     // **分析只做一次。** 四个阶段共用同一份 ctx 与 report:分开跑意味着多打
     // 几次 GitHub API,也意味着几份产物有可能来自不同的评分结果。
     let mut analysis = if needs_analysis {
-        match analyze(&cli.common) {
+        // star 曲线只画在概览卡上。这次到底会不会画那张卡,取决于视觉产物的
+        // 开关和文件在不在——两处在这里就算得出来,而 analyze 必须在阶段跑
+        // 起来之前就知道该不该多花那十几次请求。Action 的 `overview` 默认
+        // 是 false,那正是最常见的一种运行。
+        let cfg = crate::config::load(cli.common.config.as_deref(), &root)
+            .map(|c| c.readme)
+            .unwrap_or_default();
+        let v = visuals(&cli, &cfg);
+        let wanted = StarsWanted {
+            overview: (stages.contains(&Stage::Polish) && v.overview)
+                || (stages.contains(&Stage::Artifacts)
+                    && (cli.artifact.contains(&Artifact::Overview)
+                        || root.join(repolish_render::OVERVIEW_PATH).exists())),
+        };
+        match analyze(&cli.common, wanted) {
             Ok(a) => Some(a),
             Err(code) => return code,
         }
     } else {
         None
-    };
-
-    let root = match analysis.as_ref().map(|a| a.ctx.root.clone()) {
-        Some(r) => r,
-        None => match dunce::canonicalize(&cli.common.path) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("error: cannot access {}: {e}", cli.common.path.display());
-                return exit::NOT_A_REPO;
-            }
-        },
     };
 
     let mut ledger = Ledger::new(cli.apply);
@@ -455,7 +492,48 @@ fn run(cli: Cli) -> u8 {
     }
 
     report_ledger(&cli, &ledger);
+    report_untouched(&cli, &stages, &root);
     gate
+}
+
+/// 默认流水线跑完之后，说一句还有哪两段没跑。
+///
+/// `demo` 和 `skill` 刻意不在默认里，但「刻意」这件事只有我们知道——使用者
+/// 看到的是一份没有录屏、没有 SKILL.md 的产出，而输出里一个字都没提它们
+/// 存在过。两次被问「其他功能呢」之后，这段就是答案。
+///
+/// **产物已经在了就不再提。** 每次运行都催一遍已经做过的事，是噪音，
+/// 而噪音会让人连有用的那几行一起略过。
+fn report_untouched(cli: &Cli, stages: &[Stage], root: &Path) {
+    let missing = |s: Stage, path: &str| !stages.contains(&s) && !root.join(path).exists();
+    let demo = missing(Stage::Demo, demo::SVG_PATH);
+    let skill = missing(Stage::Skill, skill::SKILL_PATH);
+    if !demo && !skill {
+        return;
+    }
+
+    let inv = invocation();
+    say!(cli, "");
+    say!(cli, "  NOT RUN — these stages are opt-in");
+    if demo {
+        say!(
+            cli,
+            "    demo    record this CLI as an animated SVG   {inv} --stages demo"
+        );
+    }
+    if skill {
+        say!(
+            cli,
+            "    skill   teach a coding agent to drive this   {inv} --stages skill"
+        );
+    }
+    if demo {
+        say!(
+            cli,
+            "\n  `demo` RUNS the commands it records, so it prints the list first and \
+             only records under --apply."
+        );
+    }
 }
 
 /// 统一汇报「会写 / 写了」哪些文件。
@@ -559,6 +637,36 @@ fn stage_check(cli: &Cli, a: &mut Analysis) -> u8 {
     exit::OK
 }
 
+/// README 里那三样视觉产物开不开。
+///
+/// **默认全开。** `polish` 和 `artifacts` 必须算出同一个答案——前者决定往
+/// README 里插什么引用,后者决定画哪几张图,两边不一致就会留下一个指向
+/// 空文件的 `<img>`,或者一张没人引用的孤儿图。所以这里只有一份实现。
+///
+/// 优先级:单项命令行开关 > `--no-visuals` > 配置文件 > 默认(开)。
+/// 单项开关排在 `--no-visuals` 前面是有意的——同时给了这两个,说的是
+/// 「除了这一样,其余都别动」。
+struct Visuals {
+    hero: bool,
+    overview: bool,
+    footer_card: bool,
+    tables: style::TableStyle,
+}
+
+fn visuals(cli: &Cli, cfg: &crate::config::Readme) -> Visuals {
+    let on = !cli.no_visuals;
+    Visuals {
+        hero: cli.hero || (on && cfg.hero.unwrap_or(true)),
+        overview: cli.overview || (on && cfg.overview.unwrap_or(true)),
+        footer_card: cli.footer_card || (on && cfg.footer_card.unwrap_or(true)),
+        tables: cli.tables.or(cfg.tables).unwrap_or(if on {
+            style::TableStyle::Svg
+        } else {
+            style::TableStyle::Keep
+        }),
+    }
+}
+
 /// 这个阶段是不是被单独点名跑的。
 ///
 /// 跑完整流水线时,`polish` 已经把徽章和图的引用插进 README 了,再printing
@@ -580,6 +688,7 @@ fn stage_polish(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
         }
     };
     let readme_raw = ctx.readme.as_ref().map(|r| r.raw.as_str()).unwrap_or("");
+    let v = visuals(cli, &cfg);
     let style = style::ReadmeStyle {
         badge: cli
             .badge_style
@@ -598,13 +707,10 @@ fn stage_polish(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
             .or(cfg.lang)
             .unwrap_or_default()
             .resolve(readme_raw),
-        overview: cli.overview || cli.visuals || cfg.overview.unwrap_or(false),
-        footer_card: cli.footer_card || cli.visuals || cfg.footer_card.unwrap_or(false),
-        tables: if cli.visuals {
-            style::TableStyle::Svg
-        } else {
-            cli.tables.or(cfg.tables).unwrap_or_default()
-        },
+        hero: v.hero,
+        overview: v.overview,
+        footer_card: v.footer_card,
+        tables: v.tables,
     };
 
     let plan = polish::plan(ctx, &a.report, &style);
@@ -717,16 +823,14 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
             match k {
                 Artifact::Badge => !cli.no_badge,
                 Artifact::Report => cli.report,
-                Artifact::Overview => {
-                    cli.overview
-                        || cli.visuals
-                        || ctx.root.join(repolish_render::OVERVIEW_PATH).exists()
-                }
-                Artifact::Score => {
-                    cli.footer_card
-                        || cli.visuals
-                        || ctx.root.join(repolish_render::CARD_PATH).exists()
-                }
+                // **只重画已经在那儿的。** 第一次是 `polish` 的活:它插入引用，
+                // 并同时把文件生成出来。这里再按「视觉产物默认开」去画一遍，
+                // 落下的是一个没有任何东西指向的孤儿文件——本仓库顶上挂的是
+                // 作者自己的 `assets/hero.svg`，`polish` 会正确让位，而这里
+                // 却照画不误。要强行画某一张，用 `--artifact`。
+                Artifact::Hero => ctx.root.join(repolish_render::HERO_PATH).exists(),
+                Artifact::Overview => ctx.root.join(repolish_render::OVERVIEW_PATH).exists(),
+                Artifact::Score => ctx.root.join(repolish_render::CARD_PATH).exists(),
                 Artifact::Tables => true,
             }
         }
@@ -813,9 +917,42 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
         }
     }
 
+    if want(Artifact::Hero) {
+        let facts = repolish_render::Facts::from_ctx(ctx, opts.lang);
+        let tagline = facts.description.clone().unwrap_or_default();
+        let svg = repolish_render::svg::hero(&facts.name, &tagline, opts.lang);
+        if cli.stdout {
+            print!("{svg}");
+            return exit::OK;
+        }
+        let path = cli
+            .output
+            .clone()
+            .unwrap_or_else(|| ctx.root.join(repolish_render::HERO_PATH));
+        if let Err(code) = ledger.write(&ctx.root, &path, &svg, "banner") {
+            return code;
+        }
+    }
+
     if want(Artifact::Overview) {
         let facts = repolish_render::Facts::from_ctx(ctx, opts.lang);
         let svg = repolish_render::overview(&facts, &opts);
+        // 正要用一张没有曲线的卡覆盖一张有曲线的。这不是错误——本地不带
+        // token 重画是很正常的事——但静默覆盖就意味着提交进仓库的卡片会
+        // 悄悄退化,而 diff 里只是一大片 SVG 变化,没人看得出少了什么。
+        if !repolish_render::has_star_history(&svg) && !cli.common.no_stars {
+            let path = ctx.root.join(repolish_render::OVERVIEW_PATH);
+            if std::fs::read_to_string(&path)
+                .map(|old| repolish_render::has_star_history(&old))
+                .unwrap_or(false)
+            {
+                eprintln!(
+                    "warning: {} has a star history curve and this run has none — \
+                     it needs --remote --stars. Re-run with both to keep it.",
+                    repolish_render::OVERVIEW_PATH
+                );
+            }
+        }
         if cli.stdout {
             print!("{svg}");
             return exit::OK;

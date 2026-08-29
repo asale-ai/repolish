@@ -27,7 +27,7 @@ repolish --apply                 # 落盘
 |---|---|---|
 | `check` | 什么都不写 | 是 |
 | `polish` | README 插入、`CONTRIBUTING.md`、issue/PR 模板 | 是 |
-| `artifacts` | `.repolish/badge.json`，以及 README 已经引用的每一张 SVG | 是 |
+| `artifacts` | `.repolish/badge.json`、横幅、两张卡片，以及 README 已经引用的每一张 SVG | 是 |
 | `ci` | `.github/workflows/repolish.yml` | 是 |
 | `skill` | `SKILL.md`；带 `--target` 时写进智能体自己的目录 | 否 |
 | `demo` | `.repolish/demo.svg`——会**执行**它录下的命令 | 否 |
@@ -80,12 +80,14 @@ repolish --suggest                         # 请模型写它写不了的那三�
 | `--config <path>` | 默认读 `.repolish.toml` |
 | `--profile <auto\|library\|app\|cli\|docs\|collection\|meta>` | 默认 `auto`，覆盖类型探测结果 |
 | `--only <ids>` / `--skip <ids>` | 按 check id 过滤（被过滤项状态为 `Skipped`） |
+| `--stars` / `--no-stars` | star 增长曲线。`--remote` 下默认就拉，前提是有 token **且**这次会画概览卡——曲线没有别的去处，而匿名时它会把 60/小时配额的五分之一花在一段装饰上 |
 | `--no-color` | CI 环境 |
 | `-v` | 展开全部检查项、通过清单，以及每个新文件的完整内容 |
 | `--apply` | 落盘。不加它，除 `--sarif` / `--comment` 外什么都不写 |
 | `--force` | 覆盖已存在的文件，并允许在非 git 目录下写 |
 | `--stages <list>` | 默认 `check,polish,artifacts,ci` |
-| `--artifact <list>` | 把 `artifacts` 阶段限定到 `badge`、`report`、`overview`、`score`、`tables` |
+| `--artifact <list>` | 把 `artifacts` 阶段限定到 `badge`、`report`、`hero`、`overview`、`score`、`tables` |
+| `--no-visuals` | 不动 README 的视觉产物。卡片与 SVG 表格默认是开的 |
 
 `--sarif` 和 `--comment` 是 `--apply` 的两个例外：点名一个输出路径本身就是请求，
 而且它们默认都不往仓库自己的树里写。
@@ -186,7 +188,7 @@ repolish 里唯一会跟模型说话的地方，而它不在评分路径上。
 
 ### star 增长曲线
 
-`--stars` 在概览卡片上加一条 star 增长曲线。默认不开，因为它是 repolish 里唯一一处代价超过一次 API 请求的功能。
+`--stars` 在概览卡片上加一条 star 增长曲线。它是 repolish 里唯一一处代价超过一次 API 请求的功能，所以只在**看得见、而且划得来**的时候才拉：`--remote` 下、有 token、并且这次运行真的会画概览卡。匿名时它会把 60/小时配额的五分之一花在一段装饰上；而 Action 默认根本不画概览卡——两种情况下那十几次请求都什么也买不到。`--stars` 可以强行覆盖这两个条件，`--no-stars` 则是退出。
 
 **GitHub 没有「历年 star 数」这样的接口。** 但它有 `/stargazers`——带上 `Accept: application/vnd.github.star+json` 之后，它按**加星时间升序**返回，每条带 `starred_at`。于是第 *k* 页的第一个人，就是这个仓库第 *(k-1)×100+1* 颗星落下的那一刻。抽十几页就得到十几个**精确**的点，唯一近似的是点与点之间那几段直线。
 

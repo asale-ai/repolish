@@ -89,10 +89,10 @@ which parts of the pipeline run. The default is `check,polish,artifacts,ci`.
 |---|---|
 | `check` | Score the repository and print the report |
 | `polish` | The mechanical fixes: badge, table of contents, issue/PR templates, `CONTRIBUTING.md` |
-| `artifacts` | `.repolish/badge.json`, and redraw every SVG the README already references |
+| `artifacts` | `.repolish/badge.json`, the banner, the overview and report cards, and every SVG the README already references |
 | `ci` | `.github/workflows/repolish.yml` |
 | `skill` | `SKILL.md` — opt-in, not in the default run |
-| `demo` | Record the CLI — opt-in, and with `--apply` it **executes** the commands |
+| `demo` | Record the CLI — opt-in, and with `--apply` it **executes** the commands. A run that skipped it says so at the end |
 
 ### Run it
 
@@ -207,9 +207,13 @@ belongs to the project, not to our tool.
 To have `polish` insert them, and render README tables as SVG with the original
 folded into `<details>`:
 
+The cards and the SVG tables are **on by default**, so a plain `--apply` inserts
+them. `--no-visuals` leaves the README's visuals alone — reach for it when the
+author has a README they clearly art-directed themselves.
+
 ```bash
-repolish --apply --visuals
-# same as: --overview --footer-card --tables svg
+repolish --apply                    # cards and SVG tables included
+repolish --apply --no-visuals       # leave them alone
 repolish --apply --logo assets/hero.svg --logo-width full --align center
 ```
 

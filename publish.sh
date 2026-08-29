@@ -264,18 +264,23 @@ Publishing would then resolve to the previous release."
   # The action pins a version in the workflow template it generates, and the
   # README documents an install command with the version in it. Both go stale
   # silently, so they are rewritten here rather than remembered.
-  for f in action.yml README.md README.zh-CN.md action/README.md; do
+  # 名单**必须**和下面的校验用同一份，否则漏掉的文件既不会被重写、
+  # 也不会被发现。docs/ 曾经就不在名单里：从 0.3.0 起，那里的三个 action
+  # 钉子一直指着两个 minor 之前的版本，而每次发布都「校验通过」。
+  PINNED=$(git ls-files '*.md' '*.yml')
+  for f in $PINNED; do
     [ -f "$f" ] || continue
-    # \Q..\E goes around the version only. Wrapping the whole pattern swallows
-    # the `@`, and the action pins silently keep pointing at the old release —
-    # which is exactly the kind of stale claim this tool exists to catch.
-    perl -pi -e "s/repolish\@v\Q$CURRENT\E/repolish\@v$NEW/g; s/^(\s*default: )\Q$CURRENT\E\$/\${1}$NEW/; s/^VERSION=\Q$CURRENT\E\$/VERSION=$NEW/" "$f"
+    # 替换的是**任何**版本，不只是 $CURRENT。只替换 $CURRENT 的话，一个已经
+    # 落后两个版本的钉子永远追不回来——它每一轮都不匹配，于是每一轮都留下。
+    perl -pi -e "s/repolish\@v[0-9]+\.[0-9]+\.[0-9]+/repolish\@v$NEW/g; s/^(\s*default: )\Q$CURRENT\E\$/\${1}$NEW/; s/^VERSION=\Q$CURRENT\E\$/VERSION=$NEW/" "$f"
   done
 
   # Trust nothing: a regex that silently matched nothing would ship a release
   # whose docs still tell people to install the previous one.
-  LEFT=$(grep -rl "repolish@v$CURRENT\|^VERSION=$CURRENT" action.yml README.md README.zh-CN.md action/README.md 2>/dev/null || true)
-  [ -z "$LEFT" ] || die "these files still pin $CURRENT after the rewrite:
+  # 查的同样是**任何**旧钉子，并且报出文件和行号。
+  LEFT=$(grep -n -o "repolish@v[0-9][0-9.]*" $PINNED 2>/dev/null \
+    | grep -v "repolish@v$NEW\$" || true)
+  [ -z "$LEFT" ] || die "these pins do not point at $NEW after the rewrite:
 $LEFT"
 fi
 info "Cargo.toml, Cargo.lock and the pinned versions updated"

@@ -331,6 +331,22 @@ fn sparkle(cx: f32, cy: f32, r: f32) -> String {
 /// 渐变按**列**上色而不是挂一个 `linearGradient`：objectBoundingBox 的渐变是
 /// 相对每个引用它的元素算的，几百个小方块每个都会取满一整条渐变，
 /// 结果就是整段 wordmark 一个颜色。
+/// 这个名字能不能用点阵字标画出来，在给定格子大小和可用宽度下。
+///
+/// 点阵字体只有 `A-Z0-9.-`。非拉丁名字整串都画不出来，硬画就是一片空白，
+/// 而一片空白的抬头比换成朴素字体糟得多；太长的名字则会压到旁边的内容上。
+/// 两种情况都返回 `None`，让调用方退回普通文字。
+///
+/// `_` 先换成 `-`：仓库名里下划线很常见，而它恰好是这套字体没有的字符之一，
+/// 换成连字符比开一个空洞好看。
+pub fn as_blocks(name: &str, cell: i32, max_px: i32) -> Option<String> {
+    let s: String = name.to_uppercase().replace('_', "-");
+    if s.is_empty() || !s.chars().all(glyph::supports) {
+        return None;
+    }
+    (glyph::blocks_width(&s) as i32 * cell <= max_px).then_some(s)
+}
+
 pub fn blocks(s: &str, x: i32, y: i32, cell: i32, p: &Palette) -> String {
     let bm = glyph::bitmap(s);
     let mut out = String::new();

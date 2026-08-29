@@ -84,6 +84,7 @@ impl Plan {
 pub fn plan(ctx: &RepoContext, report: &Report, style: &ReadmeStyle) -> Plan {
     let mut plan = Plan::default();
     if let Some(readme) = ctx.readme.as_ref() {
+        hero(ctx, readme, style, &mut plan);
         logo(ctx, readme, style, &mut plan);
         badge(ctx, report, readme, style, &mut plan);
         overview_card(ctx, readme, style, &mut plan);
@@ -105,6 +106,47 @@ fn card_options(style: &ReadmeStyle) -> repolish_render::Options {
         palette: style.theme.palette(),
         lang: style.lang,
     }
+}
+
+/// README 顶上那张通栏横幅，画的是**这个项目的**名字。
+///
+/// 和概览卡片同一个套路：这里既生成文件、又插入引用。`artifacts` 阶段在
+/// 流水线里排在 `polish` 之后，等它来生成的话，`logo` 这一步会因为文件还
+/// 不存在而跳过——首次运行就永远插不上。
+///
+/// 显式给了 `--logo` 就让位：使用者点名的那张图，优先于我们生成的。
+fn hero(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mut Plan) {
+    if !style.hero || style.logo.is_some() {
+        return;
+    }
+    if shows_image(readme, repolish_render::HERO_PATH) || has_image_above_title(readme) {
+        return;
+    }
+    let Some(anchor) = readme.title_line else {
+        return;
+    };
+
+    let opts = card_options(style);
+    let facts = repolish_render::Facts::from_ctx(ctx, opts.lang);
+    let tagline = facts.description.clone().unwrap_or_default();
+    plan.add_file(
+        ctx.root.join(repolish_render::HERO_PATH),
+        repolish_render::svg::hero(&facts.name, &tagline, opts.lang),
+        "readme style: project banner requested by configuration",
+    );
+
+    plan.inserts.push(Insert::new(
+        anchor - 1,
+        format!(
+            "readme style: project banner requested by configuration ({})",
+            repolish_render::HERO_PATH
+        ),
+        logo_lines(
+            repolish_render::HERO_PATH,
+            Some(LogoWidth::Full),
+            style.align,
+        ),
+    ));
 }
 
 /// README 顶部的图。
@@ -455,6 +497,22 @@ fn escape_attr(s: &str) -> String {
 /// 一节里把两个路径都写了出来。按出现与否判断，那一节会让插入永远不发生。
 ///
 /// 只认两种真正会渲染出图的写法：HTML 的 `src="…"` 与 Markdown 的 `](…)`。
+/// 标题**之上**已经有一张图了吗。
+///
+/// 横幅的位置只有一个，而它已经被占了——再插一张的结果是两条横幅摞在一起。
+/// 判据不能是「有没有引用我们那个路径」：作者自己画的 banner 叫什么名字
+/// 我们无从知道，本仓库顶上那张就叫 `assets/hero.svg`。
+fn has_image_above_title(readme: &Readme) -> bool {
+    let Some(title) = readme.title_line else {
+        return false;
+    };
+    readme
+        .raw
+        .lines()
+        .take(title.saturating_sub(1))
+        .any(|l| l.contains("<img") || l.contains("!["))
+}
+
 fn shows_image(readme: &Readme, path: &str) -> bool {
     readme.raw.contains(&format!("src=\"{path}\""))
         || readme.raw.contains(&format!("src='{path}'"))
