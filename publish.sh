@@ -11,15 +11,16 @@
 #   ./publish.sh --minor "add the overview card"
 #   ./publish.sh --version 1.0.0 "first stable release"
 #   ./publish.sh --clawhub "publish the skill to ClawHub too"
-#   ./publish.sh --local-npm "publish the npm package from here"
+#   ./publish.sh --local-npm "publish the npm package from here, interactively"
 #   ./publish.sh --dry-run "see what would happen"
 #
 # npm goes out from the release workflow, over trusted publishing: GitHub mints
-# a short-lived OIDC token and npm accepts it, so no long-lived credential exists
-# on this machine or in the repository. --local-npm is the escape hatch, and the
-# only way to publish a package npm has never seen — the trusted-publisher
-# setting lives under a package page, which a package that does not exist does
-# not have.
+# a short-lived OIDC token and npm accepts it, so **no npm credential exists
+# anywhere** — not in the repository, not on this machine, not in this script.
+# --local-npm is the escape hatch and publishes interactively, letting npm ask
+# for the second factor. It is the only way to publish a package npm has never
+# seen, because the trusted-publisher setting lives under a package page, which
+# a package that does not exist does not have.
 #
 # There is no interactive confirmation anywhere. Everything that could need a
 # decision is a flag with a documented default.
@@ -72,10 +73,11 @@ Flags:
   --skip-tests                  Skip the local cargo test (CI still gates the PR)
   --local-crates                Publish to crates.io from here instead of letting
                                 the release workflow do it. Needs a local token
-  --local-npm                   Publish the npm package from here with a token
-                                from .env, instead of letting the release
-                                workflow do it over trusted publishing. Needed
-                                for a package npm has never seen
+  --local-npm                   Publish the npm package from this terminal
+                                instead of letting the release workflow do it
+                                over trusted publishing. Interactive: npm asks
+                                for the second factor. Needed only for a package
+                                npm has never seen
   --dry-run                     Print what would happen; change nothing
   -h, --help                    This text
 EOF
@@ -120,29 +122,19 @@ gh auth status > /dev/null 2>&1 || die "gh is not authenticated; run: gh auth lo
 git rev-parse --git-dir > /dev/null 2>&1 || die "not a git repository"
 git remote get-url origin > /dev/null 2>&1 || die "no 'origin' remote configured"
 
-# Only --local-npm needs a token. The default path has none by design: the
-# workflow authenticates with an OIDC token GitHub mints for that one run.
-#
-# Environment first, .env as the fallback: an exported token is an explicit
-# choice for this run, and a file is what is there by default. Only this one
-# variable is read — sourcing the whole file would drop CARGO_API_KEY and
-# GITHUB_TOKEN into the shell that is about to run cargo and gh, which is a
-# surprise nobody asked for.
-NPM_TOKEN="${NPM_TOKEN:-}"
-if [ "$LOCAL_NPM" = "1" ] && [ -z "$NPM_TOKEN" ] && [ -f .env ]; then
-  NPM_TOKEN=$(sed -n 's/^NPM_TOKEN=//p' .env | tr -d '"\r\n' | head -1)
-fi
-
+# No npm credential is read anywhere in this script. The default path uses the
+# OIDC token GitHub mints for one workflow run; --local-npm publishes
+# interactively and lets npm ask for the second factor.
 if [ "$LOCAL_NPM" = "1" ] && [ "$DRY_RUN" = "0" ]; then
-  # Finding out the token is missing after the tag is pushed is the worst
-  # possible moment — the tag is immutable, so the release cannot be redone.
+  # Finding out node is missing after the tag is pushed is the worst possible
+  # moment — the tag is immutable, so the release cannot be redone.
   command -v node > /dev/null || die "node is not installed, and the npm package needs it."
   command -v npm  > /dev/null || die "npm is not installed."
-  [ -n "$NPM_TOKEN" ] || die "--local-npm needs a token, and there is no NPM_TOKEN in .env.
-Note that npm 2FA rejects an ordinary token with EOTP; publish interactively
-instead, which creates no long-lived credential at all:
-    npm login  --registry $NPM_REGISTRY
-    cd $NPM_DIR && npm publish --registry $NPM_REGISTRY"
+  # npm prompts for the second factor on the terminal, at the very end of a long
+  # run. Better to find out now that there is no terminal to prompt on.
+  [ -t 0 ] || die "--local-npm publishes interactively and npm asks for the second factor
+on the terminal, but stdin is not one. Run this from a terminal, or drop
+--local-npm and let the release workflow publish over trusted publishing."
 fi
 
 if [ "$LOCAL_CRATES" = "1" ] && [ "$DRY_RUN" = "0" ]; then
@@ -492,58 +484,40 @@ else
   elif npm view "$NPM_PKG@$NEW" version --registry "$NPM_REGISTRY" > /dev/null 2>&1; then
     info "$NPM_PKG@$NEW is already on npm — skipping"
   else
-    # The token goes in a file scoped to this directory, not in ~/.npmrc and
-    # not on the command line: ~/.npmrc outlives this script, and a command
-    # line is visible to every other process on the machine.
-    NPMRC="$NPM_DIR/.npmrc"
-    cleanup_npmrc() { rm -f "$NPMRC"; }
-    trap cleanup_npmrc EXIT
-    # The registry is pinned here, not left to whatever this machine is
-    # configured for. A mirror (registry.npmmirror.com and friends) is a read
-    # cache: publishing at it either fails for want of auth — which is how this
-    # was found — or, worse, succeeds somewhere nobody installs from.
-    {
-      printf 'registry=%s\n' "$NPM_REGISTRY"
-      printf '@asale:registry=%s\n' "$NPM_REGISTRY"
-      printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN"
-    } > "$NPMRC"
-    chmod 600 "$NPMRC"
+    # **Interactive, with no token anywhere.** npm will ask for the second
+    # factor on this terminal, so this needs one — and it is the last step of a
+    # long run, which means somebody has to still be sitting here.
+    #
+    # There used to be a token path, reading NPM_TOKEN out of .env into a
+    # scoped .npmrc. It is gone because it cannot succeed: the package requires
+    # 2FA and disallows bypass-2fa tokens, so every token publish comes back
+    # EOTP. Forty lines that can only ever fail are worse than no lines.
+    [ -t 0 ] || die "--local-npm publishes interactively, and npm asks for the second
+factor on the terminal — but stdin is not one. Run this from a terminal, or let
+the release workflow publish over trusted publishing (drop --local-npm)."
 
     # The shim parses tar and zip itself rather than take a dependency, and the
     # exit code it forwards is what --min-score gates ride on. Both are covered
     # by these tests, and this is the last moment they are free to run.
-    node "$NPM_DIR/test.js" || { cleanup_npmrc; die "npm shim tests failed; nothing was published"; }
+    node "$NPM_DIR/test.js" || die "npm shim tests failed; nothing was published"
 
-    # No --provenance here: it needs a CI OIDC token, which a laptop does not
-    # have. The workflow passes it when the workflow is the one publishing.
-    NPM_LOG="${TMPDIR:-/tmp}/repolish-npm-publish.log"
-    if ! (cd "$NPM_DIR" && npm publish) 2>&1 | tee "$NPM_LOG"; then
-      cleanup_npmrc
-      # Publishing is the one step here nobody does often enough to remember its
-      # failure modes, so the two that actually happen get named.
-      if grep -q 'EOTP' "$NPM_LOG" 2>/dev/null; then
-        rm -f "$NPM_LOG"
-        die "npm wants a one-time password, and nothing here can supply one.
-Publish interactively instead — it creates no long-lived credential, which is
-the whole point of moving to trusted publishing:
-    npm login  --registry $NPM_REGISTRY
-    cd $NPM_DIR && npm publish --registry $NPM_REGISTRY
-Then configure trusted publishing at
-    https://www.npmjs.com/package/$NPM_PKG/access
-and every release after this one needs no token at all.
-Nothing was published; the tag and the binaries are already out."
-      fi
-      rm -f "$NPM_LOG"
-      die "npm publish failed for $NPM_PKG@$NEW.
-The tag and the binaries are already out. Re-run just this part with:
+    # --registry is pinned rather than inherited. A mirror
+    # (registry.npmmirror.com and friends) is a read cache: publishing at it
+    # either fails for want of auth — which is how this was found — or, worse,
+    # succeeds somewhere nobody installs from.
+    #
+    # No --provenance: it needs a CI OIDC token, which a laptop does not have.
+    # The workflow passes it when the workflow is the one publishing.
+    (cd "$NPM_DIR" && npm publish --registry "$NPM_REGISTRY") \
+      || die "npm publish failed for $NPM_PKG@$NEW.
+If it asked you to log in:
+    npm login --registry $NPM_REGISTRY
+The tag and the binaries are already out, so re-running just this part is safe:
     cd $NPM_DIR && npm publish --registry $NPM_REGISTRY"
-    fi
-    rm -f "$NPM_LOG"
 
-    cleanup_npmrc
-    trap - EXIT
     info "${GREEN}https://www.npmjs.com/package/$NPM_PKG/v/$NEW${RESET}"
-    info "Now configure trusted publishing so this never needs a token again:"
+    info "If this was the package's first release, configure trusted publishing"
+    info "now and --local-npm is never needed again:"
     info "  https://www.npmjs.com/package/$NPM_PKG/access"
   fi
 fi

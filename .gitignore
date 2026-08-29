@@ -9,8 +9,9 @@ Cargo.lock.bak
 # ClawHub 令牌等本地凭据。publish-clawhub.sh 从这里读，绝不入库。
 .env
 
-# publish.sh 把 npm token 写进这里再删掉。脚本中途被 Ctrl-C 掉时 trap 兜不住,
-# 所以再上一道保险——一个凭据文件被提交上去,撤销的代价比多写两行大得多。
+# 现在没有任何东西会写这个文件——publish.sh 改成交互式发布之后，token 那套
+# 全删了。留着这条是因为它挡的是**将来**：一个凭据文件被提交上去，撤销的代价
+# 比这两行大得多。
 npm/.npmrc
 
 # `node npm/install.js` 在仓库里跑过的话会留下一个几兆的二进制。
