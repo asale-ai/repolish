@@ -407,6 +407,43 @@ fn svg_tables(ctx: &RepoContext, readme: &Readme, style: &ReadmeStyle, plan: &mu
     }
 }
 
+/// 录屏在一份 README 里该插在哪、插什么。
+///
+/// 位置:概览卡之后 → 徽章之后 → 标题之后,取第一个找得到的。录屏说的是
+/// 「这东西跑起来什么样」,那是读者在看完「这是什么」之后紧接着要问的问题;
+/// 排到文末就等于给一个已经决定要不要用的人看。
+///
+/// alt **不能为空**,和 logo 正相反:logo 是装饰,而录屏是内容——读屏软件跳过
+/// 它,那个用户就少了一整段信息。它在标题下方,所以不会被当成标题候选。
+pub fn recording_inserts(readme: &Readme, rel: &str, lang: repolish_render::Lang) -> Vec<Insert> {
+    if shows_image(readme, rel) {
+        return Vec::new();
+    }
+    let after_overview = readme
+        .raw
+        .lines()
+        .position(|l| l.contains(repolish_render::OVERVIEW_PATH))
+        .map(|i| i + 1);
+    let anchor = after_overview
+        .or_else(|| readme.badge_rows.last().map(|r| r.end))
+        .or(readme.title_end_line)
+        .or(readme.title_line);
+    let Some(anchor) = anchor else {
+        return Vec::new();
+    };
+
+    let alt = match lang {
+        repolish_render::Lang::ZhCn => "终端录屏",
+        repolish_render::Lang::Ja => "ターミナル録画",
+        repolish_render::Lang::En => "terminal recording",
+    };
+    vec![Insert::new(
+        anchor,
+        "readme style: terminal recording requested by configuration",
+        vec![String::new(), crate::demo::snippet(rel, alt), String::new()],
+    )]
+}
+
 /// 对一份 README 算出「包表格」要插的那些行，同时把 SVG 排进 `plan` 的新文件里。
 ///
 /// **这一刀是包，不是改。** 原表格的每一个字节都留在原处，只在它前后各插一段。

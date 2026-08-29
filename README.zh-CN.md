@@ -24,14 +24,14 @@ repolish 按陌生人的读法过一遍仓库，对 22 个具体信号打分，�
 
 ## 目录
 
-- [安装](#安装)
+- [从这里开始：装技能](#从这里开始装技能) —— Claude Code、Codex、Cursor 等 70+ 智能体
+- [装命令行工具](#装命令行工具)
 - [一条命令](#一条命令)
-- [它做了什么](#它做了什么) —— 四个阶段
+- [它做了什么](#它做了什么) —— 五个阶段
 - [怎么控制它](#怎么控制它)
 - [配置](#配置)
 - [在 CI 里](#在-ci-里)
 - [卡片与录屏](#卡片与录屏)
-- [给编码智能体用](#给编码智能体用)
 - [检查什么](#检查什么)
 - [分数怎么来的](#分数怎么来的)
 - [退出码](#退出码)
@@ -39,7 +39,56 @@ repolish 按陌生人的读法过一遍仓库，对 22 个具体信号打分，�
 - [贡献](#贡献)
 - [许可证](#许可证)
 
-## 安装
+## 从这里开始：装技能
+
+叫智能体「改进一下这个 README」，它第一步就是把整个文件重写一遍，把你的语气和你的例子
+换成一份读起来跟别人一模一样的 README。那恰好是这个工具要防的事——所以第一个该装的
+不是二进制，而是那份**技能**：它教你的智能体先量，再动手。
+
+```bash
+npx skills add asale-ai/repolish
+```
+
+一条命令，覆盖 **Claude Code、Codex、Cursor、OpenCode、Gemini CLI 等 70+ 智能体**：
+它会探测这台机器上装了哪些，然后问你装到哪儿。加 `-g` 装到全局，`-a claude-code`
+只装一家，`-y` 跳过所有确认。
+
+然后用你自己的话提要求：
+
+> 用 repolish 看一下这个仓库：打分，把它会改的东西全列给我，机械的部分直接落实。
+> 标语和快速上手留给我自己写。
+
+智能体自己去调命令行——走 `npx`，不用另外装什么——读完结论，把计划给你看，你点头之后
+才落盘。还可以这么问：
+
+> repolish 的结论里，哪三条最值得先修？
+
+> 只修 `claim-consistency`：README 里承诺过、但已经不存在的那些命令。
+
+> 用 repolish 给这个 CLI 录一段终端演示，放进 README。
+
+> 相对 `origin/main`，我这个 PR 让分数变成了什么样？
+
+[skills/repolish/SKILL.md](skills/repolish/SKILL.md) 就是被装进去的那个文件。除了命令
+表面，它还带着顺序——**先量，机械的先落实，需要判断的交回给人，再量一次**。
+
+<details>
+<summary>不用 <code>skills</code> CLI 的装法</summary>
+
+repolish 自己就能装，`install.sh` 装命令行工具时也会顺手装上：
+
+```bash
+npx @asale/repolish --list                                   # 这台机器上装了哪些智能体
+npx @asale/repolish --stages skill --target detect --apply   # 装进那些真的装了的
+npx @asale/repolish --stages skill --apply                   # 或者把 SKILL.md 写进某个仓库
+```
+
+可选目标：`claude`、`codex`、`gemini`、`opencode`，以及读 `AGENTS.md` 的 `agents`。
+`--target all` 全都装一遍。
+
+</details>
+
+## 装命令行工具
 
 ```bash
 npx @asale/repolish
@@ -58,7 +107,7 @@ npx @asale/repolish
 npm install -g @asale/repolish
 ```
 
-**一行装完**，顺带把[智能体技能](#给编码智能体用)装进这台机器上找得到的那些智能体：
+**一行装完**，顺带把[智能体技能](#从这里开始装技能)装进这台机器上找得到的那些智能体：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/asale-ai/repolish/main/install.sh | sh
@@ -143,13 +192,13 @@ npx @asale/repolish
 npx @asale/repolish --apply
 ```
 
-整个流程就这样。`--apply` **只增量插入**：产出的 diff 全是新增行，你的制表符、列表标记、
-引用式链接定义和行尾逐字节保留。不在 git 仓库里时它会拒绝执行，除非加 `--force`——
+整个流程就这样。`--apply` **直接原地改 `README.md`，而且只增量插入**：产出的 diff 全是
+新增行，你的制表符、列表标记、引用式链接定义和行尾逐字节保留。不在 git 仓库里时它会拒绝执行，除非加 `--force`——
 没有 `git checkout` 就没有撤销键。
 
 ## 它做了什么
 
-四个阶段，按顺序跑。顺序是有意义的：`polish` 可能刚往 README 里插入了一张卡片的引用，
+五个阶段，按顺序跑。顺序是有意义的：`polish` 可能刚往 README 里插入了一张卡片的引用，
 `artifacts` 紧接着才画得出那张图。
 
 | 阶段 | 做什么 |
@@ -158,17 +207,28 @@ npx @asale/repolish --apply
 | `polish` | 能机械落实的那些改动：徽章、用你自己的标题生成的目录、GitHub 的 issue 与 PR 模板，以及一份构建和测试命令来自探测到的包清单的 `CONTRIBUTING.md` |
 | `artifacts` | 写 `.repolish/badge.json`，画出横幅与两张卡片，并重画 README 已经引用的每一张 SVG |
 | `ci` | 写 `.github/workflows/repolish.yml` |
+| `demo` | 把 CLI 录成动画 SVG，并把引用插进 README 和每一份译本。会先列出命令清单，**只有 `--apply` 才真的执行** |
 
 **推不出来就不写。** 没有包清单就没有 `CONTRIBUTING.md`——另一条路是写一份
 `<your build command here>`，那种文件让检查变绿，问题却原地不动。已经存在的文件一律
 不动，`--force` 才重新生成。
 
-还有两个阶段，**刻意不在默认流程里**：
+还有一个阶段**不在默认流程里**：`skill`，它写出 `SKILL.md`，或者
+[把技能装进你的智能体](#从这里开始装技能)。跳过它的那次运行会在末尾提醒你。
 
-| 阶段 | 为什么要显式点名 |
-|---|---|
-| `skill` | 写 `SKILL.md`，只有用编码智能体的人才需要 |
-| `demo` | 会**真的执行**它录下的命令，那不是一个默认动作该做的事。跳过它的那次运行会在末尾提醒你 |
+**有 token 时默认就调 GitHub API**，所以描述、topics、homepage 都会被检查，star 曲线也
+会画出来。没有 token 时它退回本地并明说，而不是报错——匿名配额一小时只有 60 次，一次
+限流不该把整趟运行一起带走。`--remote` 强制调用，`--no-remote` 完全不调。
+
+任何因为缺输入而没做成的事，都会在末尾连同补齐它的命令一起列出来：
+
+```text
+  NEEDS INPUT — these were skipped for want of something
+    · repository description, topics and homepage were not checked
+      set GITHUB_TOKEN or GH_TOKEN (`export GITHUB_TOKEN=$(gh auth token)`), …
+    · no terminal recording — no command-line binary was detected here
+      if this project has a CLI, name the commands: … --stages demo --cmd "…" --apply
+```
 
 ## 怎么控制它
 
@@ -193,8 +253,9 @@ npx @asale/repolish --skip repo-topics         # 除了这项其余都跑
 每一种格式下，**stdout 只有那份报告**，所有过程性输出走 stderr——所以
 `npx @asale/repolish --format json | jq` 在完整流水线下也是通的。
 
-有三项发现是刻意留给你的：一句话简介、快速开始、用法示例。任何机械规则都满足不了它们。
-模型可以起草这三段，也只有这三段：
+有三项发现是刻意留给你的：一句话简介、快速开始、用法示例。任何机械规则都满足不了它们——
+如果你已经[装了技能](#从这里开始装技能)，你的智能体就是该问的那一个。只用命令行时，
+模型也可以起草这三段，也只有这三段：
 
 ```bash
 npx @asale/repolish --suggest  # 需要 REPOLISH_LLM_API_KEY，或 ANTHROPIC_API_KEY
@@ -239,7 +300,7 @@ npx @asale/repolish --stages ci --min-score 70 --apply
 想手工接的话，action 直接收阈值：
 
 ```yaml
-- uses: asale-ai/repolish@v0.4.1
+- uses: asale-ai/repolish@v0.4.2
   with:
     min-score: 70
   env:
@@ -281,21 +342,6 @@ repolish 画出来的一切都是**自包含、确定性的 SVG**，而且是**�
 而不是渲染成一片空白。其余的——`--theme`、
 `--lang`、`--stars` 为什么只对你有管理权的仓库有用、`demo` 为什么真的会执行它录下的
 命令——都在 [docs/02-cli-design.zh-CN.md](docs/02-cli-design.zh-CN.md)。
-
-## 给编码智能体用
-
-叫智能体「改进一下这个 README」，它第一步就是把整个文件重写一遍，把作者的语气和例子换成
-一份读起来跟别人一模一样的 README。那恰好是这个工具要防的事。
-
-```bash
-npx @asale/repolish --stages skill --list                   # 这台机器上装了哪些智能体
-npx @asale/repolish --stages skill --target detect --apply  # 装进那些真的装了的
-npx @asale/repolish --stages skill --apply                  # 或者把 SKILL.md 写进某个仓库
-```
-
-[skills/repolish/SKILL.md](skills/repolish/SKILL.md) 就是交给 Claude Code、Codex、
-Gemini、OpenCode 或任何读 `AGENTS.md` 的工具的那个文件。除了命令表面，它还带着顺序——
-**先量，机械的先落实，需要判断的交回给人，再量一次**。
 
 ## 检查什么
 
@@ -370,4 +416,4 @@ Gemini、OpenCode 或任何读 `AGENTS.md` 的工具的那个文件。除了命�
 
 这张卡片由 [repolish](https://github.com/asale-ai/repolish) 生成，是本仓库里的一个普通
 文件——没有外部字体、没有脚本，我们不托管任何东西。给你自己的仓库打分：
-`npx @asale/repolish`。
+`npx skills add asale-ai/repolish`，然后问你的智能体。

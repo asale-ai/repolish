@@ -55,7 +55,7 @@ npx @asale/repolish --stages check --comment comment.md    # 短版本，用来�
 紧挨着代码，而不是留在一段没人展开的 CI 日志里。action 把三者一起接好了：
 
 ```yaml
-- uses: asale-ai/repolish@v0.4.1
+- uses: asale-ai/repolish@v0.4.2
   with:
     min-score: 70
     base: ${{ github.event.pull_request.base.sha }}

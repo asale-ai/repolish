@@ -52,6 +52,27 @@ impl Lang {
     /// 汉字那条线是三分之一而不是过半：一个汉字承载的信息量远大于一个拉丁
     /// 字母，等量对比会永远判成英文；而「有没有汉字」又太松，一份英文 README
     /// 里放一个「中文」链接就会被判成中文。
+    /// 从译本的**文件名**认语言，例如 `README.zh-CN.md`。
+    ///
+    /// 比看内容可靠得多:一份短译本可能通篇是代码块和 ASCII 标题，只夹着
+    /// 一两句本地语言，[`detect`](Lang::detect) 会把它判成英文。而文件名是
+    /// 作者明写的声明。认不出来的语言返回 `None`——我们只有这三种的文案，
+    /// 硬塞一种进去就是在一份法语 README 里写中文。
+    pub fn from_filename(path: &str) -> Option<Lang> {
+        let f = path.rsplit(['/', '\\']).next()?.to_lowercase();
+        let stem = f.strip_suffix(".md")?;
+        let code = stem.rsplit(['.', '-', '_']).next()?;
+        // `README.zh-CN.md` 的最后一段是 `cn`，所以整段也要看一眼
+        let full = stem.strip_prefix("readme")?.trim_matches(['.', '-', '_']);
+        match (full, code) {
+            ("zh-cn" | "zh" | "zh-hans" | "cn", _) => Some(Lang::ZhCn),
+            (_, "cn" | "zh") => Some(Lang::ZhCn),
+            ("ja" | "jp", _) | (_, "ja" | "jp") => Some(Lang::Ja),
+            ("en", _) => Some(Lang::En),
+            _ => None,
+        }
+    }
+
     pub fn detect(readme: &str) -> Lang {
         let mut cjk = 0usize;
         let mut kana = 0usize;
@@ -386,6 +407,18 @@ pub fn band_word(score: u8, s: &'static Strings) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 一份短译本可能通篇是代码块和 ASCII 标题，只夹着一两句本地语言——
+    /// 内容检测会把它判成英文。文件名是作者明写的声明，所以它排在前面。
+    #[test]
+    fn the_filename_names_the_language_when_the_content_is_too_thin() {
+        assert_eq!(Lang::from_filename("README.zh-CN.md"), Some(Lang::ZhCn));
+        assert_eq!(Lang::from_filename("docs/README.ja.md"), Some(Lang::Ja));
+        assert_eq!(Lang::from_filename("README.md"), None);
+        // 只有这三种语言有文案。给一份法语 README 塞中文，比留着英文更糟。
+        assert_eq!(Lang::from_filename("README.fr.md"), None);
+        assert_eq!(Lang::from_filename("README.es.md"), None);
+    }
 
     #[test]
     fn language_tags_round_trip() {

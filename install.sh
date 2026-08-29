@@ -190,14 +190,14 @@ That usually means an architecture mismatch — detected $TARGET."
     step "Installing the agent skill"
     # The binary owns the target list, so this script never has to know where
     # any agent keeps its skills. One place to update when a new one appears.
-    "$BIN_DIR/$BIN_NAME" skill --target "$SKILL_TARGET" --force \
-      || warn "skill installation failed; run '$BIN_NAME skill --list' to see the options"
+    "$BIN_DIR/$BIN_NAME" . --stages skill --target "$SKILL_TARGET" --force --apply \
+      || warn "skill installation failed; run '$BIN_NAME --list' to see the options"
   fi
 
   info ""
   case ":$PATH:" in
     *":$BIN_DIR:"*)
-      info "${GREEN}Done.${RESET} Try: ${BOLD}$BIN_NAME check .${RESET}"
+      info "${GREEN}Done.${RESET} Try: ${BOLD}$BIN_NAME .${RESET}"
       ;;
     *)
       shell_name=$(basename "${SHELL:-sh}")
