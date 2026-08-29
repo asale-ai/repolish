@@ -6,6 +6,16 @@
 //! 这样测到的是真东西：真的分类器、真的脚本生成、真的哨兵解析、真的退出码。
 //! 没测到的只有 `docker run` 那一行参数本身——而 CI 上装一个 docker 守护进程
 //! 只为了确认「命令失败会被报成失败」，代价和收益不成比例。
+//!
+//! **整个文件只在 Unix 上跑。** 那个假引擎是一段 `#!/bin/sh`，Windows 直接
+//! 执行它会得到 `%1 is not a valid Win32 application`；它还用了 `sed` 和
+//! `chmod +x`。这是**测试脚手架**的限制，不是产品的：`verify --run` 在
+//! Windows 上照常工作，因为它调的是 docker，而容器里跑的是 Linux。
+//!
+//! Windows 上因此没有覆盖到的，只有「假引擎那条链路」。真正容易写错的几处
+//! ——命令分类、续行合并、脚本生成、哨兵解析——是纯字符串逻辑，单元测试在
+//! `verify.rs` 里，三个平台都跑。
+#![cfg(unix)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -33,11 +43,9 @@ printf '%s' "$last" \
         repo = repo.display(),
     );
     std::fs::write(&path, script).unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
+    // 文件顶上已经是 `#![cfg(unix)]`，这里不必再守一次
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
     path
 }
 
