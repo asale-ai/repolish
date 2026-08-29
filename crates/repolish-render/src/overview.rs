@@ -33,6 +33,18 @@ const INNER: i32 = W - PAD * 2;
 /// 一张列了 14 门语言的卡片没有人会读完。
 const MAX_LANGS: usize = 5;
 
+/// star 曲线在 SVG 里的标记。见 [`has_star_history`]。
+pub const STAR_MARK: &str = "  <!--star-history-->";
+
+/// 这张已经画好的概览卡里有没有 star 曲线。
+///
+/// 曲线要 `--remote --stars` 才有,而那是显式开关。不带这两个参数重新生成
+/// 一次,曲线就被静默洗掉——提交进仓库的卡片会因此悄悄退化,而 diff 里
+/// 只是一大片 SVG 变化,没人看得出少了什么。
+pub fn has_star_history(svg: &str) -> bool {
+    svg.contains(STAR_MARK)
+}
+
 /// 画卡片要用到的全部事实，一次性从 [`RepoContext`] 里取齐。
 ///
 /// 单独立一个结构体，是为了让渲染函数**不碰文件系统也不碰 git**：
@@ -625,6 +637,10 @@ fn star_history(out: &mut String, facts: &Facts, p: &Palette, s: &'static String
     if pts.len() < 2 {
         return y;
     }
+    // 语言无关的标记，给「你正要洗掉这条曲线」那道检查用。曲线的标签是
+    // 翻译过的，靠文字去认，换个 --lang 就认不出来了。
+    out.push_str(STAR_MARK);
+    out.push('\n');
     let total = pts.last().map(|p| p.count).unwrap_or(0);
     let first = pts.first().expect("上面判过长度");
 
@@ -867,6 +883,19 @@ mod tests {
         assert!(svg.starts_with("<svg xmlns="));
         assert!(svg.trim_end().ends_with("</svg>"));
         crate::draw::assert_self_contained(&svg);
+    }
+
+    /// 有曲线的卡片必须带得出标记，否则「你正要洗掉这条曲线」那道检查
+    /// 就永远不会触发——而它防的正是一次静默的退化。
+    #[test]
+    fn a_card_with_a_star_curve_is_detectable_and_one_without_is_not() {
+        let mut f = facts();
+        f.star_history = vec![
+            repolish_ingest::StarPoint { at: 1, count: 1 },
+            repolish_ingest::StarPoint { at: 2, count: 9 },
+        ];
+        assert!(has_star_history(&overview(&f, &Options::default())));
+        assert!(!has_star_history(&overview(&facts(), &Options::default())));
     }
 
     /// 每次 CI 都提交一张只有噪声在变的卡片是不能接受的

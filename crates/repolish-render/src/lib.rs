@@ -23,7 +23,7 @@ pub use cast::{cast, Line, Screen, Span, Step, Timing};
 pub use draw::Options;
 pub use i18n::Lang;
 pub use markdown::{comment, markdown, COMMENT_MARKER};
-pub use overview::{overview, Facts, OVERVIEW_PATH};
+pub use overview::{has_star_history, overview, Facts, OVERVIEW_PATH};
 /// README 顶上那张通栏横幅，由 `artifacts` 阶段画进使用者自己的仓库
 pub const HERO_PATH: &str = ".repolish/hero.svg";
 pub use svg::{card, CARD_PATH};

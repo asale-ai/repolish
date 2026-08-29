@@ -926,6 +926,22 @@ fn stage_artifacts(cli: &Cli, a: &Analysis, ledger: &mut Ledger) -> u8 {
     if want(Artifact::Overview) {
         let facts = repolish_render::Facts::from_ctx(ctx, opts.lang);
         let svg = repolish_render::overview(&facts, &opts);
+        // 正要用一张没有曲线的卡覆盖一张有曲线的。这不是错误——本地不带
+        // token 重画是很正常的事——但静默覆盖就意味着提交进仓库的卡片会
+        // 悄悄退化,而 diff 里只是一大片 SVG 变化,没人看得出少了什么。
+        if !repolish_render::has_star_history(&svg) {
+            let path = ctx.root.join(repolish_render::OVERVIEW_PATH);
+            if std::fs::read_to_string(&path)
+                .map(|old| repolish_render::has_star_history(&old))
+                .unwrap_or(false)
+            {
+                eprintln!(
+                    "warning: {} has a star history curve and this run has none — \
+                     it needs --remote --stars. Re-run with both to keep it.",
+                    repolish_render::OVERVIEW_PATH
+                );
+            }
+        }
         if cli.stdout {
             print!("{svg}");
             return exit::OK;
