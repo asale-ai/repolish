@@ -72,9 +72,8 @@ inputs:
   base:
     description: >
       Also score this git ref and report the difference — "origin/main", or
-      ${{ github.event.pull_request.base.sha }} on a pull request. Needs
-      actions/checkout with fetch-depth: 0, because the baseline commit has to
-      exist locally.
+      the pull request's base SHA on a pull request. Needs actions/checkout
+      with fetch-depth: 0, because the baseline commit has to exist locally.
     required: false
     default: ""
   sarif:
