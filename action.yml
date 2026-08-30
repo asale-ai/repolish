@@ -1,7 +1,7 @@
 # 必须放在仓库根目录：`uses: owner/repo@ref` 只认根目录的 action.yml。
 # 放进 action/ 子目录的话，引用要写成 owner/repo/action@ref，
 # 与 docs/02-cli-design.zh-CN.md 里给用户的模板对不上。用法示例在 action/README.md。
-name: repolish
+name: Repolish Repo Score
 description: Score an open-source repository on discoverability, comprehensibility, and credibility, and emit a badge
 author: repolish contributors
 
